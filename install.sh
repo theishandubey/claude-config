@@ -78,6 +78,10 @@ link "$REPO_DIR/claude/settings.json" "$HOME/.claude/settings.json"
 link "$REPO_DIR/claude/CLAUDE.md"     "$HOME/.claude/CLAUDE.md"
 link "$REPO_DIR/claude/commands"      "$HOME/.claude/commands"
 link "$REPO_DIR/agents"               "$HOME/.claude/agents"
+# Agent frontmatter references hooks by absolute path ($HOME/.claude/hooks/...),
+# so they must resolve on every machine, not just inside this repo.
+link "$REPO_DIR/hooks"                "$HOME/.claude/hooks"
+chmod +x "$REPO_DIR"/hooks/*.sh 2>/dev/null || true
 
 # ---------------------------------------------------------------------------
 # 4. Install all skills in this repo globally, to all detected agents

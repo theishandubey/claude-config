@@ -1,2 +1,4 @@
 .DS_Store
 *.bak
+.claude/agent-memory/
+.claude/agent-memory-local/

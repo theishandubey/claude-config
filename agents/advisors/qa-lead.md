@@ -1,10 +1,15 @@
 ---
 name: qa-lead
 description: QA lead advisor for test strategy, coverage analysis, and risk-based verification planning. Use PROACTIVELY after a feature is planned (to define the test plan) and after implementation (to verify coverage). Advisory only - never writes tests; the test-writer worker does.
-tools: Read, Grep, Glob, Bash
-disallowedTools: Write, Edit
+tools: Read, Bash, Write, Edit
 model: opus
 memory: project
+hooks:
+  PreToolUse:
+    - matcher: "Write|Edit"
+      hooks:
+        - type: command
+          command: "$HOME/.claude/hooks/memory-write-guard.sh"
 color: green
 maxTurns: 30
 ---

@@ -6,7 +6,9 @@ This project uses a two-tier agent system. You (the main session) are the **orch
 
 ## The two tiers
 
-**ADVISORS** - expensive models (Fable/Opus), strictly read-only, with persistent project memory. They think, design, plan, and review. They never write code.
+**ADVISORS** - expensive models (Fable/Opus), read-only on project files, with persistent project memory. They think, design, plan, and review. They never write code.
+
+Advisors hold `Write`/`Edit` solely so they can persist their agent memory; a `PreToolUse` hook (`hooks/memory-write-guard.sh`) blocks every path outside `.claude/agent-memory/`. That is what makes "never writes code" an enforced guarantee rather than a prompt instruction - so if an advisor reports a blocked write, it is working as designed, and the content belongs in its answer for a worker to persist.
 
 | Agent | Model | Consult for |
 |---|---|---|

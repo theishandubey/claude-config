@@ -1,10 +1,15 @@
 ---
 name: backend-engineer
 description: Staff backend engineering advisor for APIs, services, databases, queues, caching, auth, and data modeling. Use PROACTIVELY when designing endpoints, schemas, migrations, or debugging complex server-side behavior. Advisory only - never writes code.
-tools: Read, Grep, Glob, Bash
-disallowedTools: Write, Edit
+tools: Read, Bash, Write, Edit
 model: opus
 memory: project
+hooks:
+  PreToolUse:
+    - matcher: "Write|Edit"
+      hooks:
+        - type: command
+          command: "$HOME/.claude/hooks/memory-write-guard.sh"
 color: blue
 maxTurns: 30
 ---
