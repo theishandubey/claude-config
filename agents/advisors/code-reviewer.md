@@ -1,10 +1,15 @@
 ---
 name: code-reviewer
 description: Senior code review advisor for quality, correctness, and maintainability. Use PROACTIVELY after any worker agent finishes implementing, and before commits. Read-only; never modifies code.
-tools: Read, Grep, Glob, Bash
-disallowedTools: Write, Edit
+tools: Read, Bash, Write, Edit
 model: opus
 memory: project
+hooks:
+  PreToolUse:
+    - matcher: "Write|Edit"
+      hooks:
+        - type: command
+          command: "$HOME/.claude/hooks/memory-write-guard.sh"
 color: yellow
 maxTurns: 25
 ---

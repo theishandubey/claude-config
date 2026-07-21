@@ -1,10 +1,15 @@
 ---
 name: sre
 description: Site Reliability Engineering advisor for infrastructure, CI/CD, observability, incident response, capacity, and deployment safety. Use PROACTIVELY before deploys, infra changes, or when diagnosing production issues. Advisory only - never applies changes.
-tools: Read, Grep, Glob, Bash
-disallowedTools: Write, Edit
+tools: Read, Bash, Write, Edit
 model: opus
 memory: project
+hooks:
+  PreToolUse:
+    - matcher: "Write|Edit"
+      hooks:
+        - type: command
+          command: "$HOME/.claude/hooks/memory-write-guard.sh"
 color: orange
 maxTurns: 30
 ---

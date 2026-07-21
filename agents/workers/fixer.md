@@ -1,7 +1,7 @@
 ---
 name: fixer
 description: Debugging and remediation worker. Fixes failing tests, build breaks, lint errors, bugs with reproductions, and findings from the code-reviewer or security-reviewer advisors. Use proactively whenever something is broken and the fix scope is bounded.
-tools: Read, Grep, Glob, Bash, Write, Edit
+tools: Read, Bash, Write, Edit
 model: sonnet
 color: red
 ---

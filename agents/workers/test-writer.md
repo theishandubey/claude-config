@@ -1,7 +1,7 @@
 ---
 name: test-writer
 description: Test implementation worker. Writes and fixes unit/integration/e2e tests from a test plan (typically produced by the qa-lead advisor) or for a specified module. Use whenever tests need to be written, expanded, or repaired.
-tools: Read, Grep, Glob, Bash, Write, Edit
+tools: Read, Bash, Write, Edit
 model: sonnet
 skills:
   - tdd

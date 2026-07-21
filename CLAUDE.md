@@ -1,7 +1,7 @@
 # Working on agent-config
 
 This repo syncs my Claude Code setup across machines.
-Configs are symlinked into `~/.claude` by `install.sh`, so files here are LIVE - editing them changes the active config on this machine immediately.
+Configs are symlinked into `~/.claude` by `install.sh`, so files here are LIVE - editing them changes the active config on this machine (see the reload rules below for what needs a restart).
 
 ## Source-of-truth map
 
@@ -17,7 +17,10 @@ Do not confuse the two CLAUDE.md files: this one (repo root) is project instruct
 
 ## Rules
 
-- Claude Code sees markdown changes live through symlinks; re-run `./install.sh` only for structural changes (new skills, new symlink targets).
+- `CLAUDE.md` and `AGENTS.md` changes are picked up live through the symlinks.
+  `agents/**/*.md` are NOT: agent definitions are snapshotted when a session starts, so edits to frontmatter or an agent's prompt only take effect in the next session.
+  Restart Claude Code before testing an agent change, or you will verify the old definition and conclude the edit failed.
+- Re-run `./install.sh` for structural changes (new skills, new hooks, new symlink targets).
 - `agents/**/*.md` frontmatter (`name`, `description`, `tools`, `model`) drives Claude Code agent behavior directly.
   Keep frontmatter accurate when adding agents.
 - `.claude/skills` is a committed relative symlink to `../.agents/skills`; never replace it with a real directory.
@@ -30,5 +33,7 @@ Do not confuse the two CLAUDE.md files: this one (repo root) is project instruct
 
 - New skill of my own: `npx skills init skills/<name>`, then `./install.sh`.
 - Vendor a third-party skill: `npx skills add <owner/repo> --skill <name> --copy -a claude-code -y`, then commit `.agents/` and `skills-lock.json`.
-- New subagent: add `agents/<tier>/<name>.md` with frontmatter (`name`, `description`, `tools`, `model`); Claude Code picks it up live via the `~/.claude/agents` symlink.
+- New subagent: add `agents/<tier>/<name>.md` with frontmatter (`name`, `description`, `tools`, `model`), then restart Claude Code to pick it up.
+  Valid `tools:` names in this build are `Read`, `Bash`, `Write`, `Edit`, `Skill`, `WebSearch`, `WebFetch`.
+  There is no `Grep` or `Glob` tool - unresolvable names are silently dropped from the list, so an agent given only phantom names ends up with fewer tools than intended. Search via `grep`/`find` in Bash.
 - Sync another machine: `git pull && ./install.sh`.

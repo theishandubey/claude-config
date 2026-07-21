@@ -5,8 +5,8 @@
   "permissions": {
     "allow": [
       "Read(*)",
-      "Grep(*)",
-      "Glob(*)",
+      "Write(.claude/agent-memory/**)",
+      "Edit(.claude/agent-memory/**)",
       "Bash(ls:*)",
       "Bash(cat:*)",
       "Bash(grep:*)",

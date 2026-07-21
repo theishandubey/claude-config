@@ -1,10 +1,15 @@
 ---
 name: security-reviewer
 description: Application security advisor. Use PROACTIVELY on any change touching auth, sessions, user input, file handling, secrets, dependencies, SQL, or network boundaries - and before merging significant PRs. Read-only auditor; never modifies code.
-tools: Read, Grep, Glob, Bash
-disallowedTools: Write, Edit
+tools: Read, Bash, Write, Edit
 model: opus
 memory: project
+hooks:
+  PreToolUse:
+    - matcher: "Write|Edit"
+      hooks:
+        - type: command
+          command: "$HOME/.claude/hooks/memory-write-guard.sh"
 color: red
 maxTurns: 30
 ---
