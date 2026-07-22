@@ -53,6 +53,11 @@
   "tui": "fullscreen",
   "skipDangerousModePermissionPrompt": true,
   "theme": "dark",
+  "statusLine": {
+    "type": "command",
+    "command": "node ~/.claude/statusline/statusline.js",
+    "padding": 0
+  },
   "switchModelsOnFlag": false,
   "teammateMode": "auto",
   "agentPushNotifEnabled": true,

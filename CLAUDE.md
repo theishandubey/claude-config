@@ -12,6 +12,7 @@ Configs are symlinked into `~/.claude` by `install.sh`, so files here are LIVE -
 | Subagent definitions | `agents/**/*.md` | |
 | My own skills | `skills/<name>/` | |
 | Vendored skills | never by hand - use the skills CLI | `.agents/skills/**` (fork into `skills/` to customize) |
+| Status line | `statusline/statusline.js` | |
 
 Do not confuse the two CLAUDE.md files: this one (repo root) is project instructions for working on this repo; `claude/CLAUDE.md` is the global config every session loads via `~/.claude/CLAUDE.md`.
 
@@ -21,6 +22,8 @@ Do not confuse the two CLAUDE.md files: this one (repo root) is project instruct
   `agents/**/*.md` are NOT: agent definitions are snapshotted when a session starts, so edits to frontmatter or an agent's prompt only take effect in the next session.
   Restart Claude Code before testing an agent change, or you will verify the old definition and conclude the edit failed.
 - Re-run `./install.sh` for structural changes (new skills, new hooks, new symlink targets).
+- The `statusLine` key in `claude/settings.json` is picked up live via the symlink.
+  `statusline/` itself is a new symlink target, so `./install.sh` must be re-run once after first adding it.
 - `agents/**/*.md` frontmatter (`name`, `description`, `tools`, `model`) drives Claude Code agent behavior directly.
   Keep frontmatter accurate when adding agents.
 - `.claude/skills` is a committed relative symlink to `../.agents/skills`; never replace it with a real directory.

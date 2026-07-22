@@ -75,6 +75,7 @@ link "$REPO_DIR/AGENTS.md" "$HOME/.claude/AGENTS.md"
 # ---------------------------------------------------------------------------
 info "Linking Claude Code config"
 link "$REPO_DIR/claude/settings.json" "$HOME/.claude/settings.json"
+link "$REPO_DIR/statusline"           "$HOME/.claude/statusline"
 link "$REPO_DIR/claude/CLAUDE.md"     "$HOME/.claude/CLAUDE.md"
 link "$REPO_DIR/claude/commands"      "$HOME/.claude/commands"
 link "$REPO_DIR/agents"               "$HOME/.claude/agents"
