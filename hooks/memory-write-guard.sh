@@ -13,12 +13,18 @@
 #
 # Contract: reads the PreToolUse JSON payload on stdin. Exit 0 allows the call;
 # exit 2 blocks it and returns stderr to the agent.
+#
+# This runs on every Write/Edit an advisor makes, so it stays on the fast path:
+# `jq` when available, `python3` only as a fallback for machines without it.
 
 set -uo pipefail
 
 payload="$(cat)"
 
-target="$(printf '%s' "$payload" | python3 -c '
+if command -v jq >/dev/null 2>&1; then
+  target="$(printf '%s' "$payload" | jq -r '.tool_input.file_path // empty' 2>/dev/null)"
+else
+  target="$(printf '%s' "$payload" | python3 -c '
 import json, sys
 try:
     data = json.load(sys.stdin)
@@ -26,6 +32,7 @@ except Exception:
     sys.exit(0)
 print(data.get("tool_input", {}).get("file_path", "") or "")
 ' 2>/dev/null)"
+fi
 
 # No file path in the payload means this is not a file write - nothing to guard.
 [ -z "$target" ] && exit 0
@@ -36,10 +43,34 @@ case "$target" in
   /*) resolved="$target" ;;
   *)  resolved="$PWD/$target" ;;
 esac
-resolved="$(python3 -c 'import os,sys; print(os.path.normpath(sys.argv[1]))' "$resolved")"
+
+# Collapse "." and ".." lexically, matching python's os.path.normpath. Like
+# normpath, this deliberately does not resolve symlinks.
+normalized=""
+depth=0
+saved_ifs="$IFS"
+IFS='/'
+for segment in $resolved; do
+  case "$segment" in
+    ''|.)
+      ;;
+    ..)
+      if [ "$depth" -gt 0 ]; then
+        normalized="${normalized%/*}"
+        depth=$((depth - 1))
+      fi
+      ;;
+    *)
+      normalized="$normalized/$segment"
+      depth=$((depth + 1))
+      ;;
+  esac
+done
+IFS="$saved_ifs"
+resolved="${normalized:-/}"
 
 case "$resolved" in
-  */.claude/agent-memory/*|*/.claude/agent-memory-local/*|*/.claude/agent-memory/*/*)
+  */.claude/agent-memory/*|*/.claude/agent-memory-local/*)
     exit 0
     ;;
 esac
