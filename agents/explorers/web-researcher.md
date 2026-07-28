@@ -3,7 +3,7 @@ name: web-researcher
 description: Cheap, read-only web research scout. Use for looking up library docs, API references, error messages, changelogs, and best practices online - keeping noisy web content out of the main context. Cannot modify anything.
 tools: WebSearch, WebFetch, Read
 disallowedTools: Write, Edit, Bash
-model: haiku
+model: sonnet
 color: yellow
 maxTurns: 15
 ---

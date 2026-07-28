@@ -3,7 +3,7 @@ name: explorer
 description: Fast, cheap, read-only codebase scout. Use PROACTIVELY for any search, discovery, or "how does X work / where is Y defined / what would Z touch" question, so verbose exploration output never pollutes the main context. Cannot modify anything.
 tools: Read, Bash
 disallowedTools: Write, Edit
-model: haiku
+model: sonnet
 color: cyan
 maxTurns: 20
 ---
