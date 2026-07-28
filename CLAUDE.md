@@ -24,8 +24,9 @@ Do not confuse the two CLAUDE.md files: this one (repo root) is project instruct
 - Re-run `./install.sh` for structural changes (new skills, new hooks, new symlink targets).
 - The `statusLine` key in `claude/settings.json` is picked up live via the symlink.
   `statusline/` itself is a new symlink target, so `./install.sh` must be re-run once after first adding it.
-- `agents/**/*.md` frontmatter (`name`, `description`, `tools`, `model`) drives Claude Code agent behavior directly.
+- `agents/**/*.md` frontmatter (`name`, `description`, `tools`, `model`, `effort`) drives Claude Code agent behavior directly.
   Keep frontmatter accurate when adding agents.
+  `effort` is `low`/`medium`/`high`/`xhigh`/`max` and defaults to `high` when omitted, so only set it where the agent should differ from the default.
 - `.claude/skills` is a committed relative symlink to `../.agents/skills`; never replace it with a real directory.
 - `skills-lock.json` tracks vendored-skill provenance for `npx skills update -p`; do not hand-edit it except to reconcile after a CLI failure.
 - `install.sh` must stay idempotent: re-runs must print `ok:` for existing links and create no duplicate backups.
