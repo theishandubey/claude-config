@@ -48,7 +48,7 @@
     "baseRef": "head",
     "cleanupPeriodDays": 7
   },
-  "model": "opus[1m]",
+  "model": "claude-fable-5[1m]",
   "effortLevel": "high",
   "tui": "fullscreen",
   "skipDangerousModePermissionPrompt": true,
