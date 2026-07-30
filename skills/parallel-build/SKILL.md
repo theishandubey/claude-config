@@ -10,6 +10,16 @@ Run this procedure in the MAIN conversation (this skill must not fork - you own 
 
 ROLE NOTE: if you are reading this as a preloaded skill inside a `parallel-implementer` agent, this document is context about the pipeline around you - do NOT execute these phases. Only the main orchestrating session runs this procedure.
 
+## Invariants
+
+The main session owns the worktree lifecycle end to end. These hold for ANY worktree-isolated work, whether or not you run the full procedure below:
+
+- **One task, one agent, one worktree.** Never send two agents into the same worktree.
+- **Worktrees check out committed state only.** Uncommitted scaffolding or plan groundwork is invisible to them, so the working tree must be clean (or intentionally so) before dispatch.
+- **No two parallel tasks may touch the same files.** If the plan doesn't specify file ownership per step, get that from the `architect` advisor before dispatching.
+- **Merge sequentially, never in parallel**, and verify the INTEGRATED result - each worktree only verified itself.
+- **Clean up after abandoned runs.** If a run is cancelled or superseded, list leftovers with `git worktree list` and prune the merged/abandoned ones rather than letting them accumulate.
+
 ## Phase 1 - Prepare
 1. If no implementation plan with per-step file ownership exists, get one from the `architect` advisor first. Every task must list the exact files it owns; reject plans with overlapping ownership or renegotiate the split.
 2. **Bootstrap `.worktreeinclude`**: check for a `.worktreeinclude` file at the repo root. If missing, create one BEFORE dispatching:

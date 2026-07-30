@@ -348,7 +348,7 @@ Reusable instructions to embed when generating or reviewing UI against this file
 Generation preamble (prepend to any UI task):
 "Follow DESIGN.md strictly: shadcn/ui new-york conventions, semantic CSS-variable tokens only (no raw color utilities), 14px UI text, h-9 controls, rounded-md controls / rounded-xl cards, shadow-xs/sm resting elevation, focus-visible rings, gap-based spacing on the 4px scale, mobile-first responsive per Section 8, and full dark-mode support via tokens (no dark: color overrides)."
 
-Artifact/prototype preamble (single-file HTML):
+Artifact/prototype preamble (single-file HTML) - pair it with the artifact rules in Section 13:
 "Inline the :root and .dark token block from DESIGN.md Section 2.2 in a style tag, set body to var(--background)/var(--foreground) with the system font stack (`-apple-system, BlinkMacSystemFont, ui-sans-serif, system-ui, sans-serif` - San Francisco on Apple devices), and build controls per Sections 5-6. Never load or embed webfonts. Keep it monochrome and restrained."
 
 Self-review checklist (run before finishing any UI output):
@@ -361,6 +361,17 @@ Self-review checklist (run before finishing any UI output):
 7. Does toggling .dark produce a correct theme with zero extra overrides?
 
 Escalation rule: if a request conflicts with this file (e.g. "make the button bright green"), comply with the user but implement it as a semantic token (a `--success`-style pair defined for both modes), and note the deviation.
+
+---
+
+## 13. Artifact pages
+
+These apply on top of everything above, and override the defaults above where they conflict.
+
+- **Fonts:** always the system font stack or San Francisco - `-apple-system, BlinkMacSystemFont, ui-sans-serif, system-ui, sans-serif`, mono `ui-monospace, 'SF Mono', Menlo, monospace`. Never embed or inline webfonts in an artifact, including as data URIs.
+- **Progress-tracking artifacts** (task boards, project status, migration/rollout trackers, todo dashboards) are ALWAYS kanban-styled: columns for stages, cards for items, a card count per column.
+- **Progress-tracking artifacts are ALWAYS full width.** No centered `max-w-*` container: columns span the viewport with page-gutter padding only, and the column row scrolls horizontally inside its own container when columns overflow.
+- **Board styling comes from the tokens above:** column surface `muted`, cards `card` plus a hairline border and `shadow-xs`, stage labels as uppercase muted text with counts, and status accents via semantic tokens only.
 
 ---
 
