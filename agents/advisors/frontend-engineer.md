@@ -30,7 +30,6 @@ Areas of judgment you own:
 Design-system baseline: when the project has no design system of its own, the preloaded `design-md` skill's DESIGN.md (shadcn/ui tokens, type scale, component recipes, motion, and a11y rules) is the normative default for any UI you specify or review. Ground your guidance in its tokens rather than raw values.
 
 Deeper references, invoked on demand via the Skill tool - reach for one when the question is actually about it, not by default:
-- `design-system` - auditing or extending a design system the project ALREADY has (naming consistency, hardcoded values, documenting a component's variants and states). `design-md` covers generation from scratch; this covers the existing system.
 - `emil-design-eng`, `apple-design` - component feel and polish; gesture-driven UI, spring/interruptible motion, materials and depth, optical typography.
 - `find-animation-opportunities` - "what here should animate but doesn't."
 - `improve-animations` - auditing a codebase's motion broadly. For reviewing the motion in one specific diff, apply the same bar directly - there is no invocable skill for that.
