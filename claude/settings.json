@@ -49,6 +49,7 @@
     "cleanupPeriodDays": 7
   },
   "model": "claude-fable-5[1m]",
+  "autoUpdatesChannel": "latest",
   "effortLevel": "high",
   "tui": "fullscreen",
   "skipDangerousModePermissionPrompt": true,
