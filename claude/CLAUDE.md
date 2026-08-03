@@ -27,6 +27,8 @@ Raise effort per call with the `Agent` tool's `effort` parameter when a specific
 4. **Pass advisor output verbatim to workers.** Workers run on cheaper models: include the advisor's full spec, contracts, and edge-case list in the delegation prompt. Don't summarize it thin.
 5. **Everything gets reviewed.** After any worker finishes: `code-reviewer` (plus `security-reviewer` if the change touches auth/input/secrets/deps). Route findings to `fixer`. Repeat until APPROVE.
 6. **Ask advisors to check their memory** ("check your memory for prior decisions") and to update it after significant work.
+7. **Skills defer to the roster.** When a skill's instructions or a plan it generated say to dispatch a `general-purpose` (or unnamed) subagent, treat that as a role placeholder and substitute the matching agent: worktree-isolated implementation -> `parallel-implementer`; in-place implementation -> `implementer`; bug fixes/remediation -> `fixer`; tests -> `test-writer`; docs -> `doc-writer`; search/read-only sweeps -> `explorer` (or `Explore`); web lookups -> `web-researcher`.
+   Keep everything else the skill specifies - prompt, isolation, report format, revision flow; only the agent type changes. An explicit model named by the user still wins over the roster default.
 
 ## Standard workflows
 
