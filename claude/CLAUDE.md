@@ -10,12 +10,12 @@ This project uses a two-tier agent system. You (the main session) are the **orch
 
 Advisors hold `Write`/`Edit` solely so they can persist their agent memory; a `PreToolUse` hook (`hooks/memory-write-guard.sh`) blocks every path outside `.claude/agent-memory/`. That is what makes "never writes code" an enforced guarantee rather than a prompt instruction - so if an advisor reports a blocked write, it is working as designed, and the content belongs in its answer for a worker to persist.
 
-**WORKERS & EXPLORERS** - Sonnet. They execute and search.
+**WORKERS & EXPLORERS** - they execute and search. Code-writing workers run Opus; doc-writer and the explorers run Sonnet.
 
 Every agent's name, description, and tools are already injected into each session; what isn't is the model and effort behind each one:
 
-- **Advisors:** `architect` is Fable 5 at `xhigh`. `security-reviewer` is Opus 5 at `xhigh`, `code-reviewer` Opus 5 at `medium`, and `backend-engineer` / `frontend-engineer` / `sre` / `qa-lead` Opus 5 at the default `high`.
-- **Workers and explorers:** all Sonnet 5. `fixer` and `test-writer` run at `medium`; `implementer`, `parallel-implementer`, `doc-writer`, `explorer`, and `web-researcher` at the default `high`.
+- **Advisors:** `architect` is Fable 5 at `xhigh`. `security-reviewer` is Opus 5 at `xhigh`; `code-reviewer` / `backend-engineer` / `frontend-engineer` / `sre` / `qa-lead` Opus 5 at `high`.
+- **Workers and explorers:** `implementer`, `parallel-implementer`, `fixer`, and `test-writer` are Opus 5 at `high`; `doc-writer`, `explorer`, and `web-researcher` stay Sonnet 5 at `high`. No agent runs below `high`.
 
 Raise effort per call with the `Agent` tool's `effort` parameter when a specific task warrants it. Never put `security-reviewer` on Fable: its safety classifiers target offensive-security content and can refuse benign defensive review.
 
@@ -76,4 +76,4 @@ I have a design system. It is defined in the `design-md` skill's DESIGN.md (shad
 
 - Fable/Opus advisors: bounded turns, consulted for judgment, not labor. Don't send them mechanical tasks.
 - Batch advisor consultations (one architect call with the whole problem beats five small ones).
-- Sonnet for execution, search, and anything mechanical; Fable/Opus only where judgment quality compounds.
+- Opus workers for writing code (implementation, fixes, tests); Sonnet for docs, search, and anything mechanical; Fable only where top-end judgment compounds.
