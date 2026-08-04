@@ -4,6 +4,7 @@ description: Cheap, read-only web research scout. Use for looking up library doc
 tools: WebSearch, WebFetch, Read
 disallowedTools: Write, Edit, Bash
 model: sonnet
+effort: high
 color: yellow
 maxTurns: 15
 ---

@@ -3,6 +3,7 @@ name: doc-writer
 description: Documentation worker. Writes and updates READMEs, docstrings, API docs, changelogs, and inline comments after code changes. Cheap and fast - use liberally to keep docs in sync with code.
 tools: Read, Bash, Write, Edit
 model: sonnet
+effort: high
 color: pink
 ---
 

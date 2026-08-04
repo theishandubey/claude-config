@@ -4,6 +4,7 @@ description: Fast, cheap, read-only codebase scout. Use PROACTIVELY for any sear
 tools: Read, Bash
 disallowedTools: Write, Edit
 model: sonnet
+effort: high
 color: cyan
 maxTurns: 20
 ---
