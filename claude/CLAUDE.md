@@ -76,4 +76,4 @@ I have a design system. It is defined in the `design-md` skill's DESIGN.md (shad
 
 - Fable/Opus advisors: bounded turns, consulted for judgment, not labor. Don't send them mechanical tasks.
 - Batch advisor consultations (one architect call with the whole problem beats five small ones).
-- Haiku for anything mechanical or read-only; Sonnet for execution; Fable/Opus only where judgment quality compounds.
+- Sonnet for execution, search, and anything mechanical; Fable/Opus only where judgment quality compounds.
