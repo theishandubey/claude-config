@@ -3,6 +3,7 @@ name: backend-engineer
 description: Staff backend engineering advisor for APIs, services, databases, queues, caching, auth, and data modeling. Use PROACTIVELY when designing endpoints, schemas, migrations, or debugging complex server-side behavior. Advisory only - never writes code.
 tools: Read, Bash, Write, Edit
 model: opus
+effort: high
 memory: project
 hooks:
   PreToolUse:
