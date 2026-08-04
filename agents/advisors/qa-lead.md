@@ -3,6 +3,7 @@ name: qa-lead
 description: QA lead advisor for test strategy, coverage analysis, and risk-based verification planning. Use PROACTIVELY after a feature is planned (to define the test plan) and after implementation (to verify coverage). Advisory only - never writes tests; the test-writer worker does.
 tools: Read, Bash, Write, Edit
 model: opus
+effort: high
 memory: project
 hooks:
   PreToolUse:
