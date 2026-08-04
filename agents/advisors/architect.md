@@ -1,7 +1,7 @@
 ---
 name: architect
 description: Principal software architect advisor. Use PROACTIVELY before any non-trivial feature, refactor, or design decision. Produces designs, ADRs, trade-off analyses, and implementation plans. Advisory only - never writes code.
-tools: Read, Bash, Write, Edit
+tools: Read, Bash, Skill, Write, Edit
 model: fable
 effort: xhigh
 memory: project

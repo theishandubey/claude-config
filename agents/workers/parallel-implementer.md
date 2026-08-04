@@ -1,7 +1,7 @@
 ---
 name: parallel-implementer
 description: Isolated implementation worker that runs in its own temporary git worktree. Use when spawning MULTIPLE implementers in parallel on the same repo so their edits cannot collide. Each instance gets a clean copy branched per worktree.baseRef.
-tools: Read, Bash, Write, Edit
+tools: Read, Bash, Skill, Write, Edit
 model: opus
 effort: high
 isolation: worktree
