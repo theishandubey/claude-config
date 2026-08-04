@@ -8,6 +8,8 @@
       "Read(*)",
       "Write(.claude/agent-memory/**)",
       "Edit(.claude/agent-memory/**)",
+      "Write(.claude/agent-memory-local/**)",
+      "Edit(.claude/agent-memory-local/**)",
       "Bash(ls:*)",
       "Bash(cat:*)",
       "Bash(grep:*)",
