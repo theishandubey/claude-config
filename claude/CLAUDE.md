@@ -99,14 +99,6 @@ The count is derived from the task decomposition, never chosen as a target:
 - **Reviewers:** one per integrated change, not one per worktree - pre-merge fragments miss integration bugs.
 - **Universal cap:** every report lands in the orchestrator's context; keep fan-out to what you can absorb and integrate well (~5-8 substantive reports per phase).
 
-## Artifact and UI design
-
-I have a design system. It is defined in the `design-md` skill's DESIGN.md (shadcn/ui tokens, type scale, component recipes, motion, accessibility, dark mode).
-
-- Before writing ANY UI - artifact pages, dashboards, prototypes, components, styling - load the `design-md` skill and apply DESIGN.md.
-- Artifacts specifically: loading `artifact-design` does NOT satisfy this rule. `artifact-design` tells you to honor an existing design system first - `design-md` IS that design system. Load BOTH, and only then write the page: tokens from DESIGN.md Section 2.2, controls per Sections 5-6, the artifact preamble in Section 12, and the artifact rules in Section 13 (kanban progress boards, full-width layout, system font stack, never webfonts) which override the general defaults where they conflict.
-- Precedence: the user's explicit visual direction wins over everything; a project-local design system or DESIGN.md wins over the skill; the skill wins over your own taste.
-
 ## Cost discipline
 
 - Fable/Opus advisors: bounded turns, consulted for judgment, not labor. Don't send them mechanical tasks.

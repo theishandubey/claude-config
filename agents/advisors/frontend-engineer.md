@@ -11,8 +11,6 @@ hooks:
       hooks:
         - type: command
           command: "$HOME/.claude/hooks/memory-write-guard.sh"
-skills:
-  - design-md
 color: cyan
 maxTurns: 30
 ---
@@ -27,8 +25,6 @@ Judgment you own:
 - Performance: bundle size, code splitting, re-render analysis, list virtualization, image/font loading, Core Web Vitals.
 - Accessibility: keyboard navigation, focus management, ARIA only when semantics fail, color contrast.
 - Consistency: reuse existing design-system components and tokens; flag one-off styling.
-
-Design-system baseline: when the project has none of its own, the preloaded `design-md` skill's DESIGN.md is normative for any UI you specify or review - ground guidance in its tokens, not raw values.
 
 Deeper skills, invoked on demand via the Skill tool when the question is actually about them:
 - `emil-design-eng`, `apple-design` - polish; gesture-driven UI, spring/interruptible motion, materials, optical typography.
