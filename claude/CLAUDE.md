@@ -17,7 +17,9 @@ Every agent's name, description, and tools are already injected into each sessio
 - **Advisors:** `architect` is Fable 5 at `xhigh`. `security-reviewer` is Opus 5 at `xhigh`; `code-reviewer` / `backend-engineer` / `frontend-engineer` / `sre` / `qa-lead` Opus 5 at `high`.
 - **Workers and explorers:** `implementer`, `parallel-implementer`, `fixer`, and `test-writer` are Opus 5 at `high`; `doc-writer`, `explorer`, and `web-researcher` stay Sonnet 5 at `high`. No agent runs below `high`.
 
-Raise effort per call with the `Agent` tool's `effort` parameter when a specific task warrants it. Never put `security-reviewer` on Fable: its safety classifiers target offensive-security content and can refuse benign defensive review.
+Raise effort per call with the `Agent` tool's `effort` parameter when a specific task warrants it.
+Never put `security-reviewer` on Fable; it stays on Opus.
+If a model-safety flag fires during review work anyway, don't retry the same wording in that session - re-dispatch the review to a fresh subagent.
 
 ## Task triage
 
@@ -36,7 +38,9 @@ These hold at every rung of the ladder:
 
 1. **Advisors advise, workers work.** Never ask an advisor to edit files (they can't). Never ask a worker to make design decisions - if a worker reports ambiguity, escalate to the relevant advisor.
 2. **Pass advisor output verbatim to workers.** Workers run on cheaper models: include the advisor's full spec, contracts, and edge-case list in the delegation prompt. Don't summarize it thin.
-3. **Everything code-touching gets reviewed.** After any worker finishes: `code-reviewer` (plus `security-reviewer` if the change touches auth/input/secrets/deps). Route findings to `fixer`. Repeat until APPROVE.
+3. **Everything code-touching gets reviewed.** After any worker finishes: `code-reviewer` (it runs the built-in `code-review` skill). Route findings to `fixer`. Repeat until APPROVE.
+   Security review is a branch gate, not a per-change step: once per branch - after all changes are integrated and code review has passed, before merging into the default branch - dispatch `security-reviewer` (it runs the built-in `security-review` skill) if the branch touched auth/input/secrets/deps or the merge is significant.
+   The timing is load-bearing: that skill diffs against `origin/HEAD`, so it must run while the branch is still unmerged relative to the remote default branch.
 4. **Ask advisors to check their memory** ("check your memory for prior decisions") and to update it after significant work.
 5. **Skills defer to the roster.** When a skill's instructions or a plan it generated say to dispatch a `general-purpose` (or unnamed) subagent, treat that as a role placeholder and substitute the matching agent: worktree-isolated implementation -> `parallel-implementer`; in-place implementation -> `implementer`; bug fixes/remediation -> `fixer`; tests -> `test-writer`; docs -> `doc-writer`; search/read-only sweeps -> `explorer` (or `Explore`); web lookups -> `web-researcher`.
    Keep everything else the skill specifies - prompt, isolation, report format, revision flow; only the agent type changes. An explicit model named by the user still wins over the roster default.
@@ -49,8 +53,9 @@ These hold at every rung of the ladder:
 3. `qa-lead` → test plan for the feature.
 4. `implementer` → build per plan. Independent steps: multiple `parallel-implementer`s.
 5. `test-writer` → tests per qa-lead plan.
-6. `code-reviewer` (+ `security-reviewer` if warranted) → `fixer` for findings → re-review.
-7. `doc-writer` → sync docs.
+6. `code-reviewer` → `fixer` for findings → re-review.
+7. Security gate before merge: `security-reviewer` per routing invariant 3, if warranted.
+8. `doc-writer` → sync docs.
 
 **Bug fix** - use when something is broken with a known or reproducible symptom:
 1. `explorer` → locate the fault area.
