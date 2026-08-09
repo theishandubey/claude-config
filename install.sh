@@ -7,7 +7,9 @@
 #
 # Idempotent - re-run after every git pull.
 #
-# Usage: ./install.sh
+# Usage: ./install.sh [--clean]
+#   --clean  also remove skills under ~/.claude/skills that are not part of
+#            this repo (leftovers from previous installs or removed skills)
 
 set -euo pipefail
 
@@ -16,6 +18,14 @@ BACKUP_SUFFIX=".bak.$(date +%Y%m%d%H%M%S)"
 
 info()  { printf '\033[1;34m==>\033[0m %s\n' "$*"; }
 warn()  { printf '\033[1;33mwarn:\033[0m %s\n' "$*"; }
+
+CLEAN=0
+for arg in "$@"; do
+  case "$arg" in
+    --clean) CLEAN=1 ;;
+    *) warn "unknown argument: $arg"; echo "Usage: ./install.sh [--clean]" >&2; exit 1 ;;
+  esac
+done
 
 # link <source-in-repo> <target-path>
 # Backs up an existing real file/dir at target, then symlinks to repo.
@@ -102,6 +112,26 @@ for skills_dir in skills .agents/skills; do
     info "no skills in $skills_dir/ - skipping"
   fi
 done
+
+# ---------------------------------------------------------------------------
+# 5. --clean: remove installed skills that this repo does not provide
+#    (the skills CLI copies rather than symlinks, so skills deleted from the
+#    repo - or installed by other means - linger in ~/.claude/skills forever)
+# ---------------------------------------------------------------------------
+if [ "$CLEAN" = 1 ]; then
+  info "Removing skills not provided by this repo from $HOME/.claude/skills"
+  removed=0
+  for installed in "$HOME/.claude/skills"/*/; do
+    [ -d "$installed" ] || continue
+    name="$(basename "$installed")"
+    if [ ! -f "$REPO_DIR/skills/$name/SKILL.md" ] && [ ! -f "$REPO_DIR/.agents/skills/$name/SKILL.md" ]; then
+      warn "removing stale skill: $name"
+      rm -rf "$installed"
+      removed=1
+    fi
+  done
+  [ "$removed" = 0 ] && info "ok: no stale skills"
+fi
 
 info "Done."
 echo
