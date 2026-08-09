@@ -41,3 +41,4 @@ Do not confuse the two CLAUDE.md files: this one (repo root) is project instruct
   Valid `tools:` names in this build are `Read`, `Bash`, `Write`, `Edit`, `Skill`, `WebSearch`, `WebFetch`.
   There is no `Grep` or `Glob` tool - unresolvable names are silently dropped from the list, so an agent given only phantom names ends up with fewer tools than intended. Search via `grep`/`find` in Bash.
 - Sync another machine: `git pull && ./install.sh`.
+- Purge skills removed from the repo (or installed by other means): `./install.sh --clean` deletes any `~/.claude/skills` entry this repo does not provide.
