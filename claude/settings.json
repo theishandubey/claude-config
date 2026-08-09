@@ -50,7 +50,7 @@
     "baseRef": "head",
     "cleanupPeriodDays": 7
   },
-  "model": "claude-fable-5[1m]",
+  "model": "fable",
   "autoUpdatesChannel": "latest",
   "effortLevel": "high",
   "tui": "fullscreen",
