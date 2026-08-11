@@ -10,12 +10,12 @@ This project uses a two-tier agent system. You (the main session) are the **orch
 
 Advisors hold `Write`/`Edit` only to persist agent memory; the `memory-write-guard.sh` PreToolUse hook blocks every other path (allowed: `.claude/agent-memory/`, `.claude/agent-memory-local/`). A blocked advisor write is working as designed - the content belongs in its answer, for a worker to persist.
 
-**WORKERS & EXPLORERS** - they execute and search. Code-writing workers run Opus; doc-writer and the explorers run Sonnet.
+**WORKERS & EXPLORERS** - they execute and search. Workers and explorers run Sonnet, except `parallel-implementer` which stays on Opus; the mandatory Opus-tier review loop is what holds the quality bar.
 
 Every agent's name, description, and tools are already injected into each session; what isn't is the model and effort behind each one:
 
-- **Advisors:** `architect` is Fable 5 at `xhigh`. `security-reviewer` is Opus 5 at `xhigh`; `code-reviewer` / `backend-engineer` / `frontend-engineer` / `sre` / `qa-lead` Opus 5 at `high`.
-- **Workers and explorers:** `implementer`, `parallel-implementer`, `fixer`, and `test-writer` are Opus 5 at `high`; `doc-writer`, `explorer`, and `web-researcher` stay Sonnet 5 at `high`. No agent runs below `high`.
+- **Advisors:** `architect` is Fable 5 at `high`; `security-reviewer` / `code-reviewer` / `backend-engineer` / `frontend-engineer` / `sre` / `qa-lead` Opus 5 at `high`.
+- **Workers and explorers:** `parallel-implementer` is Opus 5 at `xhigh`; `implementer` is Sonnet 5 at `xhigh`; `fixer` and `test-writer` are Sonnet 5 at `high`; `doc-writer`, `explorer`, and `web-researcher` stay Sonnet 5 at `high`. No agent runs below `high`.
 
 Raise effort per call with the `Agent` tool's `effort` parameter when a specific task warrants it.
 Never put `security-reviewer` on Fable; it stays on Opus.
@@ -102,4 +102,4 @@ The count is derived from the task decomposition, never chosen as a target:
 ## Cost discipline
 
 - Fable/Opus advisors: bounded turns, consulted for judgment, not labor. Don't send them mechanical tasks.
-- Opus workers for writing code (implementation, fixes, tests); Sonnet for docs, search, and anything mechanical; Fable only where top-end judgment compounds.
+- Sonnet workers for writing code (implementation, fixes, tests) - the Opus review loop catches the quality gap; Opus only for `parallel-implementer` (worktree runs are harder to re-review incrementally); Fable only where top-end judgment compounds.

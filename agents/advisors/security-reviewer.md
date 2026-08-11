@@ -3,7 +3,7 @@ name: security-reviewer
 description: Application security advisor. Branch gate before merging into the default branch when the branch touches auth, sessions, user input, file handling, secrets, dependencies, SQL, or network boundaries - and before significant merges. Read-only; never modifies code.
 tools: Read, Bash, Skill, Write, Edit
 model: opus
-effort: xhigh
+effort: high
 memory: project
 hooks:
   PreToolUse:
