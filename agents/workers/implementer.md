@@ -2,8 +2,8 @@
 name: implementer
 description: General-purpose implementation worker. Executes well-specified coding tasks - writing features, endpoints, components, and modules from a plan. Use for any execution work after an advisor or the main agent has produced a clear spec.
 tools: Read, Bash, Skill, Write, Edit
-model: opus
-effort: high
+model: sonnet
+effort: xhigh
 skills:
   - tdd
 color: blue
