@@ -39,8 +39,8 @@ These hold at every rung of the ladder:
 1. **Advisors advise, workers work.** Never ask an advisor to edit files (they can't). Never ask a worker to make design decisions - if a worker reports ambiguity, escalate to the relevant advisor.
 2. **Pass advisor output verbatim to workers.** Workers run on cheaper models: include the advisor's full spec, contracts, and edge-case list in the delegation prompt. Don't summarize it thin.
 3. **Everything code-touching gets reviewed.** After any worker finishes: `code-reviewer` (it runs the built-in `code-review` skill). Route findings to `fixer`. Repeat until APPROVE.
-   Security review is a branch gate, not a per-change step: once per branch - after all changes are integrated and code review has passed, before merging into the default branch - dispatch `security-reviewer` (it runs the built-in `security-review` skill) if the branch touched auth/input/secrets/deps or the merge is significant.
-   The timing is load-bearing: that skill diffs against `origin/HEAD`, so it must run while the branch is still unmerged relative to the remote default branch.
+   Security review runs only when the user explicitly asks for it: dispatch `security-reviewer` (it runs the built-in `security-review` skill) on request, never proactively.
+   When it does run, timing still matters: that skill diffs against `origin/HEAD`, so run it while the branch is still unmerged relative to the remote default branch.
 4. **Ask advisors to check their memory** ("check your memory for prior decisions") and to update it after significant work.
 5. **Skills defer to the roster.** When a skill's instructions or a plan it generated say to dispatch a `general-purpose` (or unnamed) subagent, treat that as a role placeholder and substitute the matching agent: worktree-isolated implementation -> `parallel-implementer`; in-place implementation -> `implementer`; bug fixes/remediation -> `fixer`; tests -> `test-writer`; docs -> `doc-writer`; search/read-only sweeps -> `explorer` (or `Explore`); web lookups -> `web-researcher`.
    Keep everything else the skill specifies - prompt, isolation, report format, revision flow; only the agent type changes. An explicit model named by the user still wins over the roster default.
@@ -54,8 +54,7 @@ These hold at every rung of the ladder:
 4. `implementer` → build per plan. Independent steps: multiple `parallel-implementer`s.
 5. `test-writer` → tests per qa-lead plan.
 6. `code-reviewer` → `fixer` for findings → re-review.
-7. Security gate before merge: `security-reviewer` per routing invariant 3, if warranted.
-8. `doc-writer` → sync docs.
+7. `doc-writer` → sync docs.
 
 **Bug fix** - use when something is broken with a known or reproducible symptom:
 1. `explorer` → locate the fault area.
