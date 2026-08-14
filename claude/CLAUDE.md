@@ -54,7 +54,7 @@ These hold at every rung of the ladder:
 4. `implementer` → build per plan. Independent steps: multiple `parallel-implementer`s.
 5. `test-writer` → tests per qa-lead plan.
 6. `code-reviewer` → `fixer` for findings → re-review.
-7. `doc-writer` → sync docs.
+7. `doc-writer` → sync external docs (README, API docs), only if the change affects them; skip otherwise. Never for docstrings or inline comments.
 
 **Bug fix** - use when something is broken with a known or reproducible symptom:
 1. `explorer` → locate the fault area.
