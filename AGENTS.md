@@ -3,6 +3,9 @@ These are common instructions for Ishan's agents across all scenarios.
 ## General Guidelines
 
 - Never use an em dash "—". Use a plain dash "-" instead.
+- Do not add docstrings or code comments by default, neither to new code nor to existing code.
+  Write a comment only when it states a constraint the code itself cannot show, and delete comments that merely restate the code.
+  Comments and docstrings drift from the code and inflate token cost; clear names and structure are the documentation.
 - Never manually modify CHANGELOG.md files or any files that are marked as auto-generated.
 - When writing or substantially editing long Markdown files, put each full sentence on its own line.
   Preserve normal Markdown structure, but avoid wrapping multiple sentences onto one physical line.
