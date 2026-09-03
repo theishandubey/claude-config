@@ -3,7 +3,6 @@
     "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
   },
   "permissions": {
-    "defaultMode": "bypassPermissions",
     "allow": [
       "Read(*)",
       "Edit(.claude/agent-memory/**)",
@@ -42,25 +41,25 @@
       "Read(./.env)",
       "Read(./.env.*)",
       "Read(./secrets/**)"
-    ]
+    ],
+    "defaultMode": "bypassPermissions"
   },
+  "model": "fable[1m]",
   "worktree": {
-    "baseRef": "head",
-    "cleanupPeriodDays": 7
+    "baseRef": "head"
   },
-  "model": "fable",
-  "autoUpdatesChannel": "latest",
-  "effortLevel": "high",
-  "tui": "fullscreen",
-  "skipDangerousModePermissionPrompt": true,
-  "theme": "dark",
   "statusLine": {
     "type": "command",
     "command": "node ~/.claude/statusline/statusline.js",
     "padding": 0
   },
+  "effortLevel": "high",
+  "autoUpdatesChannel": "latest",
+  "tui": "fullscreen",
+  "skipDangerousModePermissionPrompt": true,
+  "theme": "dark",
   "switchModelsOnFlag": false,
   "teammateMode": "auto",
-  "agentPushNotifEnabled": true,
-  "inputNeededNotifEnabled": true
+  "inputNeededNotifEnabled": true,
+  "agentPushNotifEnabled": true
 }
