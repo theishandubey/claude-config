@@ -37,10 +37,7 @@
       "Bash(git push --force:*)",
       "Bash(git push -f:*)",
       "Bash(git reset --hard:*)",
-      "Bash(rm -rf:*)",
-      "Read(./.env)",
-      "Read(./.env.*)",
-      "Read(./secrets/**)"
+      "Bash(rm -rf:*)"
     ],
     "defaultMode": "bypassPermissions"
   },
