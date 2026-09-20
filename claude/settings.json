@@ -50,7 +50,7 @@
     "command": "node ~/.claude/statusline/statusline.js",
     "padding": 0
   },
-  "effortLevel": "high",
+  "effortLevel": "medium",
   "autoUpdatesChannel": "latest",
   "tui": "fullscreen",
   "skipDangerousModePermissionPrompt": true,
