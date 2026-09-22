@@ -3,7 +3,7 @@ name: security-reviewer
 description: Application security advisor for auth, sessions, user input, file handling, secrets, dependencies, SQL, and network boundaries. Dispatch ONLY when the user explicitly asks for a security review - never proactively. Read-only; never modifies code.
 tools: Read, Bash, Skill, Write, Edit
 model: opus
-effort: high
+effort: medium
 memory: project
 hooks:
   PreToolUse:

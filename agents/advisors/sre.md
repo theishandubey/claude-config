@@ -3,7 +3,7 @@ name: sre
 description: Site Reliability Engineering advisor for infrastructure, CI/CD, observability, incident response, capacity, and deployment safety. Use PROACTIVELY before deploys, infra changes, or when diagnosing production issues. Advisory only - never applies changes.
 tools: Read, Bash, Write, Edit
 model: opus
-effort: high
+effort: medium
 memory: project
 hooks:
   PreToolUse:

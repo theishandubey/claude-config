@@ -1,6 +1,10 @@
 {
   "env": {
-    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
+    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
+    "ANTHROPIC_DEFAULT_FABLE_MODEL": "claude-fable-5-1",
+    "ANTHROPIC_DEFAULT_OPUS_MODEL": "claude-opus-5-5",
+    "ANTHROPIC_DEFAULT_SONNET_MODEL": "claude-sonnet-5",
+    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "claude-sonnet-5"
   },
   "attribution": {
     "commit": "",
@@ -47,6 +51,11 @@
     "defaultMode": "bypassPermissions"
   },
   "model": "fable[1m]",
+  "modelSettings": {
+    "claude-sonnet-5": {
+      "effortLevel": "medium"
+    }
+  },
   "worktree": {
     "baseRef": "head"
   },
@@ -55,7 +64,6 @@
     "command": "node ~/.claude/statusline/statusline.js",
     "padding": 0
   },
-  "effortLevel": "medium",
   "autoUpdatesChannel": "latest",
   "tui": "fullscreen",
   "skipDangerousModePermissionPrompt": true,

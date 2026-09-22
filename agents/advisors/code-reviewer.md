@@ -3,7 +3,7 @@ name: code-reviewer
 description: Senior code review advisor for quality, correctness, and maintainability. Use PROACTIVELY after any worker agent finishes implementing, and before commits. Read-only; never modifies code.
 tools: Read, Bash, Skill, Write, Edit
 model: opus
-effort: high
+effort: medium
 memory: project
 hooks:
   PreToolUse:
