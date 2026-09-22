@@ -84,10 +84,17 @@ link "$REPO_DIR/AGENTS.md" "$HOME/.claude/AGENTS.md"
 # 3. Config symlinks (Claude Code)
 # ---------------------------------------------------------------------------
 info "Linking Claude Code config"
+# Links this script no longer creates - remove them so they do not dangle.
+for retired in "$HOME/.claude/commands"; do
+  target="$(readlink "$retired" 2>/dev/null || true)"
+  if [ -L "$retired" ] && [ ! -e "$retired" ] && [ "${target#"$REPO_DIR"/}" != "$target" ]; then
+    warn "removing retired link: $retired"
+    rm "$retired"
+  fi
+done
 link "$REPO_DIR/claude/settings.json" "$HOME/.claude/settings.json"
 link "$REPO_DIR/statusline"           "$HOME/.claude/statusline"
 link "$REPO_DIR/claude/CLAUDE.md"     "$HOME/.claude/CLAUDE.md"
-link "$REPO_DIR/claude/commands"      "$HOME/.claude/commands"
 link "$REPO_DIR/agents"               "$HOME/.claude/agents"
 # Agent frontmatter references hooks by absolute path ($HOME/.claude/hooks/...),
 # so they must resolve on every machine, not just inside this repo.
