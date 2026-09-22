@@ -24,6 +24,9 @@ Do not confuse the two CLAUDE.md files: this one (repo root) is project instruct
 - Re-run `./install.sh` for structural changes (new skills, new hooks, new symlink targets).
 - The `statusLine` key in `claude/settings.json` is picked up live via the symlink.
   `statusline/` itself is a new symlink target, so `./install.sh` must be re-run once after first adding it.
+- Claude Code writes some keys back into user settings, which is the live-symlinked `claude/settings.json`: `/effort` and the `/model` effort slider save `modelSettings.<model>.effortLevel` (since 2.1.251), and `/config`, `/tui`, `/theme` and `claude install <channel>` save keys such as `theme`, `tui`, `autoUpdatesChannel` and `skipDangerousModePermissionPrompt`.
+  A saved `modelSettings` level silently overrides the top-level `effortLevel`.
+  After any of these, either commit the written key deliberately or revert only that hunk with `git checkout -p claude/settings.json`.
 - `agents/**/*.md` frontmatter (`name`, `description`, `tools`, `model`, `effort`) drives Claude Code agent behavior directly.
   Keep frontmatter accurate when adding agents.
   `effort` is `low`/`medium`/`high`/`xhigh`/`max`; in this roster it is always pinned explicitly on every agent - the floor is `high`, raised to `xhigh` only on the implementation workers (`implementer`, `parallel-implementer`), never lower; raise other agents per call via the `Agent` tool's `effort` parameter.
@@ -38,7 +41,10 @@ Do not confuse the two CLAUDE.md files: this one (repo root) is project instruct
 - New skill of my own: `npx skills init skills/<name>`, then `./install.sh`.
 - Vendor a third-party skill: `npx skills add <owner/repo> --skill <name> --copy -a claude-code -y`, then commit `.agents/` and `skills-lock.json`.
 - New subagent: add `agents/<tier>/<name>.md` with frontmatter (`name`, `description`, `tools`, `model`), then restart Claude Code to pick it up.
-  Valid `tools:` names in this build are `Read`, `Bash`, `Write`, `Edit`, `Skill`, `WebSearch`, `WebFetch`.
-  There is no `Grep` or `Glob` tool - unresolvable names are silently dropped from the list, so an agent given only phantom names ends up with fewer tools than intended. Search via `grep`/`find` in Bash.
+  Valid `tools:` names in this build are `Read`, `Bash`, `Write`, `Edit`, `Skill`, `WebSearch`, `WebFetch`, `Grep`, `Glob`.
+  `Glob` and `Grep` are real tools but are absent from the default tool set on macOS, Linux and WSL; Claude searches with `find` and `grep` through Bash instead.
+  A subagent gets `Glob`/`Grep` back only when it lists them in `tools:` and leaves out `Bash`.
+  Every agent in this roster except `web-researcher` carries `Bash`, so they search via `grep`/`find` in Bash.
+  `web-researcher` has neither `Bash` nor `Grep`/`Glob`; it reads named paths only and never searches the filesystem.
 - Sync another machine: `git pull && ./install.sh`.
 - Purge skills removed from the repo (or installed by other means): `./install.sh --clean` deletes any `~/.claude/skills` entry this repo does not provide.
