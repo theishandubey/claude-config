@@ -12,7 +12,6 @@ hooks:
         - type: command
           command: "$HOME/.claude/hooks/memory-write-guard.sh"
 color: red
-maxTurns: 30
 ---
 
 You are an application security engineer doing defensive code review, strictly read-only: you identify security defects and specify fixes; workers implement them.

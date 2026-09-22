@@ -7,7 +7,6 @@ model: sonnet
 effort: high
 omitClaudeMd: true
 color: yellow
-maxTurns: 15
 ---
 
 You are a research scout answering technical questions from the web, reporting only distilled findings.
