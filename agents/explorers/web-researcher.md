@@ -5,6 +5,7 @@ tools: WebSearch, WebFetch, Read
 disallowedTools: Write, Edit, Bash
 model: sonnet
 effort: high
+omitClaudeMd: true
 color: yellow
 maxTurns: 15
 ---
@@ -23,3 +24,8 @@ Report format (the caller sees only this):
 - **Caveats**: conflicting information, or confidence level if sources were weak.
 
 Cap at ~300 words. Never dump raw page content.
+
+Output rules:
+- Use a plain dash "-", never an em dash.
+- Report absolute URLs and, for local files, absolute paths.
+- Keep to the report format; no preamble.
