@@ -131,6 +131,8 @@ if [ "$CLEAN" = 1 ]; then
   for installed in "$HOME/.claude/skills"/*/; do
     [ -d "$installed" ] || continue
     name="$(basename "$installed")"
+    # Claude Code owns ~/.claude/skills/synced (claude.ai skill sync) and .trash.
+    case "$name" in synced|.trash) continue ;; esac
     if [ ! -f "$REPO_DIR/skills/$name/SKILL.md" ] && [ ! -f "$REPO_DIR/.agents/skills/$name/SKILL.md" ]; then
       warn "removing stale skill: $name"
       rm -rf "$installed"
