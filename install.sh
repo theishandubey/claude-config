@@ -99,6 +99,7 @@ link "$REPO_DIR/agents"               "$HOME/.claude/agents"
 # Agent frontmatter references hooks by absolute path ($HOME/.claude/hooks/...),
 # so they must resolve on every machine, not just inside this repo.
 link "$REPO_DIR/hooks"                "$HOME/.claude/hooks"
+link "$REPO_DIR/tmux/tmux.conf"       "$HOME/.tmux.conf"
 chmod +x "$REPO_DIR"/hooks/*.sh 2>/dev/null || true
 
 # ---------------------------------------------------------------------------
