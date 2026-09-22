@@ -13,6 +13,7 @@ Configs are symlinked into `~/.claude` by `install.sh`, so files here are LIVE -
 | My own skills | `skills/<name>/` | |
 | Vendored skills | never by hand - use the skills CLI | `.agents/skills/**` (fork into `skills/` to customize) |
 | Status line | `statusline/*.js` | |
+| tmux | `tmux/tmux.conf` | `~/.tmux.conf` (symlink) |
 
 Do not confuse the two CLAUDE.md files: this one (repo root) is project instructions for working on this repo; `claude/CLAUDE.md` is the global config every session loads via `~/.claude/CLAUDE.md`.
 

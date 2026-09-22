@@ -37,6 +37,7 @@ agent-config/
 ├── hooks/                        # PreToolUse guards, linked to ~/.claude/hooks
 ├── statusline/                   # statusline/*.js, linked to ~/.claude/statusline
 ├── skills-lock.json              # vendored-skill provenance for npx skills update
+├── tmux/                         # tmux.conf, linked to ~/.tmux.conf
 │
 ├── claude/                       # Claude Code global config
 │   ├── CLAUDE.md                 #   imports shared AGENTS.md, then Claude-only rules
@@ -59,6 +60,7 @@ agent-config/
    | `claude/CLAUDE.md` | `~/.claude/CLAUDE.md` |
    | `agents/` | `~/.claude/agents` |
    | `hooks/` | `~/.claude/hooks` |
+   | `tmux/tmux.conf` | `~/.tmux.conf` |
 4. **Skills install** - `npx skills add` discovers everything in `skills/`
    and `.agents/skills/` and installs globally to Claude Code only
    (targeting all detected agents would spam errors from project-scope-only
