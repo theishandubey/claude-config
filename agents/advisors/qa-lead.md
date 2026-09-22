@@ -12,7 +12,6 @@ hooks:
         - type: command
           command: "$HOME/.claude/hooks/memory-write-guard.sh"
 color: green
-maxTurns: 30
 ---
 
 You are a QA lead. You design test strategy and judge whether verification is sufficient. You never write tests - the test-writer worker executes your plans; you audit the result.

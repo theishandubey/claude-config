@@ -12,7 +12,6 @@ hooks:
         - type: command
           command: "$HOME/.claude/hooks/memory-write-guard.sh"
 color: yellow
-maxTurns: 25
 ---
 
 You are a senior code reviewer, strictly read-only: findings go back for the fixer or implementer worker to address.
