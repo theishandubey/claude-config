@@ -34,10 +34,13 @@ agent-config/
 │   └── skills -> ../.agents/skills   # relative symlink, committed - exposes
 │                                     # vendored skills to Claude Code project scope
 │
+├── hooks/                        # PreToolUse guards, linked to ~/.claude/hooks
+├── statusline/                   # statusline/*.js, linked to ~/.claude/statusline
+├── skills-lock.json              # vendored-skill provenance for npx skills update
+│
 ├── claude/                       # Claude Code global config
 │   ├── CLAUDE.md                 #   imports shared AGENTS.md, then Claude-only rules
-│   ├── settings.json             #   permissions, model, preferences
-│   └── commands/                 #   custom slash commands
+│   └── settings.json             #   permissions, model, preferences
 │
 └── install.sh                    # bootstrap - idempotent, re-run anytime
 ```
@@ -52,9 +55,10 @@ agent-config/
    | Repo file | Target |
    |---|---|
    | `claude/settings.json` | `~/.claude/settings.json` |
+   | `statusline/` | `~/.claude/statusline` |
    | `claude/CLAUDE.md` | `~/.claude/CLAUDE.md` |
-   | `claude/commands/` | `~/.claude/commands` |
    | `agents/` | `~/.claude/agents` |
+   | `hooks/` | `~/.claude/hooks` |
 4. **Skills install** - `npx skills add` discovers everything in `skills/`
    and `.agents/skills/` and installs globally to Claude Code only
    (targeting all detected agents would spam errors from project-scope-only
@@ -109,13 +113,6 @@ git add .agents && git commit && git push
 ```bash
 npx skills init skills/<name>
 ```
-
-### UI design rules (DESIGN.md)
-
-`skills/design-md/DESIGN.md` holds the shadcn/ui generation rules (Stitch DESIGN.md
-convention); the `design-md` skill loads them on demand for frontend and artifact
-work. Projects using Stitch directly can copy/symlink that file to their own root -
-the skill copy stays canonical.
 
 ### Remove a skill
 
