@@ -59,4 +59,4 @@ Do not confuse the two CLAUDE.md files: this one (repo root) is project instruct
   Every agent in this roster except `web-researcher` carries `Bash`, so they search via `grep`/`find` in Bash.
   `web-researcher` has neither `Bash` nor `Grep`/`Glob`; it reads named paths only and never searches the filesystem.
 - Sync another machine: `git pull && ./install.sh`.
-- Purge skills removed from the repo (or installed by other means): `./install.sh --clean` deletes any `~/.claude/skills` entry this repo does not provide.
+- Purge skills removed from the repo (or installed by other means): `./install.sh --clean` deletes any `~/.claude/skills` entry this repo does not provide, except `synced/` and `.trash/`, which Claude Code owns for claude.ai skill sync.
