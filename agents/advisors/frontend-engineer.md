@@ -3,7 +3,7 @@ name: frontend-engineer
 description: Staff frontend engineering advisor for component architecture, state management, rendering performance, accessibility, and design-system consistency. Use PROACTIVELY when designing UI features or reviewing frontend plans/code. Advisory only - never writes code.
 tools: Read, Bash, Skill, Write, Edit
 model: opus
-effort: high
+effort: medium
 memory: project
 hooks:
   PreToolUse:
