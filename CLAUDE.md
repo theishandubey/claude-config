@@ -33,16 +33,16 @@ Do not confuse the two CLAUDE.md files: this one (repo root) is project instruct
   `effort` is `low`/`medium`/`high`/`xhigh`/`max`; in this roster every agent is pinned explicitly to its model's default: `high` for Fable 5.1 and Sonnet 5.5 agents, `medium` for Opus 5.5 agents.
   The pin stays explicit because an agent without `effort` inherits the session level rather than the model default, so a session-level `/effort` change would silently move it.
   Raise an agent per call via the `Agent` tool's `effort` parameter.
-- Only 5-series models are used.
-  The `env` block in `claude/settings.json` pins what each alias resolves to (`ANTHROPIC_DEFAULT_FABLE_MODEL`, `ANTHROPIC_DEFAULT_OPUS_MODEL`, `ANTHROPIC_DEFAULT_SONNET_MODEL`, `ANTHROPIC_DEFAULT_HAIKU_MODEL`), so agent frontmatter keeps the plain `fable`/`opus`/`sonnet` aliases.
-  `haiku` is remapped to Sonnet 5 because no 5-series Haiku exists; the `claude-code-guide` built-in and background helper requests (titles, compaction, summaries) use that alias.
+- Agents use only 5-series models.
+  The `env` block in `claude/settings.json` pins what the `fable`, `opus`, and `sonnet` aliases resolve to (`ANTHROPIC_DEFAULT_FABLE_MODEL`, `ANTHROPIC_DEFAULT_OPUS_MODEL`, `ANTHROPIC_DEFAULT_SONNET_MODEL`), so agent frontmatter keeps the plain `fable`/`opus`/`sonnet` aliases.
+  `haiku` is deliberately left unpinned: do not add `ANTHROPIC_DEFAULT_HAIKU_MODEL`.
+  It resolves to Haiku 4.5, which the `claude-code-guide` built-in and background helper requests (titles, compaction, summaries) use.
   The `Explore` and `Plan` built-ins inherit the session model, capped at `opus`.
   Opus 5.5 requires Claude Code 2.1.280 or later; an older build fails the pinned requests instead of falling back.
   Do not set a top-level `effortLevel` in `claude/settings.json`: the main session runs at the model default effort, and that key does not apply to Opus 5.5 anyway.
   The one deliberate `modelSettings` entry sets `claude-sonnet-5-5` to `medium`.
-  It applies to requests on Sonnet 5.5 that carry no explicit effort: the cheap background helper requests on the `haiku` alias and built-ins such as `claude-code-guide` and `statusline-setup`.
+  It applies to requests on Sonnet 5.5 that carry no explicit effort, such as a main session switched to Sonnet 5.5 with `/model`.
   It does not touch the Fable main session, and it does not lower the Sonnet agents, because their explicit `effort: high` frontmatter overrides it.
-  A main session switched to Sonnet 5.5 with `/model` would also run at `medium`.
 - `.claude/skills` is a committed relative symlink to `../.agents/skills`; never replace it with a real directory.
 - `skills-lock.json` tracks vendored-skill provenance for `npx skills update -p`; do not hand-edit it except to reconcile after a CLI failure.
 - `install.sh` must stay idempotent: re-runs must print `ok:` for existing links and create no duplicate backups.
