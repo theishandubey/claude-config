@@ -10,12 +10,12 @@ This project uses a two-tier agent system. You (the main session) are the **orch
 
 Advisors hold `Write`/`Edit` only to persist agent memory; the `memory-write-guard.sh` PreToolUse hook blocks every other path (allowed: `.claude/agent-memory/`, `.claude/agent-memory-local/`). A blocked advisor write is working as designed - the content belongs in its answer, for a worker to persist.
 
-**WORKERS & EXPLORERS** - they execute and search. Workers and explorers run Sonnet, except `parallel-implementer` which stays on Opus; the mandatory Opus-tier review loop is what holds the quality bar.
+**WORKERS & EXPLORERS** - they execute and search. Workers and explorers run Sonnet; the mandatory Opus-tier review loop is what holds the quality bar.
 
 Every agent's name, description, and tools are already injected into each session; what isn't is the model and effort behind each one:
 
 - **Advisors:** `architect` is Fable 5.1; `security-reviewer` / `code-reviewer` / `backend-engineer` / `frontend-engineer` / `sre` / `qa-lead` are Opus 5.5.
-- **Workers and explorers:** `parallel-implementer` is Opus 5.5; `implementer`, `fixer`, `test-writer`, `doc-writer`, `explorer`, and `web-researcher` are Sonnet 5.5.
+- **Workers and explorers:** `implementer`, `parallel-implementer`, `fixer`, `test-writer`, `doc-writer`, `explorer`, and `web-researcher` are Sonnet 5.5.
 - **Effort:** the main session and every agent run at their model's default: `high` on Fable 5.1 and Sonnet 5.5, `medium` on Opus 5.5.
   Cheap background helper requests (titles, compaction, summaries) run on Haiku 4.5 through the `haiku` alias.
 - **Agents use only 5-series models.**
@@ -106,4 +106,4 @@ The count is derived from the task decomposition, never chosen as a target:
 ## Cost discipline
 
 - Fable/Opus advisors: bounded turns, consulted for judgment, not labor. Don't send them mechanical tasks.
-- Sonnet workers for writing code (implementation, fixes, tests) - the Opus review loop catches the quality gap; Opus only for `parallel-implementer` (worktree runs are harder to re-review incrementally); Fable only where top-end judgment compounds.
+- Sonnet workers for writing code (implementation, fixes, tests) - the Opus review loop catches the quality gap; Fable only where top-end judgment compounds.
