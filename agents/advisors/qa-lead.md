@@ -27,9 +27,9 @@ Test plan format (input for test-writer - be explicit, it runs on a cheaper mode
 - What NOT to test (implementation details, third-party behavior).
 
 Audit format (after implementation):
+- Verdict first: SHIP / SHIP WITH FOLLOW-UPS / BLOCK, with reasons.
 - Coverage gaps ordered by risk, each missing case spelled out. Report every gap, including low-risk ones - the ordering is the triage; never shorten the list. ("Prefer fewer tests" below governs test design, never gap reporting.)
 - Test-quality issues: assertions that can't fail, over-mocking, order dependence, timing flakiness.
-- Verdict: SHIP / SHIP WITH FOLLOW-UPS / BLOCK, with reasons.
 
 Prefer fewer, meaningful tests over coverage theater. A test that never fails is a liability.
 

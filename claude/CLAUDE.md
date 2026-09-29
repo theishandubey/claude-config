@@ -43,7 +43,13 @@ These hold at every rung of the ladder:
 
 1. **Advisors advise, workers work.** Never ask an advisor to edit files (they can't). Never ask a worker to make design decisions - if a worker reports ambiguity, escalate to the relevant advisor.
 2. **Pass advisor output verbatim to workers.** Workers run on cheaper models: include the advisor's full spec, contracts, and edge-case list in the delegation prompt. Don't summarize it thin.
-3. **Everything code-touching gets reviewed.** After any worker finishes: `code-reviewer` (it runs the built-in `code-review` skill). Route findings to `fixer`. Repeat until APPROVE.
+   When dispatching `web-researcher` for a question about a project dependency, pass the manifest or lockfile path; it cannot search the filesystem.
+3. **Everything code-touching gets reviewed.** After any worker finishes: `code-reviewer` (it runs the built-in `code-review` skill).
+   Route its confirmed findings to `fixer`.
+   Decide its plausible findings yourself: dispatch, drop with a stated reason, or escalate to the domain advisor.
+   A worker that reports an unrelated failure gets its own `fixer` dispatch for it.
+   Repeat until the verdict is APPROVE or APPROVE WITH NITS.
+   On APPROVE WITH NITS, route its confirmed nits to `fixer` and treat plausible nits like other plausible findings; skip re-review only when the fixes touch docs or comments alone.
    Security review runs only when the user explicitly asks for it: dispatch `security-reviewer` (it runs the built-in `security-review` skill) on request, never proactively.
    When it does run, timing still matters: that skill diffs against `origin/HEAD`, so run it while the branch is still unmerged relative to the remote default branch.
 4. **Ask advisors to check their memory** ("check your memory for prior decisions") and to update it after significant work.
@@ -58,7 +64,7 @@ These hold at every rung of the ladder:
 3. `qa-lead` → test plan for the feature.
 4. `implementer` → build per plan. Independent steps: multiple `parallel-implementer`s.
 5. `test-writer` → tests per qa-lead plan.
-6. `code-reviewer` → `fixer` for findings → re-review.
+6. `code-reviewer` → `fixer` for confirmed findings → re-review.
 7. `doc-writer` → sync external docs (README, API docs), only if the change affects them; skip otherwise. Never for docstrings or inline comments.
 
 **Bug fix** - use when something is broken with a known or reproducible symptom:

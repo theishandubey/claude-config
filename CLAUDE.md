@@ -32,7 +32,7 @@ Do not confuse the two CLAUDE.md files: this one (repo root) is project instruct
   Keep frontmatter accurate when adding agents.
   `effort` is `low`/`medium`/`high`/`xhigh`/`max`; in this roster every agent is pinned explicitly to its model's default: `high` for Fable 5.1 and Sonnet 5.5 agents, `medium` for Opus 5.5 agents.
   The pin stays explicit because an agent without `effort` inherits the session level rather than the model default, so a session-level `/effort` change would silently move it.
-  Raise an agent per call via the `Agent` tool's `effort` parameter.
+  The pin is the baseline: effort sweeps run per dispatch through the `Agent` tool's `effort` parameter, and only a measured quality gain changes a pin.
 - Agents use only 5-series models.
   The `env` block in `claude/settings.json` pins what the `fable`, `opus`, and `sonnet` aliases resolve to (`ANTHROPIC_DEFAULT_FABLE_MODEL`, `ANTHROPIC_DEFAULT_OPUS_MODEL`, `ANTHROPIC_DEFAULT_SONNET_MODEL`), so agent frontmatter keeps the plain `fable`/`opus`/`sonnet` aliases.
   `haiku` is deliberately left unpinned: do not add `ANTHROPIC_DEFAULT_HAIKU_MODEL`.
