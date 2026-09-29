@@ -36,16 +36,17 @@ The main session owns the worktree lifecycle end to end. These hold for ANY work
 6. While they run, do not edit the repo yourself in the main checkout.
 
 ## Phase 3 - Integrate (sequential, never parallel)
-7. Collect each agent's reported branch + SHA. Order the merges: least-risky/most-foundational first (shared types/utils before consumers).
+7. Collect each agent's reported branch, base SHA, and tip SHA. Order the merges: least-risky/most-foundational first (shared types/utils before consumers).
+   Check each report's Completion line; hold back partial branches and resolve what remains (re-dispatch, or route to `fixer` or the advisor) before merging them.
 8. Create or check out the integration branch from the recorded base.
 9. For each branch in order:
-   a. `git merge --no-ff <branch>` (or cherry-pick the reported SHA if the branch history is noisy).
+   a. `git merge --no-ff <branch>` (or `git cherry-pick <base>..<tip>` using the reported base and tip SHAs if the branch history is noisy).
    b. On conflict: resolve using the task specs as the source of truth for intent. If a conflict reveals genuinely overlapping ownership, stop and route the overlapping piece to a single `fixer` rather than hand-blending both versions.
    c. After each merge, run typecheck/build only (fast signal). Full tests wait for step 10.
 10. After ALL merges: run the complete test suite once on the integrated branch. Route failures to `fixer` with the failing output and the list of merged branches (integration bugs usually live at the seams between tasks).
 
 ## Phase 4 - Review & clean up
-11. Run `code-reviewer` on the combined diff (`git diff <base-SHA>...HEAD`) - post-merge only. Route findings to `fixer`; re-review until APPROVE.
+11. Run `code-reviewer` on the combined diff (`git diff <base-SHA>...HEAD`) - post-merge only. Handle the verdict and its findings per routing invariant 3 in the playbook, including nits and any unrelated failures the workers reported.
 12. **Fold back `.worktreeinclude` suggestions**: collect the `.worktreeinclude` suggestions section from every worker report. Append any legitimate new lines (dedupe; apply the no-secrets rule from Phase 1) and commit - next run's workers start with a complete environment.
 13. Prune the worktree branches that merged cleanly; run `git worktree list` and remove leftovers from this run.
-14. Report: tasks completed, branches merged (in order), conflicts encountered and how resolved, final verification results, `.worktreeinclude` lines added, and worktrees cleaned.
+14. Report: tasks completed, branches merged (in order), conflicts encountered and how resolved, final verification results, `.worktreeinclude` lines added, unrelated failures reported by workers, and worktrees cleaned.
