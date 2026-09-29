@@ -15,8 +15,8 @@ Advisors hold `Write`/`Edit` only to persist agent memory; the `memory-write-gua
 Every agent's name, description, and tools are already injected into each session; what isn't is the model and effort behind each one:
 
 - **Advisors:** `architect` is Fable 5.1; `security-reviewer` / `code-reviewer` / `backend-engineer` / `frontend-engineer` / `sre` / `qa-lead` are Opus 5.5.
-- **Workers and explorers:** `parallel-implementer` is Opus 5.5; `implementer`, `fixer`, `test-writer`, `doc-writer`, `explorer`, and `web-researcher` are Sonnet 5.
-- **Effort:** the main session and every agent run at their model's default: `high` on Fable 5.1 and Sonnet 5, `medium` on Opus 5.5.
+- **Workers and explorers:** `parallel-implementer` is Opus 5.5; `implementer`, `fixer`, `test-writer`, `doc-writer`, `explorer`, and `web-researcher` are Sonnet 5.5.
+- **Effort:** the main session and every agent run at their model's default: `high` on Fable 5.1 and Sonnet 5.5, `medium` on Opus 5.5.
   Cheap background helper requests (titles, compaction, summaries) run on Sonnet 5 at `medium`.
 - **Only 5-series models are used.**
   User settings pin what each alias resolves to.
