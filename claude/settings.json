@@ -50,24 +50,17 @@
     "defaultMode": "bypassPermissions"
   },
   "model": "fable[1m]",
+  "worktree": {
+    "baseRef": "head"
+  },
+  "enabledPlugins": {
+    "meter@claude-mods": true,
+    "agent-graph@claude-mods": true
+  },
   "modelSettings": {
     "claude-sonnet-5-5": {
       "effortLevel": "medium"
     }
-  },
-  "worktree": {
-    "baseRef": "head"
-  },
-  "statusLine": {
-    "type": "command",
-    "command": "node ~/.claude/statusline/statusline.js",
-    "padding": 0,
-    "refreshInterval": 60,
-    "hideVimModeIndicator": true
-  },
-  "subagentStatusLine": {
-    "type": "command",
-    "command": "node ~/.claude/statusline/subagent-statusline.js"
   },
   "autoUpdatesChannel": "latest",
   "tui": "fullscreen",
