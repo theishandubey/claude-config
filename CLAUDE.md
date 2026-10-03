@@ -12,7 +12,7 @@ Configs are symlinked into `~/.claude` by `install.sh`, so files here are LIVE -
 | Subagent definitions | `agents/**/*.md` | |
 | My own skills | `skills/<name>/` | |
 | Vendored skills | never by hand - use the skills CLI | `.agents/skills/**` (fork into `skills/` to customize) |
-| Status line | `statusline/*.js` | |
+| Mods (function-hooks plugins: bands, panes) | the sibling `claude-mods` repo, `plugins/<name>/` | `~/.claude/plugins/**` (machine-local install state) |
 | tmux | `tmux/tmux.conf` | `~/.tmux.conf` (symlink) |
 
 Do not confuse the two CLAUDE.md files: this one (repo root) is project instructions for working on this repo; `claude/CLAUDE.md` is the global config every session loads via `~/.claude/CLAUDE.md`.
@@ -23,11 +23,21 @@ Do not confuse the two CLAUDE.md files: this one (repo root) is project instruct
   `agents/**/*.md` are NOT: agent definitions are snapshotted when a session starts, so edits to frontmatter or an agent's prompt only take effect in the next session.
   Restart Claude Code before testing an agent change, or you will verify the old definition and conclude the edit failed.
 - Re-run `./install.sh` for structural changes (new skills, new hooks, new symlink targets).
-- The `statusLine` key in `claude/settings.json` is picked up live via the symlink.
-  `statusline/` itself is a new symlink target, so `./install.sh` must be re-run once after first adding it.
+- There is no status line: the `meter` plugin draws context, prompt cache, usage limits and cost in a band above the prompt.
+  `meter` draws in the terminal and the desktop app; `agent-graph` draws only in the desktop app.
+  `/meter` opens a detailed metrics pane beside the band.
+- Mods are plugins in the sibling `claude-mods` repo, not in this repo.
+  `install.sh` finds that repo at `$CLAUDE_MODS_DIR` or at `../claude-mods` and fails before changing anything if it is missing.
+  It registers the repo as the `claude-mods` marketplace, installs every plugin listed in its `marketplace.json` at user scope, and removes the retired `~/.claude/mods` link.
+  `enabledPlugins` in `claude/settings.json` is committed deliberately, so a new plugin needs a `<name>@claude-mods` entry there.
+  `install.sh` strips its `claude-mods` entry; any other entry there is also machine-local, so revert that hunk.
+  Do not add `CLAUDE_CODE_PLUGIN_DIRS` back.
+  Installed plugins load in place from the `claude-mods` checkout, so edits take effect after `/reload-plugins` or a restart.
+  Develop and test them in that repo; see its `CLAUDE.md`.
 - Claude Code writes some keys back into user settings, which is the live-symlinked `claude/settings.json`: `/effort` and the `/model` effort slider save `modelSettings.<model>.effortLevel` (since 2.1.251), and `/config`, `/tui`, `/theme` and `claude install <channel>` save keys such as `theme`, `tui`, `autoUpdatesChannel` and `skipDangerousModePermissionPrompt`.
   A saved `modelSettings` level silently overrides the top-level `effortLevel`.
   After any of these, either commit the written key deliberately or revert only that hunk with `git checkout -p claude/settings.json`.
+  `claude plugin` commands write the same way: keep the `enabledPlugins` lines, revert any `extraKnownMarketplaces` hunk.
 - `agents/**/*.md` frontmatter (`name`, `description`, `tools`, `model`, `effort`) drives Claude Code agent behavior directly.
   Keep frontmatter accurate when adding agents.
   `effort` is `low`/`medium`/`high`/`xhigh`/`max`; in this roster every agent is pinned explicitly to its model's default: `high` for Fable 5.1 and Sonnet 5.5 agents, `medium` for Opus 5.5 agents.
