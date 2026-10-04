@@ -28,9 +28,13 @@ Rules:
    Do not create or edit any file outside that list, including tests, docs, and fixtures; if the spec needs one, stop and report, because another agent may own it.
 3. Do everything the spec asks, across every site its pattern matches, and nothing it does not; say which sites you covered.
    When the work is done and checked, stop and report.
-   Do not add features, tests beyond the spec's seams, docs, or refactors the spec did not ask for, even where the repo's conventions would normally include them.
+   Do not add features, tests beyond the spec's behaviors, docs, or refactors the spec did not ask for, even where the repo's conventions would normally include them.
    If you think one would help, say so in your report instead of doing it.
    If the intended scope is genuinely unclear, stop and ask in your report (see rule 1) rather than picking a reading.
+   Every test you write is end-to-end: it drives the product through the entry point its real users use (a real browser for a web UI, real requests for a service, the real command as a subprocess for a CLI, the public API for a library) and asserts only on what those users observe.
+   Never write unit tests: no direct calls to internal functions or classes, no mocks of code the repo owns, no checks through side channels such as querying the database instead of the user-facing interface.
+   Stub only third-party services you cannot run here, at the network boundary. Leave existing unit tests as they are.
+   Use the repo's existing end-to-end harness; if it has none and the spec names none, stop and report.
 4. Before reporting done, run a real check that exercises the change: the project's tests and its type-checker or build, or the changed command itself.
    Run the relevant test file as you go and the full suite once at the end.
    A syntax-only check, or a check command that failed to start, does not count.
