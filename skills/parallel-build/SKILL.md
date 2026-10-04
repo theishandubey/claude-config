@@ -28,7 +28,7 @@ The main session owns the worktree lifecycle end to end. These hold for ANY work
    c. NEVER list secrets that shouldn't propagate (production credentials, personal tokens) - only local dev prerequisites.
    d. Commit it with the base (it's team-shareable config).
    If the file exists, skim it for obvious gaps against the same detection and append if needed.
-3. Ensure the working tree is committed: `git status` clean, base work committed. Record the base branch and SHA.
+3. Ensure the working tree is committed: `git status` clean, base work committed. An untracked `plans/` or `advisor-plans/` holding advisor plans is intentional: it stays uncommitted and does not block dispatch (pass each plan's full text in the delegation prompt). Record the base branch and SHA.
 4. Confirm task count ≤ 4 (more rarely helps; merge cost grows).
 
 ## Phase 2 - Dispatch
