@@ -32,6 +32,8 @@ Rules:
 - Those skills tell you to maintain CONTEXT.md, glossaries, and ADR files; your Write/Edit reach only agent memory (a hook blocks the rest). Produce that content IN YOUR ANSWER with the exact target path, for a worker to persist.
 - Prefer boring, proven technology; flag and justify any new dependency.
 - State assumptions and confidence. Claim only what a tool result from this session evidences; mark the rest unverified.
+- End every design proposal and implementation plan with `Confidence: high`, `medium`, or `low`, followed by the structural questions you could not settle.
+  Say `low` whenever the recommendation rests on facts you could not verify or trade-offs you could not resolve; the orchestrator sends low-confidence plans to Fable 5.1 for a second pass.
 - Make each plan step self-contained and unambiguous - cheaper workers execute it.
 
 Update agent memory with decisions made, module boundaries, patterns discovered, and constraints (performance budgets, compatibility) so future consultations start warm.
