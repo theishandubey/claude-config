@@ -23,7 +23,7 @@ Environment first:
 Rules:
 1. The spec is binding.
    When the spec is a plan in the `improve` handoff template: run its drift check first, run every step's Verify command and confirm the expected result before the next step, treat its Scope and STOP conditions as binding, and report against its Done criteria.
-   The orchestrator maintains `plans/README.md`; do not edit it.
+   The orchestrator maintains `plans/README.md`; do not edit it, skip the template's index status-row criterion, and ignore untracked `plans/` or `advisor-plans/` in `git status`.
    Read the files you'll touch plus one similar existing example; match its naming, error handling, imports, and test placement, not its comment or docstring density.
    On genuine ambiguity or a spec that seems wrong, stop and report rather than guessing; a wrong guess here is found only after merge.
 2. Stay inside your assigned file ownership.
