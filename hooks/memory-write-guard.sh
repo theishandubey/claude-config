@@ -18,6 +18,8 @@
 # `jq` when available, `python3` only as a fallback for machines without it.
 
 set -uo pipefail
+# Segment splitting below is unquoted and must not glob-expand against the working directory.
+set -o noglob
 
 payload="$(cat)"
 
