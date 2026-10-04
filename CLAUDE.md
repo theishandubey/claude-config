@@ -40,7 +40,7 @@ Do not confuse the two CLAUDE.md files: this one (repo root) is project instruct
   `claude plugin` commands write the same way: keep the `enabledPlugins` lines, revert any `extraKnownMarketplaces` hunk.
 - `agents/**/*.md` frontmatter (`name`, `description`, `tools`, `model`, `effort`) drives Claude Code agent behavior directly.
   Keep frontmatter accurate when adding agents.
-  `effort` is `low`/`medium`/`high`/`xhigh`/`max`; in this roster every agent is pinned explicitly to its model's default: `high` for Fable 5.1 and Sonnet 5.5 agents, `medium` for Opus 5.5 agents.
+  `effort` is `low`/`medium`/`high`/`xhigh`/`max`; in this roster every agent is pinned explicitly to its model's API default (`high` for Sonnet 5.5 agents, `medium` for Opus 5.5 agents), except `architect`, which is pinned to `high` on Opus 5.5.
   The pin stays explicit because an agent without `effort` inherits the session level rather than the model default, so a session-level `/effort` change would silently move it.
   The pin is the baseline: effort sweeps run per dispatch through the `Agent` tool's `effort` parameter, and only a measured quality gain changes a pin.
 - Agents use only 5-series models.
@@ -49,10 +49,7 @@ Do not confuse the two CLAUDE.md files: this one (repo root) is project instruct
   It resolves to Haiku 4.5, which the `claude-code-guide` built-in and background helper requests (titles, compaction, summaries) use.
   The `Explore` and `Plan` built-ins inherit the session model, capped at `opus`.
   Opus 5.5 requires Claude Code 2.1.280 or later; an older build fails the pinned requests instead of falling back.
-  Do not set a top-level `effortLevel` in `claude/settings.json`: the main session runs at the model default effort, and that key does not apply to Opus 5.5 anyway.
-  The one deliberate `modelSettings` entry sets `claude-sonnet-5-5` to `medium`.
-  It applies to requests on Sonnet 5.5 that carry no explicit effort, such as a main session switched to Sonnet 5.5 with `/model`.
-  It does not touch the Fable main session, and it does not lower the Sonnet agents, because their explicit `effort: high` frontmatter overrides it.
+  Do not set a top-level `effortLevel` or any `modelSettings` effort in `claude/settings.json`: every model runs at its API default effort, and `effortLevel` does not apply to Opus 5.5 anyway.
 - `.claude/skills` is a committed relative symlink to `../.agents/skills`; never replace it with a real directory.
 - `skills-lock.json` tracks vendored-skill provenance for `npx skills update -p`; do not hand-edit it except to reconcile after a CLI failure.
 - `install.sh` must stay idempotent: re-runs must print `ok:` for existing links and create no duplicate backups.
