@@ -14,7 +14,7 @@ Advisors hold `Write`/`Edit` only to persist agent memory; the `memory-write-gua
 
 Every agent's name, description, and tools are already injected into each session; what isn't is the model and effort behind each one:
 
-- **Advisors:** all seven (`architect` / `security-reviewer` / `code-reviewer` / `backend-engineer` / `frontend-engineer` / `sre` / `qa-lead`) are Opus 5.5.
+- **Advisors:** all seven (`architect` / `security-reviewer` / `code-reviewer` / `backend-engineer` / `frontend-engineer` / `sre` / `qa-lead`) are Opus 5.5; `architect` escalates to Fable 5.1 per the rubric below.
 - **Workers and explorers:** `implementer`, `parallel-implementer`, `fixer`, `test-writer`, `doc-writer`, `explorer`, and `web-researcher` are Sonnet 5.5.
 - **Effort:** the main session and every agent run at their model's API default (`high` on Fable 5.1 and Sonnet 5.5, `medium` on Opus 5.5), except `architect` (Opus 5.5 at `high`) and the search agents `explorer` and `web-researcher` (Sonnet 5.5 at `medium`).
   Cheap background helper requests (titles, compaction, summaries) run on Haiku 4.5 through the `haiku` alias.
@@ -24,6 +24,13 @@ Every agent's name, description, and tools are already injected into each sessio
 
 The `Agent` tool has no per-call `effort` parameter: an agent always runs at its frontmatter `effort`.
 Never put `security-reviewer` on Fable; it stays on Opus.
+
+**Escalating to Fable.** Dispatch `architect` with `model: "fable"` only when one of these holds:
+1. The decision is hard to reverse: a schema or data migration, a public API or cross-service contract, a module boundary other work will build on, or a plan headed for `parallel-build` with three or more streams.
+2. Review found a design flaw rather than point defects (see Escalation under Standard workflows).
+3. The Opus plan ends with `Confidence: low`, or lists structural questions it could not settle.
+For 2 and 3, pass the Opus plan and the reason for escalating, so Fable reviews and revises it rather than starting over.
+Only `architect` escalates; every other advisor stays on Opus.
 If a model-safety flag fires during review work anyway, don't retry the same wording in that session - re-dispatch the review to a fresh subagent.
 
 ## Task triage
@@ -77,7 +84,7 @@ These hold at every rung of the ladder:
 
 **Deploy/infra change** - use for anything touching runtime infrastructure, CI/CD, or releases: `sre` plan (must include rollback) → human approves → gated execution.
 
-**Escalation (all workflows):** if review reveals a design flaw rather than point defects, go back to `architect` before dispatching `fixer`.
+**Escalation (all workflows):** if review reveals a design flaw rather than point defects, go back to `architect`, dispatched on Fable (see Escalating to Fable), before dispatching `fixer`.
 
 ## Worktree orchestration (parallel execution)
 
