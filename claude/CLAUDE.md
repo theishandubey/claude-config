@@ -22,7 +22,7 @@ Every agent's name, description, and tools are already injected into each sessio
   User settings pin what the `fable`, `opus`, and `sonnet` aliases resolve to.
   `haiku` is deliberately left unpinned, so it resolves to Haiku 4.5; no agent uses it.
 
-Raise effort per call with the `Agent` tool's `effort` parameter when a specific task warrants it.
+The `Agent` tool has no per-call `effort` parameter: an agent always runs at its frontmatter `effort`.
 Never put `security-reviewer` on Fable; it stays on Opus.
 If a model-safety flag fires during review work anyway, don't retry the same wording in that session - re-dispatch the review to a fresh subagent.
 
