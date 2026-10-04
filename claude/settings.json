@@ -57,11 +57,6 @@
     "meter@claude-mods": true,
     "agent-graph@claude-mods": true
   },
-  "modelSettings": {
-    "claude-sonnet-5-5": {
-      "effortLevel": "medium"
-    }
-  },
   "autoUpdatesChannel": "latest",
   "tui": "fullscreen",
   "skipDangerousModePermissionPrompt": true,
