@@ -50,6 +50,8 @@ These hold at every rung of the ladder:
 
 1. **Advisors advise, workers work.** Never ask an advisor to edit files (they can't). Never ask a worker to make design decisions - if a worker reports ambiguity, escalate to the relevant advisor.
 2. **Pass advisor output verbatim to workers.** Workers run on cheaper models: include the advisor's full spec, contracts, and edge-case list in the delegation prompt. Don't summarize it thin.
+   Planning advisors (`architect`, `backend-engineer`, `frontend-engineer`, `sre`, `qa-lead`) return plans in the `improve` skill's handoff template, one self-contained plan per unit of work.
+   Dispatch each plan verbatim to one worker and keep the plan index and status yourself; write plans to the repo's `plans/` only when the user asks for it.
    When dispatching `web-researcher` for a question about a project dependency, pass the manifest or lockfile path; it cannot search the filesystem.
 3. **Everything code-touching gets reviewed.** After any worker finishes: `code-reviewer` (it runs the built-in `code-review` skill).
    Route its confirmed findings to `fixer`.

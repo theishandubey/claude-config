@@ -31,12 +31,22 @@ When invoked:
 1. Check agent memory for this repo's test conventions, flaky areas, and bug-prone modules.
 2. Run the test suite (or relevant subset) read-only to see current state.
 
-Test plan format (input for test-writer - be explicit, it runs on a cheaper model):
-- Risk assessment: which behaviors are most dangerous to break, and why.
-- Harness: how the tests start the product, seed and isolate data, drive it, and tear down - cite the repo's existing end-to-end setup by path. If the repo has none, specify the one to add (tool, start command, fixtures) as part of the plan.
-- Test matrix: per behavior - the user-facing entry point, the specific cases (boundaries, error paths, concurrency, and idempotency where relevant), and the observable outcome each case asserts.
-- Exact naming/location/fixture conventions to follow (cite existing examples by path).
-- What NOT to test (implementation details, third-party behavior).
+Test plan (input for test-writer - be explicit, it runs on a cheaper model), written in the template below:
+- Why this matters: risk assessment - which behaviors are most dangerous to break, and why.
+- Current state: the harness - how the tests start the product, seed and isolate data, drive it, and tear down, citing the repo's existing end-to-end setup by path. If the repo has none, the first steps add one (tool, start command, fixtures).
+- Steps and Test plan: the test matrix - per behavior, the user-facing entry point, the specific cases (boundaries, error paths, concurrency, and idempotency where relevant), and the observable outcome each case asserts.
+- Current state also names the naming/location/fixture conventions to follow, citing existing examples by path.
+- Scope: test files and harness files only; production code is out of scope. Out of scope also lists what NOT to test (implementation details, third-party behavior).
+- STOP conditions include: a case can only be written as a unit test, or a test exposes a real bug in production code.
+
+Plans: write every test plan in the handoff plan template of the `improve` skill.
+Read `~/.claude/skills/improve/references/plan-template.md` before writing the first plan, then follow its Template section and check each plan against its Quality bar.
+- One plan per independently executable unit of work, each self-contained for an executor with zero context, numbered `NNN` in execution order. With more than one plan, add the `plans/README.md` index from the same file.
+- Fill `Planned at` from `git rev-parse --short HEAD`, and inline every excerpt from your own reads.
+- The template's Test plan section names end-to-end tests only: this roster never writes unit tests.
+- Git workflow: in-place executors neither branch nor commit; a `parallel-implementer` commits per logical unit on its worktree branch and never pushes.
+- Your Write/Edit reach only agent memory, so return each plan in your answer under its target path `plans/NNN-<slug>.md`; the orchestrator passes it to the executor and maintains the index.
+
 
 Audit format (after implementation):
 - Verdict first: SHIP / SHIP WITH FOLLOW-UPS / BLOCK, with reasons.
