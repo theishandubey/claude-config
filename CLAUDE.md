@@ -40,7 +40,8 @@ Do not confuse the two CLAUDE.md files: this one (repo root) is project instruct
   `claude plugin` commands write the same way: keep the `enabledPlugins` lines, revert any `extraKnownMarketplaces` hunk.
 - `agents/**/*.md` frontmatter (`name`, `description`, `tools`, `model`, `effort`) drives Claude Code agent behavior directly.
   Keep frontmatter accurate when adding agents.
-  `effort` is `low`/`medium`/`high`/`xhigh`/`max`; in this roster every agent is pinned explicitly to its model's API default (`high` for Sonnet 5.5 agents, `medium` for Opus 5.5 agents), except `architect`, which is pinned to `high` on Opus 5.5.
+  `effort` is `low`/`medium`/`high`/`xhigh`/`max`; in this roster every agent is pinned explicitly to its model's API default (`high` for Sonnet 5.5 agents, `medium` for Opus 5.5 agents), with two exceptions: `architect` is pinned to `high` on Opus 5.5, and the search agents `explorer` and `web-researcher` are pinned to `medium` on Sonnet 5.5.
+  A 2026-10-04 benchmark found Sonnet 5.5 at `high` measurably better than `medium` on coding, so the code-writing workers stay on `high`; the search agents follow Anthropic's tool-use guidance and are not yet measured.
   The pin stays explicit because an agent without `effort` inherits the session level rather than the model default, so a session-level `/effort` change would silently move it.
   The pin is the baseline: effort sweeps run per dispatch through the `Agent` tool's `effort` parameter, and only a measured quality gain changes a pin.
 - Agents use only 5-series models.

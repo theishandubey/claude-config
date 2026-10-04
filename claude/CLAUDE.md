@@ -16,7 +16,7 @@ Every agent's name, description, and tools are already injected into each sessio
 
 - **Advisors:** all seven (`architect` / `security-reviewer` / `code-reviewer` / `backend-engineer` / `frontend-engineer` / `sre` / `qa-lead`) are Opus 5.5.
 - **Workers and explorers:** `implementer`, `parallel-implementer`, `fixer`, `test-writer`, `doc-writer`, `explorer`, and `web-researcher` are Sonnet 5.5.
-- **Effort:** the main session and every agent run at their model's API default (`high` on Fable 5.1 and Sonnet 5.5, `medium` on Opus 5.5), except `architect`, which runs Opus 5.5 at `high`.
+- **Effort:** the main session and every agent run at their model's API default (`high` on Fable 5.1 and Sonnet 5.5, `medium` on Opus 5.5), except `architect` (Opus 5.5 at `high`) and the search agents `explorer` and `web-researcher` (Sonnet 5.5 at `medium`).
   Cheap background helper requests (titles, compaction, summaries) run on Haiku 4.5 through the `haiku` alias.
 - **Agents use only 5-series models.**
   User settings pin what the `fable`, `opus`, and `sonnet` aliases resolve to.
