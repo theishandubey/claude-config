@@ -43,7 +43,9 @@ Do not confuse the two CLAUDE.md files: this one (repo root) is project instruct
   `effort` is `low`/`medium`/`high`/`xhigh`/`max`; in this roster every agent is pinned explicitly to its model's API default (`high` for Sonnet 5.5 agents, `medium` for Opus 5.5 agents), with two exceptions: `architect` is pinned to `high` on Opus 5.5, and the search agents `explorer` and `web-researcher` are pinned to `medium` on Sonnet 5.5.
   A 2026-10-04 benchmark found Sonnet 5.5 at `high` measurably better than `medium` on coding, so the code-writing workers stay on `high`; the search agents follow Anthropic's tool-use guidance and are not yet measured.
   The pin stays explicit because an agent without `effort` inherits the session level rather than the model default, so a session-level `/effort` change would silently move it.
-  The pin is the baseline: effort sweeps run per dispatch through the `Agent` tool's `effort` parameter, and only a measured quality gain changes a pin.
+  The pin is the baseline, and only a measured quality gain changes it.
+  The `Agent` tool has no per-call `effort` parameter, so effort sweeps run headless: `claude -p --agents <json> --agent <name> --effort <level>`, with a copy of the agent whose `effort` is set to the level under test.
+  The CLI needs its own `claude auth login`; the desktop app's sign-in does not cover it.
 - Agents use only 5-series models.
   The `env` block in `claude/settings.json` pins what the `fable`, `opus`, and `sonnet` aliases resolve to (`ANTHROPIC_DEFAULT_FABLE_MODEL`, `ANTHROPIC_DEFAULT_OPUS_MODEL`, `ANTHROPIC_DEFAULT_SONNET_MODEL`), so agent frontmatter keeps the plain `fable`/`opus`/`sonnet` aliases.
   `haiku` is deliberately left unpinned: do not add `ANTHROPIC_DEFAULT_HAIKU_MODEL`.
