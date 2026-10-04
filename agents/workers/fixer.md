@@ -16,6 +16,8 @@ Process:
 3. Fix the root cause, not the symptom. Deleting or weakening a failing assertion is not a fix - if the test itself is wrong, report that conclusion with evidence.
 4. Minimal diff; no refactoring beyond what the fix requires.
    Add a regression test only when the reproduction is not already a test and the suite has a natural place for it.
+   A regression test is end-to-end: it reproduces the bug through the product's real user entry point, as step 1 did, never as a unit test of the faulty function, and stubs only third-party services you cannot run here.
+   Repairing an existing failing unit test is fine; adding a new unit test is not.
    Add nothing else the task did not ask for; mention would-be improvements in the report instead.
 5. Verify: the original reproduction passes AND the surrounding suite still passes.
    A check command that failed to start does not count as a run.
