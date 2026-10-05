@@ -3,7 +3,6 @@
 # agent-config bootstrap
 #
 # - Symlinks Claude Code configs into place
-# - Registers the sibling claude-mods marketplace and installs its plugins
 # - Installs all skills in this repo (own + vendored) globally via skills CLI
 #
 # Idempotent - re-run after every git pull.
@@ -27,14 +26,6 @@ for arg in "$@"; do
     *) warn "unknown argument: $arg"; echo "Usage: ./install.sh [--clean]" >&2; exit 1 ;;
   esac
 done
-
-MODS_DIR="${CLAUDE_MODS_DIR:-$(dirname "$REPO_DIR")/claude-mods}"
-if [ ! -f "$MODS_DIR/.claude-plugin/marketplace.json" ]; then
-  echo "error: claude-mods marketplace not found at $MODS_DIR" >&2
-  echo "Clone the claude-mods repo next to agent-config, or set CLAUDE_MODS_DIR to its path." >&2
-  exit 1
-fi
-MODS_DIR="$(cd "$MODS_DIR" && pwd)"
 
 # link <source-in-repo> <target-path>
 # Backs up an existing real file/dir at target, then symlinks to repo.
@@ -111,41 +102,7 @@ link "$REPO_DIR/tmux/tmux.conf"       "$HOME/.tmux.conf"
 chmod +x "$REPO_DIR"/hooks/*.sh 2>/dev/null || true
 
 # ---------------------------------------------------------------------------
-# 4. Plugins: register the claude-mods marketplace and install every plugin it
-#    lists. enabledPlugins is committed in claude/settings.json; the
-#    marketplace registration is machine-local, so the claude-mods entry claude
-#    writes into extraKnownMarketplaces is stripped again.
-# ---------------------------------------------------------------------------
-info "Installing plugins from $MODS_DIR"
-failed=0
-if command -v claude > /dev/null; then
-  claude plugin marketplace add "$MODS_DIR"
-  plugin_names="$(node -e '
-    const fs = require("fs");
-    const manifest = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
-    for (const plugin of manifest.plugins) console.log(plugin.name);
-  ' "$MODS_DIR/.claude-plugin/marketplace.json")"
-  while IFS= read -r name; do
-    [ -n "$name" ] || continue
-    claude plugin install "$name@claude-mods" --scope user -y || { warn "plugin install failed: $name"; failed=1; }
-  done <<< "$plugin_names"
-  node -e '
-    const fs = require("fs");
-    const file = process.argv[1];
-    const settings = JSON.parse(fs.readFileSync(file, "utf8"));
-    if (settings.extraKnownMarketplaces?.["claude-mods"] !== undefined) {
-      delete settings.extraKnownMarketplaces["claude-mods"];
-      if (Object.keys(settings.extraKnownMarketplaces).length === 0) delete settings.extraKnownMarketplaces;
-      fs.writeFileSync(file, JSON.stringify(settings, null, 2) + "\n");
-      console.log("stripped claude-mods from extraKnownMarketplaces in " + file);
-    }
-  ' "$HOME/.claude/settings.json"
-else
-  warn "claude CLI not found - skipping plugin install; re-run after installing Claude Code"
-fi
-
-# ---------------------------------------------------------------------------
-# 5. Install all skills in this repo globally, to all detected agents
+# 4. Install all skills in this repo globally, to all detected agents
 #    Discovers both skills/ (own) and .agents/skills/ (vendored)
 # ---------------------------------------------------------------------------
 info "Installing skills globally via skills CLI"
@@ -164,7 +121,7 @@ for skills_dir in skills .agents/skills; do
 done
 
 # ---------------------------------------------------------------------------
-# 6. --clean: remove installed skills that this repo does not provide
+# 5. --clean: remove installed skills that this repo does not provide
 #    (the skills CLI copies rather than symlinks, so skills deleted from the
 #    repo - or installed by other means - linger in ~/.claude/skills forever)
 # ---------------------------------------------------------------------------
@@ -192,8 +149,3 @@ echo "  - Authenticate each tool on this machine manually (credentials are not s
 echo "  - To vendor a new third-party skill:"
 echo "      npx skills add <owner/repo> --skill <name> --copy -a claude-code -y && git add .agents && git commit"
 echo "  - To update vendored skills: npx skills update -p, review diff, commit."
-
-if [ "$failed" = 1 ]; then
-  warn "one or more plugins failed to install - see the messages above"
-  exit 1
-fi

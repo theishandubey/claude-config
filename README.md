@@ -59,12 +59,7 @@ agent-config/
    | `agents/` | `~/.claude/agents` |
    | `hooks/` | `~/.claude/hooks` |
    | `tmux/tmux.conf` | `~/.tmux.conf` |
-4. **Plugins** - registers the sibling `claude-mods` repo as a marketplace
-   (found at `$CLAUDE_MODS_DIR` or `../claude-mods`; the script fails before
-   changing anything if it is missing) and installs every plugin listed in its
-   `marketplace.json` at user scope, then strips the `claude-mods` entry from
-   `extraKnownMarketplaces` in the settings file
-5. **Skills install** - `npx skills add` discovers everything in `skills/`
+4. **Skills install** - `npx skills add` discovers everything in `skills/`
    and `.agents/skills/` and installs globally to Claude Code only
    (targeting all detected agents would spam errors from project-scope-only
    targets like PromptScript)
@@ -74,13 +69,20 @@ never overwritten.
 
 ## Mods
 
-The mods (`meter`, `agent-graph`) are plugins in the sibling `claude-mods` repo, which is a plugin marketplace.
+The mods (`meter`, `agent-graph`) are plugins in the separate [`claude-mods`](https://github.com/theishandubey/claude-mods) repo, which is a plugin marketplace.
 `meter` draws a band above the prompt with context, prompt cache, usage limits and cost, and `/meter` opens a detailed metrics pane.
 `agent-graph` draws a pane graphing running subagents left to right and works in the desktop app only.
-`install.sh` registers the marketplace and installs each plugin it lists.
-`enabledPlugins` in `claude/settings.json` is committed deliberately.
-`extraKnownMarketplaces` is machine-local and never committed; if a diff shows it, revert that hunk.
-Installed plugins load in place from the `claude-mods` checkout, so edits take effect after `/reload-plugins` or a restart.
+`claude/settings.json` declares that marketplace from its git URL in `extraKnownMarketplaces` and turns the plugins on in `enabledPlugins`; `install.sh` does not touch them.
+The declaration alone does not fetch the marketplace, so install the plugins once per machine (re-adding the marketplace rewrites the same committed block, leaving `git diff` empty):
+
+```bash
+claude plugin marketplace add https://github.com/theishandubey/claude-mods.git
+claude plugin install meter@claude-mods --scope user
+claude plugin install agent-graph@claude-mods --scope user
+```
+
+To pick up a pushed plugin change, run `claude plugin marketplace update claude-mods`, then `claude plugin update <name>@claude-mods`, and restart Claude Code.
+A machine that installed the plugins from a local `claude-mods` checkout before this change first runs `claude plugin marketplace remove claude-mods`, which also deletes the committed block from the live settings file, then the three commands above, which restore it; confirm `git diff claude/settings.json` is empty.
 
 ## Workflows
 
@@ -88,9 +90,11 @@ Installed plugins load in place from the `claude-mods` checkout, so edits take e
 
 ```bash
 git clone <repo-url> ~/agent-config
-git clone <claude-mods-repo-url> ~/claude-mods
 cd ~/agent-config
 ./install.sh
+claude plugin marketplace add https://github.com/theishandubey/claude-mods.git
+claude plugin install meter@claude-mods --scope user
+claude plugin install agent-graph@claude-mods --scope user
 # then authenticate manually - credentials are never synced
 ```
 

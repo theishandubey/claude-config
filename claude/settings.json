@@ -59,6 +59,14 @@
     "meter@claude-mods": true,
     "agent-graph@claude-mods": true
   },
+  "extraKnownMarketplaces": {
+    "claude-mods": {
+      "source": {
+        "source": "git",
+        "url": "https://github.com/theishandubey/claude-mods.git"
+      }
+    }
+  },
   "autoUpdatesChannel": "latest",
   "tui": "fullscreen",
   "skipDangerousModePermissionPrompt": true,
