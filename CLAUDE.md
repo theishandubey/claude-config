@@ -12,7 +12,7 @@ Configs are symlinked into `~/.claude` by `install.sh`, so files here are LIVE -
 | Subagent definitions | `agents/**/*.md` | |
 | My own skills | `skills/<name>/` | |
 | Vendored skills | never by hand - use the skills CLI | `.agents/skills/**` (fork into `skills/` to customize) |
-| Mods (function-hooks plugins: bands, panes) | the sibling `claude-mods` repo, `plugins/<name>/` | `~/.claude/plugins/**` (machine-local install state) |
+| Mods (function-hooks plugins: bands, panes) | the `claude-mods` repo (github.com/theishandubey/claude-mods), `plugins/<name>/` | `~/.claude/plugins/**` (machine-local install state) |
 | tmux | `tmux/tmux.conf` | `~/.tmux.conf` (symlink) |
 
 Do not confuse the two CLAUDE.md files: this one (repo root) is project instructions for working on this repo; `claude/CLAUDE.md` is the global config every session loads via `~/.claude/CLAUDE.md`.
@@ -26,18 +26,17 @@ Do not confuse the two CLAUDE.md files: this one (repo root) is project instruct
 - There is no status line: the `meter` plugin draws context, prompt cache, usage limits and cost in a band above the prompt.
   `meter` draws in the terminal and the desktop app; `agent-graph` draws only in the desktop app.
   `/meter` opens a detailed metrics pane beside the band.
-- Mods are plugins in the sibling `claude-mods` repo, not in this repo.
-  `install.sh` finds that repo at `$CLAUDE_MODS_DIR` or at `../claude-mods` and fails before changing anything if it is missing.
-  It registers the repo as the `claude-mods` marketplace, installs every plugin listed in its `marketplace.json` at user scope, and removes the retired `~/.claude/mods` link.
-  `enabledPlugins` in `claude/settings.json` is committed deliberately, so a new plugin needs a `<name>@claude-mods` entry there.
-  `install.sh` strips its `claude-mods` entry; any other entry there is also machine-local, so revert that hunk.
+- Mods are plugins in the separate `claude-mods` repo, installed from its git marketplace, not from a local checkout; `install.sh` does not touch them.
+  `claude/settings.json` declares the marketplace in `extraKnownMarketplaces` (git source `https://github.com/theishandubey/claude-mods.git`) and turns plugins on in `enabledPlugins`; both are committed deliberately, so a new plugin needs a `<name>@claude-mods` entry there.
+  The declaration does not fetch the marketplace: each machine runs `claude plugin marketplace add https://github.com/theishandubey/claude-mods.git` and `claude plugin install <name>@claude-mods --scope user` once (README, Mods).
+  A plugin change reaches a machine only after it is pushed, then pulled in with `claude plugin marketplace update claude-mods` and `claude plugin update <name>@claude-mods`.
+  `claude plugin marketplace remove claude-mods` deletes the committed `extraKnownMarketplaces` block from the live settings file; re-add the marketplace afterwards so `git diff` is empty again.
   Do not add `CLAUDE_CODE_PLUGIN_DIRS` back.
-  Installed plugins load in place from the `claude-mods` checkout, so edits take effect after `/reload-plugins` or a restart.
-  Develop and test them in that repo; see its `CLAUDE.md`.
+  Develop and test plugins in that repo; see its `CLAUDE.md`.
 - Claude Code writes some keys back into user settings, which is the live-symlinked `claude/settings.json`: `/effort` and the `/model` effort slider save `modelSettings.<model>.effortLevel` (since 2.1.251), and `/config`, `/tui`, `/theme` and `claude install <channel>` save keys such as `theme`, `tui`, `autoUpdatesChannel` and `skipDangerousModePermissionPrompt`.
   A saved `modelSettings` level silently overrides the top-level `effortLevel`.
   After any of these, either commit the written key deliberately or revert only that hunk with `git checkout -p claude/settings.json`.
-  `claude plugin` commands write the same way: keep the `enabledPlugins` lines, revert any `extraKnownMarketplaces` hunk.
+  `claude plugin` commands write the same way: keep the `enabledPlugins` lines and the `claude-mods` entry in `extraKnownMarketplaces`, and revert any other `extraKnownMarketplaces` hunk.
 - `agents/**/*.md` frontmatter (`name`, `description`, `tools`, `model`, `effort`) drives Claude Code agent behavior directly.
   Keep frontmatter accurate when adding agents.
   `effort` is `low`/`medium`/`high`/`xhigh`/`max`; in this roster every agent is pinned explicitly to its model's API default (`high` for Sonnet 5.5 agents, `medium` for Opus 5.5 agents), with two exceptions: `architect` is pinned to `high` on Opus 5.5, and the search agents `explorer` and `web-researcher` are pinned to `medium` on Sonnet 5.5.
