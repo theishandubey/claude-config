@@ -35,7 +35,6 @@ agent-config/
 │                                     # vendored skills to Claude Code project scope
 │
 ├── hooks/                        # PreToolUse guards, linked to ~/.claude/hooks
-├── statusline/                   # statusline/*.js, linked to ~/.claude/statusline
 ├── skills-lock.json              # vendored-skill provenance for npx skills update
 ├── tmux/                         # tmux.conf, linked to ~/.tmux.conf
 │
@@ -56,12 +55,16 @@ agent-config/
    | Repo file | Target |
    |---|---|
    | `claude/settings.json` | `~/.claude/settings.json` |
-   | `statusline/` | `~/.claude/statusline` |
    | `claude/CLAUDE.md` | `~/.claude/CLAUDE.md` |
    | `agents/` | `~/.claude/agents` |
    | `hooks/` | `~/.claude/hooks` |
    | `tmux/tmux.conf` | `~/.tmux.conf` |
-4. **Skills install** - `npx skills add` discovers everything in `skills/`
+4. **Plugins** - registers the sibling `claude-mods` repo as a marketplace
+   (found at `$CLAUDE_MODS_DIR` or `../claude-mods`; the script fails before
+   changing anything if it is missing) and installs every plugin listed in its
+   `marketplace.json` at user scope, then strips the `claude-mods` entry from
+   `extraKnownMarketplaces` in the settings file
+5. **Skills install** - `npx skills add` discovers everything in `skills/`
    and `.agents/skills/` and installs globally to Claude Code only
    (targeting all detected agents would spam errors from project-scope-only
    targets like PromptScript)
@@ -69,12 +72,23 @@ agent-config/
 Existing files at target locations are backed up with a timestamped `.bak` suffix,
 never overwritten.
 
+## Mods
+
+The mods (`meter`, `agent-graph`) are plugins in the sibling `claude-mods` repo, which is a plugin marketplace.
+`meter` draws a band above the prompt with context, prompt cache, usage limits and cost, and `/meter` opens a detailed metrics pane.
+`agent-graph` draws a pane graphing running subagents left to right and works in the desktop app only.
+`install.sh` registers the marketplace and installs each plugin it lists.
+`enabledPlugins` in `claude/settings.json` is committed deliberately.
+`extraKnownMarketplaces` is machine-local and never committed; if a diff shows it, revert that hunk.
+Installed plugins load in place from the `claude-mods` checkout, so edits take effect after `/reload-plugins` or a restart.
+
 ## Workflows
 
 ### New machine
 
 ```bash
 git clone <repo-url> ~/agent-config
+git clone <claude-mods-repo-url> ~/claude-mods
 cd ~/agent-config
 ./install.sh
 # then authenticate manually - credentials are never synced

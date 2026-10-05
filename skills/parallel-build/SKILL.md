@@ -21,14 +21,14 @@ The main session owns the worktree lifecycle end to end. These hold for ANY work
 - **Clean up after abandoned runs.** If a run is cancelled or superseded, list leftovers with `git worktree list` and prune the merged/abandoned ones rather than letting them accumulate.
 
 ## Phase 1 - Prepare
-1. If no implementation plan with per-step file ownership exists, get one from the `architect` advisor first. Every task must list the exact files it owns; reject plans with overlapping ownership or renegotiate the split.
+1. If no implementation plan with per-step file ownership exists, get one from the `architect` advisor first. Its plans follow the `improve` handoff template: one plan per task, and each plan's Scope in-scope list is that task's owned files. Every task must list the exact files it owns; reject plans with overlapping ownership or renegotiate the split.
 2. **Bootstrap `.worktreeinclude`**: check for a `.worktreeinclude` file at the repo root. If missing, create one BEFORE dispatching:
    a. Detect untracked-but-required files: `git status --ignored --short` cross-checked against what the build/test setup references - env files (`.env.local`, `.env.development`), local certs, tool configs (`.npmrc`, `docker-compose.override.yml`).
    b. Write the detected paths to `.worktreeinclude` (one per line, comments with `#`). If nothing is detected, still create it with a commented header explaining its purpose, so future runs and teammates find it.
    c. NEVER list secrets that shouldn't propagate (production credentials, personal tokens) - only local dev prerequisites.
    d. Commit it with the base (it's team-shareable config).
    If the file exists, skim it for obvious gaps against the same detection and append if needed.
-3. Ensure the working tree is committed: `git status` clean, base work committed. Record the base branch and SHA.
+3. Ensure the working tree is committed: `git status` clean, base work committed. An untracked `plans/` or `advisor-plans/` holding advisor plans is intentional: it stays uncommitted and does not block dispatch (pass each plan's full text in the delegation prompt). Record the base branch and SHA.
 4. Confirm task count ≤ 4 (more rarely helps; merge cost grows).
 
 ## Phase 2 - Dispatch

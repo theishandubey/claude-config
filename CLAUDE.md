@@ -12,7 +12,7 @@ Configs are symlinked into `~/.claude` by `install.sh`, so files here are LIVE -
 | Subagent definitions | `agents/**/*.md` | |
 | My own skills | `skills/<name>/` | |
 | Vendored skills | never by hand - use the skills CLI | `.agents/skills/**` (fork into `skills/` to customize) |
-| Status line | `statusline/*.js` | |
+| Mods (function-hooks plugins: bands, panes) | the sibling `claude-mods` repo, `plugins/<name>/` | `~/.claude/plugins/**` (machine-local install state) |
 | tmux | `tmux/tmux.conf` | `~/.tmux.conf` (symlink) |
 
 Do not confuse the two CLAUDE.md files: this one (repo root) is project instructions for working on this repo; `claude/CLAUDE.md` is the global config every session loads via `~/.claude/CLAUDE.md`.
@@ -23,26 +23,36 @@ Do not confuse the two CLAUDE.md files: this one (repo root) is project instruct
   `agents/**/*.md` are NOT: agent definitions are snapshotted when a session starts, so edits to frontmatter or an agent's prompt only take effect in the next session.
   Restart Claude Code before testing an agent change, or you will verify the old definition and conclude the edit failed.
 - Re-run `./install.sh` for structural changes (new skills, new hooks, new symlink targets).
-- The `statusLine` key in `claude/settings.json` is picked up live via the symlink.
-  `statusline/` itself is a new symlink target, so `./install.sh` must be re-run once after first adding it.
+- There is no status line: the `meter` plugin draws context, prompt cache, usage limits and cost in a band above the prompt.
+  `meter` draws in the terminal and the desktop app; `agent-graph` draws only in the desktop app.
+  `/meter` opens a detailed metrics pane beside the band.
+- Mods are plugins in the sibling `claude-mods` repo, not in this repo.
+  `install.sh` finds that repo at `$CLAUDE_MODS_DIR` or at `../claude-mods` and fails before changing anything if it is missing.
+  It registers the repo as the `claude-mods` marketplace, installs every plugin listed in its `marketplace.json` at user scope, and removes the retired `~/.claude/mods` link.
+  `enabledPlugins` in `claude/settings.json` is committed deliberately, so a new plugin needs a `<name>@claude-mods` entry there.
+  `install.sh` strips its `claude-mods` entry; any other entry there is also machine-local, so revert that hunk.
+  Do not add `CLAUDE_CODE_PLUGIN_DIRS` back.
+  Installed plugins load in place from the `claude-mods` checkout, so edits take effect after `/reload-plugins` or a restart.
+  Develop and test them in that repo; see its `CLAUDE.md`.
 - Claude Code writes some keys back into user settings, which is the live-symlinked `claude/settings.json`: `/effort` and the `/model` effort slider save `modelSettings.<model>.effortLevel` (since 2.1.251), and `/config`, `/tui`, `/theme` and `claude install <channel>` save keys such as `theme`, `tui`, `autoUpdatesChannel` and `skipDangerousModePermissionPrompt`.
   A saved `modelSettings` level silently overrides the top-level `effortLevel`.
   After any of these, either commit the written key deliberately or revert only that hunk with `git checkout -p claude/settings.json`.
+  `claude plugin` commands write the same way: keep the `enabledPlugins` lines, revert any `extraKnownMarketplaces` hunk.
 - `agents/**/*.md` frontmatter (`name`, `description`, `tools`, `model`, `effort`) drives Claude Code agent behavior directly.
   Keep frontmatter accurate when adding agents.
-  `effort` is `low`/`medium`/`high`/`xhigh`/`max`; in this roster every agent is pinned explicitly to its model's default: `high` for Fable 5.1 and Sonnet 5.5 agents, `medium` for Opus 5.5 agents.
+  `effort` is `low`/`medium`/`high`/`xhigh`/`max`; in this roster every agent is pinned explicitly to its model's API default (`high` for Sonnet 5.5 agents, `medium` for Opus 5.5 agents), with two exceptions: `architect` is pinned to `high` on Opus 5.5, and the search agents `explorer` and `web-researcher` are pinned to `medium` on Sonnet 5.5.
+  A 2026-10-04 benchmark found Sonnet 5.5 at `high` measurably better than `medium` on coding, so the code-writing workers stay on `high`; the search agents follow Anthropic's tool-use guidance and are not yet measured.
   The pin stays explicit because an agent without `effort` inherits the session level rather than the model default, so a session-level `/effort` change would silently move it.
-  The pin is the baseline: effort sweeps run per dispatch through the `Agent` tool's `effort` parameter, and only a measured quality gain changes a pin.
+  The pin is the baseline, and only a measured quality gain changes it.
+  The `Agent` tool has no per-call `effort` parameter, so effort sweeps run headless: `claude -p --agents <json> --agent <name> --effort <level>`, with a copy of the agent whose `effort` is set to the level under test.
+  The CLI needs its own `claude auth login`; the desktop app's sign-in does not cover it.
 - Agents use only 5-series models.
   The `env` block in `claude/settings.json` pins what the `fable`, `opus`, and `sonnet` aliases resolve to (`ANTHROPIC_DEFAULT_FABLE_MODEL`, `ANTHROPIC_DEFAULT_OPUS_MODEL`, `ANTHROPIC_DEFAULT_SONNET_MODEL`), so agent frontmatter keeps the plain `fable`/`opus`/`sonnet` aliases.
   `haiku` is deliberately left unpinned: do not add `ANTHROPIC_DEFAULT_HAIKU_MODEL`.
   It resolves to Haiku 4.5, which the `claude-code-guide` built-in and background helper requests (titles, compaction, summaries) use.
   The `Explore` and `Plan` built-ins inherit the session model, capped at `opus`.
   Opus 5.5 requires Claude Code 2.1.280 or later; an older build fails the pinned requests instead of falling back.
-  Do not set a top-level `effortLevel` in `claude/settings.json`: the main session runs at the model default effort, and that key does not apply to Opus 5.5 anyway.
-  The one deliberate `modelSettings` entry sets `claude-sonnet-5-5` to `medium`.
-  It applies to requests on Sonnet 5.5 that carry no explicit effort, such as a main session switched to Sonnet 5.5 with `/model`.
-  It does not touch the Fable main session, and it does not lower the Sonnet agents, because their explicit `effort: high` frontmatter overrides it.
+  Do not set a top-level `effortLevel` or any `modelSettings` effort in `claude/settings.json`: every model runs at its API default effort, and `effortLevel` does not apply to Opus 5.5 anyway.
 - `.claude/skills` is a committed relative symlink to `../.agents/skills`; never replace it with a real directory.
 - `skills-lock.json` tracks vendored-skill provenance for `npx skills update -p`; do not hand-edit it except to reconcile after a CLI failure.
 - `install.sh` must stay idempotent: re-runs must print `ok:` for existing links and create no duplicate backups.

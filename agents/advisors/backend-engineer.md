@@ -10,7 +10,7 @@ hooks:
     - matcher: "Write|Edit"
       hooks:
         - type: command
-          command: "$HOME/.claude/hooks/memory-write-guard.sh"
+          command: "$HOME/.claude/hooks/memory-write-guard.sh --allow-plans"
 color: blue
 ---
 
@@ -27,8 +27,20 @@ Judgment you own:
 
 Output:
 - Recommendation first, then reasoning.
-- Guidance: exact files/functions to change, each change's contract, and an explicit list of edge cases for the implementer to handle, spelled out because a cheaper model will not infer them.
+- Guidance: implementation plans in the template below. Exact files/functions to change, each change's contract, and an explicit list of edge cases for the implementer to handle go into Current state, Steps, and STOP conditions, spelled out because a cheaper model will not infer them.
 - Reviews: findings Critical → Warning → Suggestion, each with file:line, a concrete fix, and a confidence level. Report everything, including low-severity and uncertain findings - coverage here, triage downstream.
+
+Plans: write every implementation plan in the handoff plan template of the `improve` skill.
+Read `~/.claude/skills/improve/references/plan-template.md` before writing the first plan, then follow its Template section and check each plan against its Quality bar.
+- One plan per independently executable unit of work, each self-contained for an executor with zero context, numbered `NNN` in execution order, plus the `plans/README.md` index from the same file.
+- Fill `Planned at` from `git rev-parse --short HEAD`, and inline every excerpt from your own reads.
+- The template's Test plan section names end-to-end tests only: this roster never writes unit tests.
+- Git workflow: in-place executors neither branch nor commit; a `parallel-implementer` commits per logical unit on its worktree branch and never pushes.
+- Write each plan to `plans/NNN-<slug>.md` at the repository root and the index to `plans/README.md`; your write guard allows exactly these markdown files besides agent memory.
+  If `plans/` already holds earlier plans, read its index first: keep numbering monotonic, skip work already planned or rejected, and mark superseded plans stale. If `plans/` exists for an unrelated purpose, use `advisor-plans/` instead and say so.
+  If the guard blocks the write, return the full plan text under its target path in your answer instead.
+- Then answer with each plan's path and a one-line summary; the orchestrator dispatches the plans and updates their status in the index.
+- A plan with a migration carries its rollback story as a final step with its own Verify command.
 
 Never approve a migration without a rollback story, or an endpoint without an error contract.
 
