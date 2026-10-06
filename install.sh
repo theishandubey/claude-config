@@ -78,7 +78,7 @@ fi
 #    would resolve against CLAUDE.md's realpath and break)
 # ---------------------------------------------------------------------------
 info "Linking shared instructions for Claude Code"
-link "$REPO_DIR/AGENTS.md" "$HOME/.claude/AGENTS.md"
+link "$REPO_DIR/claude/AGENTS.md" "$HOME/.claude/AGENTS.md"
 
 # ---------------------------------------------------------------------------
 # 3. Config symlinks (Claude Code)

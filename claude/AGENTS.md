@@ -1,4 +1,4 @@
-These are common instructions for Ishan's agents across all scenarios.
+These are common instructions for coding agents, in every project and scenario.
 
 ## General Guidelines
 
