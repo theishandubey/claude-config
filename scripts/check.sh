@@ -31,6 +31,10 @@ for h in hooks/*.sh; do
   [ -x "$h" ] || { echo "check: $h is not executable" >&2; exit 1; }
 done
 
+for f in CLAUDE.md AGENTS.md CONTRIBUTING.md SECURITY.md .claude/CLAUDE.md; do
+  [ ! -e "$f" ] || { echo "check: $f must not exist" >&2; exit 1; }
+done
+
 python3 -I scripts/check-agents.py
 "$BASH" scripts/test-memory-write-guard.sh
 "$BASH" scripts/test-install.sh
