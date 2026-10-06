@@ -9,6 +9,7 @@
 # Idempotent - re-run after every git pull.
 #
 # Usage: ./install.sh [--dry-run] [--yes] [--no-skills] [--clean]
+#        ./install.sh --uninstall [--dry-run] [--yes]
 # Run ./install.sh --help for the flags.
 
 set -euo pipefail
@@ -48,6 +49,7 @@ command -v jq >/dev/null || { warn "jq is required"; exit 1; }
 
 usage_lines() {
   echo "Usage: ./install.sh [--dry-run] [--yes] [--no-skills] [--clean]"
+  echo "       ./install.sh --uninstall [--dry-run] [--yes]"
 }
 
 usage() {
@@ -62,6 +64,7 @@ and installs the skills listed in skills/ and skills-lock.json.
   --yes, -y    do not ask for confirmation (required when stdin is not a terminal)
   --no-skills  skip the skills CLI (no network)
   --clean      also remove ~/.claude/skills entries this repo does not provide
+  --uninstall  remove the links and generated settings, restoring the newest backups
   --help, -h   show this help
 
 Environment: CLAUDE_CONFIG_LOCAL_DIR overrides the overlay directory (default: <repo>/local).
@@ -72,16 +75,23 @@ CLEAN=0
 NO_SKILLS=0
 DRY_RUN=0
 ASSUME_YES=0
+UNINSTALL=0
 for arg in "$@"; do
   case "$arg" in
     --clean) CLEAN=1 ;;
     --no-skills) NO_SKILLS=1 ;;
     --dry-run) DRY_RUN=1 ;;
     --yes|-y) ASSUME_YES=1 ;;
+    --uninstall) UNINSTALL=1 ;;
     --help|-h) usage; finish 0 ;;
     *) warn "unknown argument: $arg"; usage_lines >&2; exit 1 ;;
   esac
 done
+if [ "$UNINSTALL" = 1 ] && [ "$CLEAN$NO_SKILLS" != 00 ]; then
+  warn "--uninstall cannot be combined with --clean or --no-skills"
+  usage_lines >&2
+  exit 1
+fi
 
 MODE=apply
 PLAN_LINES=()
@@ -524,16 +534,114 @@ install_all() {
   if [ "$CLEAN" = 1 ]; then clean_skills; fi
 }
 
+points_into_repo() {
+  [ "${1#"$REPO_DIR"/}" != "$1" ] || [ "${1#"$LOCAL_DIR"/}" != "$1" ]
+}
+
+newest_backup() {
+  local f ts newest=""
+  for f in "$1".bak.*; do
+    [ -e "$f" ] || [ -L "$f" ] || continue
+    ts="${f##*.bak.}"
+    case "$ts" in *[!0-9]*|"") continue ;; esac
+    [ "${#ts}" = 14 ] || continue
+    newest="$f"
+  done
+  printf '%s' "$newest"
+}
+
+# restore_backup <path>: moves the newest backup back; never overwrites anything.
+restore_backup() {
+  local path="$1" bak
+  bak="$(newest_backup "$path")"
+  [ -n "$bak" ] || return 0
+  if [ "$MODE" = plan ]; then
+    plan_add "restore $bak -> $path"
+  elif [ ! -e "$path" ] && [ ! -L "$path" ]; then
+    mv "$bak" "$path"
+    info "restored: $bak -> $path"
+  fi
+}
+
+uninstall_link() {
+  local path="$1" free=0
+  if [ -L "$path" ] && points_into_repo "$(readlink "$path" 2>/dev/null || true)"; then
+    free=1
+    if [ "$MODE" = plan ]; then
+      plan_add "unlink $path"
+    else
+      rm "$path"
+      info "unlinked: $path"
+    fi
+  elif [ -e "$path" ] || [ -L "$path" ]; then
+    if [ "$MODE" = plan ]; then plan_note "keep $path (not a link into this repo; not removed)"; fi
+  else
+    free=1
+  fi
+  if [ "$free" = 1 ]; then restore_backup "$path"; fi
+}
+
+uninstall_settings() {
+  local live="$HOME/.claude/settings.json"
+  local snapshot="$HOME/.claude/settings.generated.json"
+  local free=0
+  if [ ! -f "$snapshot" ] || [ -L "$snapshot" ]; then return 0; fi
+  if [ ! -e "$live" ] && [ ! -L "$live" ]; then
+    free=1
+  elif [ -f "$live" ] && [ ! -L "$live" ] && json_equal "$live" "$snapshot"; then
+    free=1
+    if [ "$MODE" = plan ]; then
+      plan_add "remove $live"
+    else
+      rm "$live"
+      info "removed: $live"
+    fi
+  elif [ "$MODE" = plan ]; then
+    plan_note "keep $live (edited since generation; not removed)"
+  fi
+  if [ "$MODE" = plan ]; then
+    plan_add "remove $snapshot"
+  else
+    rm "$snapshot"
+    info "removed: $snapshot"
+  fi
+  if [ "$free" = 1 ]; then restore_backup "$live"; fi
+}
+
+uninstall_all() {
+  step "Removing links and generated settings"
+  uninstall_link "$HOME/.claude/AGENTS.md"
+  uninstall_link "$HOME/.claude/CLAUDE.md"
+  uninstall_link "$HOME/.claude/CLAUDE.local.md"
+  uninstall_link "$HOME/.claude/agents"
+  uninstall_link "$HOME/.claude/hooks"
+  uninstall_link "$HOME/.tmux.conf"
+  uninstall_settings
+  if [ "$MODE" = plan ]; then
+    plan_note "Skills under $HOME/.claude/skills are left in place; remove with: npx skills remove -g <name>"
+  fi
+}
+
 # run <function>: plan pass first, then confirmation, then the apply pass.
 run() {
   MODE=plan
   "$1"
-  if [ "$DRY_RUN" = 1 ] || [ "$PENDING" -gt 0 ]; then print_plan; fi
+  if [ "$DRY_RUN" = 1 ] || [ "$PENDING" -gt 0 ] || [ "$UNINSTALL" = 1 ]; then print_plan; fi
   if [ "$DRY_RUN" = 1 ]; then finish 0; fi
+  if [ "$UNINSTALL" = 1 ] && [ "$PENDING" -eq 0 ]; then
+    info "Nothing to uninstall."
+    finish 0
+  fi
   if [ "$PENDING" -gt 0 ]; then confirm; fi
   MODE=apply
   "$1"
 }
+
+if [ "$UNINSTALL" = 1 ]; then
+  run uninstall_all
+  info "Done."
+  finish 0
+fi
 
 check_settings_inputs
 run install_all
