@@ -183,6 +183,7 @@ while True:
     if not answered and b"Proceed?" in buf:
         os.write(fd, b"n\n")
         answered = True
+signal.alarm(0)
 _, status = os.waitpid(pid, 0)
 sys.stdout.write(buf.decode("utf-8", "replace"))
 sys.exit(os.WEXITSTATUS(status) if os.WIFEXITED(status) else 1)
@@ -297,6 +298,8 @@ lifecycle() {
   assert_match "adoption reported" 'adopted into .*/settings\.json: theme' "$OUT"
   assert_eq "overlay holds the edit" light "$(jq -r .theme "$SB_LOCAL/settings.json")"
   assert_eq "live settings keep the edit" light "$(jq -r .theme "$SB_HOME/.claude/settings.json")"
+  assert_eq "snapshot matches the live settings after adoption" "$(live_json)" \
+    "$(jq -S . "$SB_HOME/.claude/settings.generated.json")"
   assert_eq "committed defaults stay clean" 0 "$(jq -S . "$SB_REPO/claude/settings.json" | grep -c light)"
   before="$(state_sum)"
   mark_time
