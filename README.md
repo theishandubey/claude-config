@@ -114,14 +114,15 @@ A minimal overlay, which is also what `local.example/settings.json` contains:
 {
   "cleanupPeriodDays": 30,
   "permissions": {
-    "allow": [
-      "Edit(example-dir/**)"
+    "deny": [
+      "Bash(npm publish:*)"
     ]
   }
 }
 ```
 
-The scalar replaces the default, and the `allow` entry is appended to the committed list.
+`cleanupPeriodDays` is not a committed default, so the scalar is simply added; a scalar that is a committed default would be replaced.
+The `deny` entry is appended to the committed list.
 
 The committed defaults never enable bypass permissions mode.
 To opt in on your own machine, add this to `local/settings.json`:
