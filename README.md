@@ -176,7 +176,8 @@ git pull && ./install.sh
 ```
 
 This removes the links and restores the newest `.bak.<timestamp>` backup at each path.
-`~/.claude/settings.json` is your file and is never deleted; a legacy symlink into this repo is replaced by a copy of the defaults, or by its backup when there is one.
+`~/.claude/settings.json` is your file and is kept as it is.
+A legacy symlink into this repo is the exception: it is replaced by the newest backup if there is one, otherwise by a copy of the file it points to, and a dangling one is removed.
 Installed skills (`npx skills remove -g <name>`) and plugins (`claude plugin uninstall`) are left alone.
 
 ## Optional plugins
