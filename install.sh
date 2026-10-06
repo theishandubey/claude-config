@@ -15,6 +15,7 @@ set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BACKUP_SUFFIX=".bak.$(date +%Y%m%d%H%M%S)"
+LOCAL_DIR="${CLAUDE_CONFIG_LOCAL_DIR:-$REPO_DIR/local}"
 
 info()  { printf '\033[1;34m==>\033[0m %s\n' "$*"; }
 warn()  { printf '\033[1;33mwarn:\033[0m %s\n' "$*"; }
@@ -55,6 +56,99 @@ link() {
   info "linked: $dst -> $src"
 }
 
+json_equal() {
+  diff -q <(jq -S . "$1") <(jq -S . "$2") >/dev/null 2>&1
+}
+
+merge_settings() {
+  jq -n --slurpfile d "$1" --slurpfile o "$2" '
+    def merge(a; b):
+      if (a | type) == "object" and (b | type) == "object" then
+        reduce (b | keys_unsorted[]) as $k (a; .[$k] = merge(a[$k]; b[$k]))
+      elif (a | type) == "array" and (b | type) == "array" then a + (b - a)
+      elif b == null then a
+      else b end;
+    merge($d[0]; $o[0])'
+}
+
+leaf_paths() {
+  jq -c 'paths(type != "object") | select(all(.[]; type == "string"))' "$1"
+}
+
+adopt_drift() {
+  local live="$1" snapshot="$2" overlay="$3" adopted removed
+  adopted="$(jq -n --slurpfile l "$live" --slurpfile g "$snapshot" '
+    [ $l[0] | paths(type != "object") | select(all(.[]; type == "string"))
+      | select(. as $p | ($l[0] | getpath($p)) != ($g[0] | getpath($p))) ]')"
+  removed="$(jq -n --slurpfile l "$live" --slurpfile g "$snapshot" '
+    [ $g[0] | paths(type != "object") | select(all(.[]; type == "string"))
+      | select(. as $p | ($l[0] | getpath($p)) == null) ]')"
+  if [ "$(printf '%s' "$adopted" | jq 'length')" -gt 0 ]; then
+    mkdir -p "$(dirname "$overlay")"
+    [ -f "$overlay" ] || printf '{}\n' > "$overlay"
+    jq --slurpfile l "$live" --argjson paths "$adopted" '
+      reduce $paths[] as $p (.; setpath($p; $l[0] | getpath($p)))' "$overlay" > "$overlay.tmp"
+    mv "$overlay.tmp" "$overlay"
+    printf '%s' "$adopted" | jq -r '.[] | join(".")' | while read -r p; do
+      info "adopted into $overlay: $p"
+    done
+  fi
+  if [ "$(printf '%s' "$removed" | jq 'length')" -gt 0 ]; then
+    printf '%s' "$removed" | jq -r '.[] | join(".")' | while read -r p; do
+      warn "$p was removed from $live since the last run; the committed default is restored (remove it from $overlay too if that was intended)"
+    done
+  fi
+}
+
+generate_settings() {
+  local defaults="$REPO_DIR/claude/settings.json"
+  local overlay="$LOCAL_DIR/settings.json"
+  local live="$HOME/.claude/settings.json"
+  local snapshot="$HOME/.claude/settings.generated.json"
+  local empty merged
+  mkdir -p "$HOME/.claude"
+  if [ -L "$live" ]; then
+    warn "replacing symlink $live with a generated file"
+    rm "$live"
+  elif [ -f "$live" ] && [ ! -f "$snapshot" ]; then
+    if [ ! -f "$overlay" ]; then
+      mkdir -p "$LOCAL_DIR"
+      cp "$live" "$overlay"
+      info "seeded $overlay from the existing $live"
+    fi
+    warn "backing up existing $live -> ${live}${BACKUP_SUFFIX}"
+    mv "$live" "${live}${BACKUP_SUFFIX}"
+  elif [ -f "$live" ] && [ -f "$snapshot" ] && ! json_equal "$live" "$snapshot"; then
+    adopt_drift "$live" "$snapshot" "$overlay"
+  fi
+  empty="$(mktemp)"
+  printf '{}\n' > "$empty"
+  merged="$(mktemp)"
+  if [ -f "$overlay" ]; then
+    merge_settings "$defaults" "$overlay" > "$merged"
+  else
+    merge_settings "$defaults" "$empty" > "$merged"
+  fi
+  if [ -f "$live" ] && json_equal "$live" "$merged"; then
+    info "ok: $live"
+  else
+    mv "$merged" "$live"
+    info "generated: $live"
+  fi
+  cp "$live" "$snapshot"
+  rm -f "$empty" "$merged"
+}
+
+link_personal_instructions() {
+  local src="$LOCAL_DIR/CLAUDE.md" dst="$HOME/.claude/CLAUDE.local.md"
+  if [ -f "$src" ]; then
+    link "$src" "$dst"
+  elif [ -L "$dst" ] && [ ! -e "$dst" ]; then
+    warn "removing dangling link: $dst"
+    rm "$dst"
+  fi
+}
+
 # ---------------------------------------------------------------------------
 # 1. Repo-internal symlink: expose vendored skills to Claude Code project scope
 #    (.claude/skills -> ../.agents/skills, relative so it survives git clone)
@@ -92,8 +186,9 @@ for retired in "$HOME/.claude/commands" "$HOME/.claude/statusline" "$HOME/.claud
     rm "$retired"
   fi
 done
-link "$REPO_DIR/claude/settings.json" "$HOME/.claude/settings.json"
+generate_settings
 link "$REPO_DIR/claude/CLAUDE.md"     "$HOME/.claude/CLAUDE.md"
+link_personal_instructions
 link "$REPO_DIR/agents"               "$HOME/.claude/agents"
 # Agent frontmatter references hooks by absolute path ($HOME/.claude/hooks/...),
 # so they must resolve on every machine, not just inside this repo.

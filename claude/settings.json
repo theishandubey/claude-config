@@ -48,31 +48,11 @@
       "Bash(git push -f:*)",
       "Bash(git reset --hard:*)",
       "Bash(rm -rf:*)"
-    ],
-    "defaultMode": "bypassPermissions"
+    ]
   },
-  "model": "fable[1m]",
   "worktree": {
     "baseRef": "head"
   },
-  "enabledPlugins": {
-    "meter@claude-mods": true,
-    "agent-graph@claude-mods": true
-  },
-  "extraKnownMarketplaces": {
-    "claude-mods": {
-      "source": {
-        "source": "git",
-        "url": "https://github.com/theishandubey/claude-mods.git"
-      }
-    }
-  },
-  "autoUpdatesChannel": "latest",
-  "tui": "fullscreen",
-  "skipDangerousModePermissionPrompt": true,
-  "theme": "dark",
   "switchModelsOnFlag": false,
-  "teammateMode": "auto",
-  "inputNeededNotifEnabled": true,
-  "agentPushNotifEnabled": true
+  "teammateMode": "auto"
 }
