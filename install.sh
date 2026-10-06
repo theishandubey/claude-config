@@ -22,9 +22,17 @@ LOCAL_DIR="${CLAUDE_CONFIG_LOCAL_DIR:-$REPO_DIR/local}"
 info()  { printf '\033[1;34m==>\033[0m %s\n' "$*"; }
 warn()  { printf '\033[1;33mwarn:\033[0m %s\n' "$*"; }
 
+COMPLETED=0
+FAILED=0
 TMP_FILES=()
+# bash 3.2 (macOS /bin/bash) reports status 0 for a set -u abort once an EXIT trap is set,
+# so a run that did not reach COMPLETED=1 is forced to a non-zero status here.
 cleanup() {
+  local rc=$?
   if [ "${#TMP_FILES[@]}" -gt 0 ]; then rm -f "${TMP_FILES[@]}"; fi
+  if [ "$rc" = 0 ] && [ "$COMPLETED" != 1 ]; then rc=1; fi
+  trap - EXIT
+  exit "$rc"
 }
 trap cleanup EXIT
 trap 'exit 1' INT TERM HUP
@@ -276,6 +284,11 @@ link_personal_instructions() {
   fi
 }
 
+read_lock_names() {
+  jq -e '.skills | type == "object"' "$REPO_DIR/skills-lock.json" >/dev/null \
+    && jq -r '.skills | keys[]' "$REPO_DIR/skills-lock.json"
+}
+
 check_settings_inputs
 
 # ---------------------------------------------------------------------------
@@ -321,14 +334,20 @@ else
   # agents" includes project-scope-only targets (e.g. PromptScript), which emit
   # a spurious "does not support global skill installation" error per skill.
   if compgen -G "skills/*/SKILL.md" > /dev/null; then
-    npx -y skills add ./skills -g -a claude-code -y
+    npx -y skills add ./skills -g -a claude-code -y < /dev/null \
+      || { warn "failed to install from ./skills"; FAILED=1; }
   fi
+  read_lock_names > /dev/null || { warn "skills-lock.json unreadable; nothing was installed from upstream"; exit 1; }
   manifest="$(jq -r '.skills | to_entries | group_by(.value.source)[] | "\(.[0].value.source) \(map(.key) | join(" "))"' "$REPO_DIR/skills-lock.json")"
   # The skills CLI reads stdin, which would otherwise be the manifest.
   while read -r source names; do
+    [ -n "$source" ] && [ -n "$names" ] || continue
     args=()
+    set -f
     for name in $names; do args+=(-s "$name"); done
-    npx -y skills add "$source" "${args[@]}" -g -a claude-code -y < /dev/null
+    set +f
+    npx -y skills add "$source" "${args[@]}" -g -a claude-code -y < /dev/null \
+      || { warn "failed to install from $source: $names"; FAILED=1; }
   done <<< "$manifest"
 fi
 
@@ -338,26 +357,35 @@ fi
 #    repo - or installed by other means - linger in ~/.claude/skills forever)
 # ---------------------------------------------------------------------------
 if [ "$CLEAN" = 1 ]; then
-  info "Removing skills not provided by this repo from $HOME/.claude/skills"
-  removed=0
-  for installed in "$HOME/.claude/skills"/*/; do
-    [ -d "$installed" ] || continue
-    name="$(basename "$installed")"
-    # Claude Code owns ~/.claude/skills/synced (claude.ai skill sync) and .trash.
-    case "$name" in synced|.trash) continue ;; esac
-    if [ ! -f "$REPO_DIR/skills/$name/SKILL.md" ] \
-      && ! jq -e --arg n "$name" '.skills[$n]' "$REPO_DIR/skills-lock.json" >/dev/null; then
-      warn "removing stale skill: $name"
-      rm -rf "$installed"
-      removed=1
-    fi
-  done
-  [ "$removed" = 0 ] && info "ok: no stale skills"
+  if [ "$FAILED" = 1 ]; then
+    warn "skipping --clean: some skills failed to install"
+  else
+    lock_names="$(read_lock_names)" || { warn "skills-lock.json unreadable; skipping --clean"; exit 1; }
+    info "Removing skills not provided by this repo from $HOME/.claude/skills"
+    removed=0
+    for installed in "$HOME/.claude/skills"/*; do
+      [ -d "$installed" ] || [ -L "$installed" ] || continue
+      name="$(basename "$installed")"
+      # Claude Code owns ~/.claude/skills/synced (claude.ai skill sync) and .trash.
+      case "$name" in synced|.*|*..*|*/*) continue ;; esac
+      if [ ! -f "$REPO_DIR/skills/$name/SKILL.md" ] && ! printf '%s\n' "$lock_names" | grep -qxF -- "$name"; then
+        warn "removing stale skill: $name"
+        if [ -L "$installed" ]; then rm "$installed"; else rm -rf "$installed"; fi
+        removed=1
+      fi
+    done
+    [ "$removed" = 0 ] && info "ok: no stale skills"
+  fi
 fi
 
+if [ "$FAILED" = 1 ]; then
+  warn "finished with errors: some skills failed to install"
+  exit 1
+fi
+COMPLETED=1
 info "Done."
 echo
 echo "Reminders:"
 echo "  - Authenticate each tool on this machine manually (credentials are not synced)."
 echo "  - To add a third-party skill: npx skills add <owner/repo> -s <name> -g -a claude-code -y, then add its entry to skills-lock.json."
-echo "  - To update third-party skills: npx skills update -g"
+echo "  - To update third-party skills: re-run ./install.sh to reinstall the latest upstream versions."
