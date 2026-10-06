@@ -331,12 +331,29 @@ lifecycle() {
   assert_match "second uninstall has nothing to do" 'Nothing to uninstall' "$OUT"
 }
 
+uninstall_without_backup() {
+  scenario "uninstall: a fresh install with no prior settings leaves a regular settings.json"
+  new_sandbox
+  capture --yes --no-skills
+  assert_eq "fresh install exit status" 0 "$RC"
+  assert_true "fresh install generated settings.json" test -f "$SB_HOME/.claude/settings.json"
+  capture --uninstall --yes
+  assert_eq "uninstall exit status" 0 "$RC"
+  assert_true "settings.json exists" test -e "$SB_HOME/.claude/settings.json"
+  assert_true "settings.json is a regular file" test -f "$SB_HOME/.claude/settings.json"
+  assert_false "settings.json is not a symlink" test -L "$SB_HOME/.claude/settings.json"
+  assert_true "settings.json is valid JSON" jq -e . "$SB_HOME/.claude/settings.json" > /dev/null
+  assert_false "snapshot removed" test -e "$SB_HOME/.claude/settings.generated.json"
+}
+
 settings_array_merge() {
   scenario "settings: a pulled removal and a user write-back in the same array adopt only the user's element"
   new_sandbox
   capture --yes --no-skills
   assert_eq "initial install exit status" 0 "$RC"
   local removed='Edit(advisor-plans/*.md)' added='Bash(make test:*)'
+  assert_eq "fixture element is among the committed defaults" true \
+    "$(jq --arg r "$removed" '.permissions.allow | index($r) != null' "$SB_REPO/claude/settings.json")"
   jq --arg r "$removed" '.permissions.allow -= [$r]' "$SB_REPO/claude/settings.json" > "$SB_REPO/defaults.tmp" \
     && mv "$SB_REPO/defaults.tmp" "$SB_REPO/claude/settings.json"
   jq --arg a "$added" '.permissions.allow += [$a]' "$SB_HOME/.claude/settings.json" > "$SB_HOME/.claude/tmp.json" \
@@ -504,6 +521,7 @@ arguments() {
 }
 
 lifecycle
+uninstall_without_backup
 settings_array_merge
 settings_legacy_link
 clean_skills
