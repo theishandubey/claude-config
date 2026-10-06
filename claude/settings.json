@@ -15,18 +15,73 @@
       "Edit(.claude/agent-memory/**)",
       "Edit(.claude/agent-memory-local/**)",
       "Edit(plans/*.md)",
-      "Edit(advisor-plans/*.md)"
+      "Edit(advisor-plans/*.md)",
+      "Read(*)",
+      "Bash(ls:*)",
+      "Bash(cat:*)",
+      "Bash(grep:*)",
+      "Bash(find:*)",
+      "Bash(mkdir:*)",
+      "Bash(node:*)",
+      "Bash(npm run:*)",
+      "Bash(npm test:*)",
+      "Bash(npx:*)",
+      "Bash(pnpm:*)",
+      "Bash(yarn:*)",
+      "Bash(python:*)",
+      "Bash(pytest:*)",
+      "Bash(pip install:*)",
+      "Bash(cargo:*)",
+      "Bash(go:*)",
+      "Bash(make:*)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git branch:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git checkout:*)",
+      "Bash(git worktree:*)"
     ],
     "deny": [
       "Bash(git push --force:*)",
       "Bash(git push -f:*)",
       "Bash(git reset --hard:*)",
       "Bash(rm -rf:*)"
-    ]
+    ],
+    "defaultMode": "bypassPermissions"
   },
   "worktree": {
     "baseRef": "head"
   },
   "switchModelsOnFlag": false,
-  "teammateMode": "auto"
+  "teammateMode": "auto",
+  "model": "opus",
+  "enabledPlugins": {
+    "meter@claude-mods": true,
+    "agent-graph@claude-mods": true,
+    "auto-handoff@claude-mods": true,
+    "statusline@claude-mods": true
+  },
+  "extraKnownMarketplaces": {
+    "claude-mods": {
+      "source": {
+        "source": "git",
+        "url": "https://github.com/theishandubey/claude-mods.git"
+      }
+    }
+  },
+  "autoUpdatesChannel": "latest",
+  "tui": "fullscreen",
+  "skipDangerousModePermissionPrompt": true,
+  "theme": "dark",
+  "inputNeededNotifEnabled": true,
+  "agentPushNotifEnabled": true,
+  "pluginConfigs": {
+    "auto-handoff@inline": {
+      "options": {
+        "largeWindowPercent": 5
+      }
+    }
+  }
 }

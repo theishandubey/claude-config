@@ -282,11 +282,12 @@ lifecycle() {
   assert_untouched "dry-run after install"
 
   scenario "lifecycle: edits made in the live settings survive a re-run"
-  jq '.theme="light"' "$SB_HOME/.claude/settings.json" > "$SB_HOME/.claude/tmp.json" \
+  assert_eq "install applied the committed permission mode" bypassPermissions "$(jq -r .permissions.defaultMode "$SB_HOME/.claude/settings.json")"
+  jq '.theme="light" | .permissions.defaultMode="default"' "$SB_HOME/.claude/settings.json" > "$SB_HOME/.claude/tmp.json" \
     && mv "$SB_HOME/.claude/tmp.json" "$SB_HOME/.claude/settings.json"
   capture --no-skills
   assert_eq "re-run after an edit exit status" 0 "$RC"
-  assert_eq "live settings keep the edit" light "$(jq -r .theme "$SB_HOME/.claude/settings.json")"
+  assert_eq "live settings keep the edit" "light default" "$(jq -r '.theme + " " + .permissions.defaultMode' "$SB_HOME/.claude/settings.json")"
   assert_eq "committed defaults stay clean" 0 "$(grep -c light "$SB_REPO/claude/settings.json")"
 
   scenario "lifecycle: --uninstall removes links and keeps settings.json"
