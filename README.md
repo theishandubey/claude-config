@@ -51,12 +51,13 @@ The full playbook is in `claude/CLAUDE.md`, and the shared coding rules every ag
 ```bash
 git clone https://github.com/theishandubey/claude-config.git ~/claude-config
 cd ~/claude-config
-cp -r local.example local
+[ -e local ] || cp -R local.example local
 ./install.sh --dry-run
 ./install.sh
 ```
 
-The `cp` step is optional: edit `local/settings.json` and `local/instructions.md` first if you want your own values from the start (see [Your personal overlay](#your-personal-overlay)).
+The `cp` step is optional, and the `[ -e local ]` guard keeps it from nesting a second copy when `local/` already exists.
+The template only shows the shape: edit `local/settings.json` and `local/instructions.md` first if you want your own values from the start (see [Your personal overlay](#your-personal-overlay)).
 `--dry-run` prints every planned change and exits without touching anything.
 Afterwards start `claude` and run `/memory` to see which instruction files loaded.
 
@@ -104,14 +105,20 @@ The merge rules:
 - Scalars replace the default.
 - `null` keeps the default.
 
-A typical overlay:
+A minimal overlay, which is also what `local.example/settings.json` contains:
 
 ```json
 {
-  "model": "opus",
-  "theme": "dark"
+  "cleanupPeriodDays": 30,
+  "permissions": {
+    "allow": [
+      "Edit(example-dir/**)"
+    ]
+  }
 }
 ```
+
+The scalar replaces the default, and the `allow` entry is appended to the committed list.
 
 The committed defaults never enable bypass permissions mode.
 To opt in on your own machine, add this to `local/settings.json`:
