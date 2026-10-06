@@ -45,8 +45,6 @@ trap 'exit 1' INT TERM HUP
 
 finish() { COMPLETED=1; exit "${1:-0}"; }
 
-command -v jq >/dev/null || { warn "jq is required"; exit 1; }
-
 usage_lines() {
   echo "Usage: ./install.sh [--dry-run] [--yes] [--no-skills] [--clean]"
   echo "       ./install.sh --uninstall [--dry-run] [--yes]"
@@ -92,6 +90,8 @@ if [ "$UNINSTALL" = 1 ] && [ "$CLEAN$NO_SKILLS" != 00 ]; then
   usage_lines >&2
   exit 1
 fi
+
+command -v jq >/dev/null || { warn "jq is required"; exit 1; }
 
 banner() {
   [ -t 1 ] || return 0
