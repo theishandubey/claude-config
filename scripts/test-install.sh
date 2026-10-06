@@ -453,6 +453,7 @@ settings_invalid() {
   capture --no-skills
   assert_eq "non-object JSON exit status" 1 "$RC"
   assert_eq "non-object file is untouched" '["not","an","object"]' "$(jq -c . "$SB_HOME/.claude/settings.json")"
+
 }
 
 settings_symlinks() {
@@ -486,6 +487,36 @@ settings_symlinks() {
   assert_eq "settings equal the defaults" "$(jq -S . "$SB_REPO/claude/settings.json")" "$(live_json)"
   assert_eq "the foreign link is kept as a backup" "$SB/elsewhere.json" "$(link_target "$SB_HOME"/.claude/settings.json.bak.*)"
   assert_eq "the link target is untouched" '{"theme":"foreign"}' "$(jq -c . "$SB/elsewhere.json")"
+}
+
+settings_directories() {
+  scenario "settings: a directory at settings.json is backed up and replaced by the defaults"
+  new_sandbox
+  mkdir -p "$SB_HOME/.claude/settings.json"
+  printf 'x' > "$SB_HOME/.claude/settings.json/inner"
+  capture --no-skills
+  assert_eq "directory without --yes exit status" 1 "$RC"
+  assert_match "directory plans a backup" '^backup .*/\.claude/settings\.json -> ' "$OUT"
+  capture --yes --no-skills
+  assert_eq "directory exit status" 0 "$RC"
+  assert_true "settings.json is a real file" test -f "$SB_HOME/.claude/settings.json"
+  assert_false "settings.json is not a link" test -L "$SB_HOME/.claude/settings.json"
+  assert_eq "settings equal the defaults" "$(jq -S . "$SB_REPO/claude/settings.json")" "$(live_json)"
+  assert_eq "the directory is kept as a backup" 1 "$(count_entries "$SB_HOME/.claude" 'settings.json.bak.*')"
+  assert_true "the backup holds the directory" test -f "$SB_HOME"/.claude/settings.json.bak.*/inner
+
+  scenario "settings: a symlink to a directory at settings.json is backed up and replaced by the defaults"
+  new_sandbox
+  mkdir -p "$SB_HOME/.claude" "$SB/somedir"
+  printf 'x' > "$SB/somedir/inner"
+  ln -s "$SB/somedir" "$SB_HOME/.claude/settings.json"
+  capture --yes --no-skills
+  assert_eq "directory link exit status" 0 "$RC"
+  assert_true "settings.json is a real file" test -f "$SB_HOME/.claude/settings.json"
+  assert_false "settings.json is not a link" test -L "$SB_HOME/.claude/settings.json"
+  assert_eq "settings equal the defaults" "$(jq -S . "$SB_REPO/claude/settings.json")" "$(live_json)"
+  assert_eq "the link is kept as a backup" "$SB/somedir" "$(link_target "$SB_HOME"/.claude/settings.json.bak.*)"
+  assert_eq "the link target is untouched" x "$(cat "$SB/somedir/inner")"
 }
 
 stale_skills_fixture() {
@@ -630,6 +661,7 @@ settings_create
 settings_merge
 settings_invalid
 settings_symlinks
+settings_directories
 clean_skills
 skills_install
 exit_trap

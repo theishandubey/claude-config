@@ -207,7 +207,7 @@ def added($d; $u; $p):
 '
 
 fingerprint() {
-  if [ -e "$1" ]; then cksum < "$1"; fi
+  if [ -f "$1" ]; then cksum < "$1"; else ls -ld "$1" 2>/dev/null || true; fi
 }
 
 check_settings_inputs() {
