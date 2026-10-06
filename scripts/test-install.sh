@@ -86,6 +86,17 @@ tree_sum() {
   )
 }
 
+mark_time() {
+  : > "$SB/marker"
+  sleep 1
+}
+
+assert_untouched() {
+  local touched
+  touched="$(find "$SB_HOME" "$SB_LOCAL" "$SB_REPO" -newer "$SB/marker" 2>/dev/null | LC_ALL=C sort)"
+  assert_eq "$1: no file or directory was written" "" "$touched"
+}
+
 state_sum() {
   printf '%s %s %s' "$(tree_sum "$SB_HOME")" "$(tree_sum "$SB_LOCAL")" "$(tree_sum "$SB_REPO")"
 }
@@ -203,6 +214,7 @@ lifecycle() {
   original_files
   local before after
   before="$(state_sum)"
+  mark_time
   capture --dry-run --no-skills
   assert_eq "dry-run exit status" 0 "$RC"
   assert_match "dry-run plans a tmux backup" '^backup .*\.tmux\.conf -> .*\.tmux\.conf\.bak\.' "$OUT"
@@ -231,6 +243,7 @@ lifecycle() {
   assert_eq "declined exit status" 1 "$RC"
   assert_match "declined message" 'Aborted\.' "$OUT"
   assert_eq "declined leaves state untouched" "$before" "$(state_sum)"
+  assert_untouched "dry-run, refused and declined runs"
 
   scenario "lifecycle: --yes installs, backs up and seeds the overlay"
   capture --yes --no-skills
@@ -255,10 +268,10 @@ lifecycle() {
     "$(jq -Sc . "$SB_HOME"/.claude/settings.json.bak.* 2>/dev/null)"
   assert_true "settings snapshot written" test -f "$SB_HOME/.claude/settings.generated.json"
   local guard="$SB_HOME/.claude/hooks/memory-write-guard.sh"
-  printf '{"tool_input":{"file_path":"%s/x.md"},"cwd":"%s"}' "$SB_HOME" "$SB_HOME" | "$guard" >/dev/null 2>&1
+  printf '{"tool_input":{"file_path":"%s/x.md"},"cwd":"%s"}' "$SB_HOME" "$SB_HOME" | "$BASH" "$guard" >/dev/null 2>&1
   assert_eq "linked guard blocks a project write" 2 "$?"
   printf '{"tool_input":{"file_path":"%s/p/.claude/agent-memory/a/x.md"},"cwd":"%s"}' "$SB_HOME" "$SB_HOME" \
-    | "$guard" >/dev/null 2>&1
+    | "$BASH" "$guard" >/dev/null 2>&1
   assert_eq "linked guard allows a memory write" 0 "$?"
 
   scenario "lifecycle: second run is quiet and unattended"
@@ -267,10 +280,12 @@ lifecycle() {
   assert_eq "second run exit status" 0 "$RC"
   assert_nomatch "second run reports no changes" 'linked:|generated:|backing up|backup |adopted|seeded|warn:|removing|replacing|Plan' "$OUT"
   assert_eq "second run leaves state untouched" "$before" "$(state_sum)"
+  mark_time
   capture --dry-run --no-skills
   assert_eq "dry-run after install exit status" 0 "$RC"
   assert_nomatch "dry-run after install plans no change" '^(link|backup|generate|adopt|seed|remove) ' "$OUT"
   assert_eq "dry-run after install leaves state untouched" "$before" "$(state_sum)"
+  assert_untouched "dry-run after install"
 
   scenario "lifecycle: edits made in the live settings are adopted into the overlay"
   jq '.theme="light"' "$SB_HOME/.claude/settings.json" > "$SB_HOME/.claude/tmp.json" \
@@ -298,8 +313,10 @@ lifecycle() {
   assert_match "uninstall dry-run plans unlinking" '^unlink ' "$OUT"
   assert_match "uninstall dry-run plans restoring" '^restore ' "$OUT"
   before="$(state_sum)"
+  mark_time
   capture --uninstall --dry-run
   assert_eq "uninstall dry-run leaves state untouched" "$before" "$(state_sum)"
+  assert_untouched "uninstall dry-run"
   capture --uninstall --yes
   assert_eq "uninstall exit status" 0 "$RC"
   assert_eq "no links remain under HOME" 0 "$(find "$SB_HOME" -type l | wc -l | tr -d ' ')"
