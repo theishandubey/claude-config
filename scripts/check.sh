@@ -31,8 +31,15 @@ for h in hooks/*.sh; do
   [ -x "$h" ] || { echo "check: $h is not executable" >&2; exit 1; }
 done
 
-for f in CLAUDE.md AGENTS.md CONTRIBUTING.md SECURITY.md .claude/CLAUDE.md; do
-  [ ! -e "$f" ] || { echo "check: $f must not exist" >&2; exit 1; }
+while IFS= read -r f; do
+  case "$f" in
+    claude/CLAUDE.md|claude/AGENTS.md) ;;
+    *) echo "check: $f must not be tracked" >&2; exit 1 ;;
+  esac
+done < <(git ls-files -- '*CLAUDE.md' '*CLAUDE.local.md' '*AGENTS.md')
+
+for f in CLAUDE.md CLAUDE.local.md AGENTS.md CONTRIBUTING.md SECURITY.md .claude/CLAUDE.md; do
+  if [ -e "$f" ] || [ -L "$f" ]; then echo "check: $f must not exist" >&2; exit 1; fi
 done
 
 python3 -I scripts/check-agents.py
