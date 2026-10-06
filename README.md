@@ -170,6 +170,7 @@ Copy it to another machine by hand, or make `local/` a symlink into a private do
 claude-config/
 ├── README.md
 ├── LICENSE
+├── .github/workflows/check.yml  # CI: runs scripts/check.sh on Linux and macOS
 ├── install.sh                 # installer: --dry-run, --yes, --uninstall, --clean, --no-skills
 ├── skills-lock.json           # third-party skills and their upstream repos, installed at install time
 ├── agents/                    # subagent definitions, linked to ~/.claude/agents
@@ -268,7 +269,7 @@ claude plugin install agent-graph@claude-mods --scope user
 - Third-party skills are installed unpinned from the upstream repositories recorded in `skills-lock.json` when you run `install.sh`, and they run with the agent's full permissions.
   Review `~/.claude/skills/<name>/SKILL.md` and drop any you do not trust from the manifest.
 - Nothing in `install.sh` runs with elevated privileges.
-  `--dry-run` shows every change first, and `--uninstall` reverses it.
+  `--dry-run` shows every change first, and `--uninstall` removes the links and restores backups.
 - Report a vulnerability privately through GitHub's private vulnerability reporting on this repository (Security tab, "Report a vulnerability"), not in a public issue.
 
 ## Working on this repo
