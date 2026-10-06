@@ -44,7 +44,7 @@ The full playbook is in `claude/CLAUDE.md`, and the shared coding rules every ag
 - `bash`, `git` and `jq`.
 - Node.js with `npx`, which `install.sh` uses to run the [skills CLI](https://skills.sh).
 - `tmux` is optional.
-  `tmux/tmux.conf` turns on `allow-passthrough`, `extended-keys` and mouse mode, which agent-team panes need.
+  `tmux/tmux.conf` turns on `allow-passthrough`, so desktop notifications and the progress bar leave tmux, `extended-keys`, so Shift+Enter inserts a newline instead of submitting, and mouse mode, so wheel scrolling reaches Claude Code's fullscreen renderer instead of tmux.
 
 ## Install
 
