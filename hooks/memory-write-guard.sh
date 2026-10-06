@@ -42,7 +42,7 @@ import json, sys
 try:
     data = json.load(sys.stdin)
 except Exception:
-    sys.exit(0)
+    sys.exit(2)
 print(data.get("tool_input", {}).get("file_path", "") or "")
 ' 2>/dev/null)"
   cwd="$(printf '%s' "$payload" | python3 -c '
@@ -50,14 +50,17 @@ import json, sys
 try:
     data = json.load(sys.stdin)
 except Exception:
-    sys.exit(0)
+    sys.exit(2)
 print(data.get("cwd", "") or "")
 ' 2>/dev/null)"
 fi
 cwd="${cwd:-$PWD}"
 
-# No file path in the payload means this is not a file write - nothing to guard.
-[ -z "$target" ] && exit 0
+# Write and Edit always carry a file path, so a payload without one is malformed: fail closed.
+if [ -z "$target" ]; then
+  echo "BLOCKED: Write/Edit payload has no tool_input.file_path; refusing to guess." >&2
+  exit 2
+fi
 
 # Resolve relative paths against the session's working directory so the check can't be
 # sidestepped with "./.claude/../../etc/passwd" style input.
