@@ -93,6 +93,22 @@ if [ "$UNINSTALL" = 1 ] && [ "$CLEAN$NO_SKILLS" != 00 ]; then
   exit 1
 fi
 
+banner() {
+  [ -t 1 ] || return 0
+  if [ "$USE_COLOR" = 1 ]; then printf '\033[1;34m'; fi
+  cat <<'EOF'
+ #### #      ###  #   # ####  #####        ####  ###  #   # ##### ###  ####
+#     #     #   # #   # #   # #           #     #   # ##  # #      #  #
+#     #     ##### #   # #   # ####   ###  #     #   # # # # ####   #  #  ##
+#     #     #   # #   # #   # #           #     #   # #  ## #      #  #   #
+ #### ##### #   #  ###  ####  #####        ####  ###  #   # #     ###  ###
+
+Claude Code config installer
+EOF
+  if [ "$USE_COLOR" = 1 ]; then printf '\033[0m'; fi
+  echo
+}
+
 MODE=apply
 PLAN_LINES=()
 PENDING=0
@@ -636,6 +652,8 @@ run() {
   MODE=apply
   "$1"
 }
+
+banner
 
 if [ "$UNINSTALL" = 1 ]; then
   run uninstall_all
