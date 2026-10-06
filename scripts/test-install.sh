@@ -265,6 +265,9 @@ lifecycle() {
     | "$BASH" "$guard" >/dev/null 2>&1
   assert_eq "linked guard allows a memory write" 0 "$?"
 
+  scenario "lifecycle: install applies the committed defaults"
+  assert_eq "install applied the committed permission mode" "$(jq -r .permissions.defaultMode "$SB_REPO/claude/settings.json")" "$(jq -r .permissions.defaultMode "$SB_HOME/.claude/settings.json")"
+
   scenario "lifecycle: second run is quiet and unattended"
   before="$(state_sum)"
   mark_time
@@ -282,7 +285,6 @@ lifecycle() {
   assert_untouched "dry-run after install"
 
   scenario "lifecycle: edits made in the live settings survive a re-run"
-  assert_eq "install applied the committed permission mode" bypassPermissions "$(jq -r .permissions.defaultMode "$SB_HOME/.claude/settings.json")"
   jq '.theme="light" | .permissions.defaultMode="default"' "$SB_HOME/.claude/settings.json" > "$SB_HOME/.claude/tmp.json" \
     && mv "$SB_HOME/.claude/tmp.json" "$SB_HOME/.claude/settings.json"
   capture --no-skills
