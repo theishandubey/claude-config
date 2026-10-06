@@ -2,6 +2,11 @@
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
+for tool in jq python3; do
+  command -v "$tool" >/dev/null 2>&1 || { echo "check: $tool is required" >&2; exit 1; }
+done
+echo "bash: $BASH_VERSION"
+
 scripts=(install.sh hooks/*.sh scripts/*.sh)
 
 for f in "${scripts[@]}"; do
