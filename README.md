@@ -1,161 +1,283 @@
-# agent-config
+# claude-config
 
-Single repo to keep my Claude Code setup in sync across machines. Configs are symlinked, shared instructions are single-sourced, and skills (own + vendored third-party) are installed via the [skills CLI](https://skills.sh).
+A complete, installable Claude Code setup: a two-tier agent roster (advisors plan and review, workers implement), the orchestration playbook that drives it, safe permission defaults, a write-guard hook, a tmux config and a curated list of third-party skills.
+`install.sh` links the config into `~/.claude` and generates `~/.claude/settings.json` from the committed defaults.
+Your personal values live in a gitignored `local/` overlay, so the public defaults stay safe and your machine keeps its own model, theme and permission mode.
 
-For Codex, this repo carries nothing - [codex-plugin-cc](https://github.com/openai/codex-plugin-cc) handles that side.
+## What you get
 
-## Repo structure
+Fourteen subagents, defined in `agents/`:
+
+| Agent | Tier | Model | Effort | Role |
+|---|---|---|---|---|
+| `architect` | advisor | opus (fable on escalation) | high | Designs, ADRs, trade-offs and implementation plans |
+| `backend-engineer` | advisor | opus | medium | APIs, services, databases, queues, auth, data modeling |
+| `frontend-engineer` | advisor | opus | medium | Component architecture, state, rendering performance, accessibility |
+| `sre` | advisor | opus | medium | Infrastructure, CI/CD, observability, deployment safety |
+| `qa-lead` | advisor | opus | medium | End-to-end test strategy and coverage planning |
+| `code-reviewer` | advisor | opus | medium | Reviews every code change before it lands |
+| `security-reviewer` | advisor | opus | medium | Security review, only when you ask for one |
+| `implementer` | worker | sonnet | high | Builds from a plan |
+| `parallel-implementer` | worker | sonnet | high | Builds in its own git worktree, for parallel streams |
+| `fixer` | worker | sonnet | high | Fixes bugs, failing tests and review findings |
+| `test-writer` | worker | sonnet | high | Writes end-to-end tests from a test plan |
+| `doc-writer` | worker | sonnet | high | Writes and updates standalone docs |
+| `explorer` | explorer | sonnet | medium | Read-only codebase search |
+| `web-researcher` | explorer | sonnet | medium | Read-only web research |
+
+The main session acts as an orchestrator that routes work instead of doing it.
+A triage ladder sends questions to explorers, bounded changes straight to a worker, and ambiguous work to an advisor for a plan first.
+Advisors never edit project files: they hold `Write` and `Edit` only to keep their own memory and, for the planning advisors, to write plan files, and a hook blocks every other path.
+Every code change goes through `code-reviewer`, and confirmed findings go to `fixer` until the review approves.
+Independent parallel work runs through `parallel-implementer` worktrees, and agent teams are reserved for work whose contracts change mid-build.
+`architect` escalates to Fable only for decisions that are hard to reverse.
+
+The full playbook is in `claude/CLAUDE.md`, and the shared coding rules every agent follows are in `claude/AGENTS.md`.
+
+## Prerequisites
+
+- Claude Code 2.1.280 or later.
+  Older builds fail the Opus 5.5 model pins instead of falling back.
+- Access to Opus 5.5 and Sonnet 5.5.
+  Fable 5.1 is optional: only `architect` escalation uses `model: fable`.
+- macOS or Linux.
+- `bash`, `git` and `jq`.
+- Node.js with `npx`, which `install.sh` uses to run the [skills CLI](https://skills.sh).
+- `tmux` is optional.
+  `tmux/tmux.conf` turns on `allow-passthrough`, `extended-keys` and mouse mode, which agent-team panes need.
+
+## Install
+
+```bash
+git clone https://github.com/theishandubey/claude-config.git ~/claude-config
+cd ~/claude-config
+cp -r local.example local
+./install.sh --dry-run
+./install.sh
+```
+
+The `cp` step is optional: edit `local/settings.json` and `local/CLAUDE.md` first if you want your own values from the start (see [Your personal overlay](#your-personal-overlay)).
+`--dry-run` prints every planned change and exits without touching anything.
+Afterwards start `claude` and run `/memory` to see which instruction files loaded.
+
+### What install.sh changes
+
+| Target | Source |
+|---|---|
+| `~/.claude/AGENTS.md` | link to `claude/AGENTS.md` |
+| `~/.claude/CLAUDE.md` | link to `claude/CLAUDE.md` |
+| `~/.claude/CLAUDE.local.md` | link to `local/CLAUDE.md`, only when that file exists |
+| `~/.claude/agents` | link to `agents/` |
+| `~/.claude/hooks` | link to `hooks/` |
+| `~/.tmux.conf` | link to `tmux/tmux.conf` |
+| `~/.claude/settings.json` | generated from `claude/settings.json` plus `local/settings.json`; the last output is kept as `~/.claude/settings.generated.json` |
+| `~/.claude/skills/` | skills from `skills/` and `skills-lock.json`, installed through the skills CLI |
+
+- A file, directory or foreign symlink already at a target is moved to `<path>.bak.<timestamp>` first and never overwritten.
+  Links that already point into this repo are replaced without a backup.
+- `install.sh` asks for confirmation only before changes to things it does not own: creating backups, replacing links that point outside the repo, `--clean` and `--uninstall`.
+  Declining exits with status 1.
+  A routine re-run needs no confirmation, prints `ok:` for everything that is already in place, writes nothing and exits 0.
+- Without a terminal, pass `--yes` (or `-y`) for a run that needs confirmation; otherwise it refuses and exits 1.
+- Skills come from the network: this repo's own skills are installed from `skills/`, the third-party ones from the upstream repositories recorded in `skills-lock.json`.
+  `--no-skills` skips that step.
+- `--clean` also removes `~/.claude/skills` entries that neither `skills/` nor `skills-lock.json` provides, except `synced/` and dot-entries.
+- Set `NO_COLOR` to turn off colored output.
+
+## Your personal overlay
+
+`claude/settings.json` holds only safe defaults.
+Everything personal goes into two gitignored files under `local/`:
+
+- `local/settings.json` is merged over the defaults to produce `~/.claude/settings.json`.
+- `local/CLAUDE.md` holds personal instructions.
+  It is linked to `~/.claude/CLAUDE.local.md`, which `claude/CLAUDE.md` imports after the shared playbook.
+  If the file is missing, the import is silently skipped.
+
+`local.example/` has a starting point for both.
+Set `CLAUDE_CONFIG_LOCAL_DIR` to keep the overlay somewhere else.
+
+The merge rules:
+
+- Objects merge recursively.
+- Arrays append your values without duplicates.
+- Scalars replace the default.
+- `null` keeps the default.
+
+A typical overlay:
+
+```json
+{
+  "model": "opus",
+  "theme": "dark"
+}
+```
+
+The committed defaults never enable bypass permissions mode.
+To opt in on your own machine, add this to `local/settings.json`:
+
+```json
+{
+  "permissions": {
+    "defaultMode": "bypassPermissions"
+  },
+  "skipDangerousModePermissionPrompt": true
+}
+```
+
+This removes the permission prompts, so the model can run commands and edit files without asking; read [Security notes](#security-notes) first.
+
+### Write-backs
+
+Claude Code writes the results of `/model`, `/effort`, `/config`, `/tui`, `/theme`, `claude install <channel>` and `claude plugin` into `~/.claude/settings.json`.
+On the next `./install.sh`, every changed value is adopted into `local/settings.json` and printed as `adopted into ...`, so the repo never gets dirty.
+
+- A key Claude Code deleted is reported, and the committed default returns.
+- A write-back cannot remove a committed default key or array element.
+  `install.sh` warns and restores it; override the value in `local/settings.json` instead.
+- If `~/.claude/settings.generated.json` is missing, the current `~/.claude/settings.json` wins over a freshly copied overlay for any key both set, shown as `adopted into` lines.
+  The old file is backed up first.
+- If `~/.claude/settings.json` is still a symlink into this repo (an older layout) and there is no overlay, `install.sh` stops with exit 1 and changes nothing.
+  Copy `local/` from another machine, start from `local.example/`, or set `CLAUDE_CONFIG_NO_OVERLAY=1` to install the defaults only.
+
+### Permissions
+
+The committed allow list holds only `Edit` rules for the agent-memory directories and for `plans/*.md` and `advisor-plans/*.md`, so planning advisors can write plan files without prompting.
+It has no `Bash` rules because Claude Code already auto-approves the safe forms of read-only commands, and an explicit rule such as `Bash(find:*)` would also approve dangerous forms like `find -delete`.
+
+### Syncing the overlay
+
+`local/` is gitignored and never leaves your machine through this repo.
+Copy it to another machine by hand, or make `local/` a symlink into a private dotfiles repository.
+
+## Layout
 
 ```
-agent-config/
-├── AGENTS.md                     # Shared instructions - single source of truth
-│                                 #   the agent-agnostic standard file, imported
-│                                 #   by Claude via @~/.claude/AGENTS.md
-│
-├── CLAUDE.md                     # Project instructions for working on THIS repo
-│                                 #   (source-of-truth map, install.sh workflow)
-│
-├── agents/                       # Custom agent definitions - single source of truth
-│   │                             #   consumed directly via ~/.claude/agents symlink
+claude-config/
+├── README.md
+├── LICENSE
+├── install.sh                 # installer: --dry-run, --yes, --uninstall, --clean, --no-skills
+├── skills-lock.json           # third-party skills and their upstream repos, installed at install time
+├── agents/                    # subagent definitions, linked to ~/.claude/agents
 │   ├── advisors/
 │   ├── workers/
 │   └── explorers/
-│
-├── skills/                       # MY OWN skills - I edit these
-│   └── <skill-name>/
-│       └── SKILL.md
-│
-├── .agents/
-│   └── skills/                   # THIRD-PARTY skills, vendored via skills CLI
-│       └── <skill-name>/         #   committed to git, treated as read-only
-│           └── SKILL.md          #   (edits = fork it and move to skills/)
-│
-├── .claude/
-│   └── skills -> ../.agents/skills   # relative symlink, committed - exposes
-│                                     # vendored skills to Claude Code project scope
-│
-├── hooks/                        # PreToolUse guards, linked to ~/.claude/hooks
-├── skills-lock.json              # vendored-skill provenance for npx skills update
-├── tmux/                         # tmux.conf, linked to ~/.tmux.conf
-│
-├── claude/                       # Claude Code global config
-│   ├── CLAUDE.md                 #   imports shared AGENTS.md, then Claude-only rules
-│   └── settings.json             #   permissions, model, preferences
-│
-└── install.sh                    # bootstrap - idempotent, re-run anytime
+├── claude/                    # global Claude Code config
+│   ├── AGENTS.md              # shared coding rules, linked to ~/.claude/AGENTS.md
+│   ├── CLAUDE.md              # orchestration playbook, linked to ~/.claude/CLAUDE.md
+│   └── settings.json          # committed defaults, merged into ~/.claude/settings.json
+├── local.example/             # copy to local/ (gitignored) for your personal overlay
+│   ├── settings.json
+│   └── CLAUDE.md
+├── hooks/                     # PreToolUse guards, linked to ~/.claude/hooks
+├── skills/                    # skills maintained in this repo
+├── tmux/tmux.conf             # linked to ~/.tmux.conf
+├── scripts/                   # check.sh and the tests it runs
+└── docs/adr/                  # architecture decision records
 ```
 
-## What install.sh does
+## Customizing
 
-1. **Repo-internal symlink** - ensures `.claude/skills -> ../.agents/skills` exists
-2. **Claude shared instructions** - symlinks repo `AGENTS.md` → `~/.claude/AGENTS.md`
-   (which `CLAUDE.md` imports via `@~/.claude/AGENTS.md`; a bare relative import
-   would resolve against the symlink's REAL path, `claude/`, and silently break)
-3. **Config symlinks** -
-   | Repo file | Target |
-   |---|---|
-   | `claude/settings.json` | `~/.claude/settings.json` |
-   | `claude/CLAUDE.md` | `~/.claude/CLAUDE.md` |
-   | `agents/` | `~/.claude/agents` |
-   | `hooks/` | `~/.claude/hooks` |
-   | `tmux/tmux.conf` | `~/.tmux.conf` |
-4. **Skills install** - `npx skills add` discovers everything in `skills/`
-   and `.agents/skills/` and installs globally to Claude Code only
-   (targeting all detected agents would spam errors from project-scope-only
-   targets like PromptScript)
+- **Agents**: edit `agents/**/*.md`.
+  The frontmatter needs `name`, `description`, `tools`, `model` and `effort`; `scripts/check.sh` validates it.
+  Claude Code snapshots agent definitions when a session starts, so restart it to pick up a change.
+- **Skills**: put your own in `skills/<name>/`.
+  Third-party skills are listed in `skills-lock.json` and installed from their upstream repositories; their licenses are upstream's.
+- **Hooks**: `hooks/memory-write-guard.sh` is wired per agent through its `hooks:` frontmatter.
+- **Settings**: fork the repo to change the committed defaults, and use the overlay for personal values.
+- **tmux**: edit `tmux/tmux.conf`; it is linked live.
 
-Existing files at target locations are backed up with a timestamped `.bak` suffix,
-never overwritten.
-
-## Mods
-
-The mods (`meter`, `agent-graph`) are plugins in the separate [`claude-mods`](https://github.com/theishandubey/claude-mods) repo, which is a plugin marketplace.
-`meter` draws a band above the prompt with context, prompt cache, usage limits and cost, and `/meter` opens a detailed metrics pane.
-`agent-graph` draws a pane graphing running subagents left to right and works in the desktop app only.
-`claude/settings.json` declares that marketplace from its git URL in `extraKnownMarketplaces` and turns the plugins on in `enabledPlugins`; `install.sh` does not touch them.
-The declaration alone does not fetch the marketplace, so install the plugins once per machine (re-adding the marketplace rewrites the same committed block, leaving `git diff` empty):
-
-```bash
-claude plugin marketplace add https://github.com/theishandubey/claude-mods.git
-claude plugin install meter@claude-mods --scope user
-claude plugin install agent-graph@claude-mods --scope user
-```
-
-To pick up a pushed plugin change, run `claude plugin marketplace update claude-mods`, then `claude plugin update <name>@claude-mods`, and restart Claude Code.
-A machine that installed the plugins from a local `claude-mods` checkout before this change first runs `claude plugin marketplace remove claude-mods`, which also deletes the committed block from the live settings file, then the three commands above, which restore it; confirm `git diff claude/settings.json` is empty.
-
-## Workflows
-
-### New machine
-
-```bash
-git clone <repo-url> ~/agent-config
-cd ~/agent-config
-./install.sh
-claude plugin marketplace add https://github.com/theishandubey/claude-mods.git
-claude plugin install meter@claude-mods --scope user
-claude plugin install agent-graph@claude-mods --scope user
-# then authenticate manually - credentials are never synced
-```
-
-### Sync changes to another machine
+## Updating
 
 ```bash
 git pull && ./install.sh
 ```
 
-### Edit shared instructions
+`install.sh` reinstalls the third-party skills from upstream, so a re-run also brings them up to date.
+`npx skills update -g` updates installed skills without it, and `claude plugin update <name>@claude-mods` updates a plugin.
 
-Edit root `AGENTS.md` - Claude sees the symlink live.
-Commit + push; pull on the other machine.
-
-### Vendor a third-party skill
+## Uninstalling
 
 ```bash
-npx skills add <owner/repo> --skill <name> --copy -a claude-code -y
-git add .agents && git commit -m "vendor <name>" && git push
+./install.sh --uninstall --dry-run
+./install.sh --uninstall
 ```
 
-- `--copy` (not symlink) so real files land in the repo
-- single agent target to avoid duplicate copies; files land in `.agents/skills/`
-- the global install step later targets **all** agents regardless
+This removes the links and the settings snapshot, and restores the newest `.bak.<timestamp>` backup at each path.
+The generated `~/.claude/settings.json` is replaced by its backup when there is one; with no backup it stays as a plain file, and an edited one is never removed.
+`local/`, installed skills (`npx skills remove -g <name>`) and plugins (`claude plugin uninstall`) are left alone.
 
-### Update vendored skills
+## Optional plugins
+
+The public [`claude-mods`](https://github.com/theishandubey/claude-mods) marketplace has plugins that this setup works well with:
+
+- `meter` draws a band above the prompt with context, prompt cache, usage limits and cost, and `/meter` opens a detailed metrics pane.
+- `agent-graph` graphs running subagents: a card graph in the desktop app and an indented tree in the terminal, opened with `/agent-graph`.
+- `auto-handoff` writes a handoff and the knowledge it names into `.auto-handoff/` when the context grows large, then clears the context and continues.
+
+The committed defaults enable none of them.
+Opt in through `local/settings.json`:
+
+```json
+{
+  "enabledPlugins": {
+    "meter@claude-mods": true,
+    "agent-graph@claude-mods": true
+  },
+  "extraKnownMarketplaces": {
+    "claude-mods": {
+      "source": {
+        "source": "git",
+        "url": "https://github.com/theishandubey/claude-mods.git"
+      }
+    }
+  }
+}
+```
+
+The declaration does not fetch anything, so install each plugin once per machine:
 
 ```bash
-npx skills update -p     # updates project-scope skills in .agents/skills/
-git diff                 # review upstream changes before committing
-git add .agents && git commit && git push
+claude plugin marketplace add https://github.com/theishandubey/claude-mods.git
+claude plugin install meter@claude-mods --scope user
+claude plugin install agent-graph@claude-mods --scope user
 ```
 
-### Create my own skill
+## Security notes
 
-```bash
-npx skills init skills/<name>
-```
+- The committed defaults never enable bypass permissions mode; it is reachable only through your own `local/settings.json`.
+- `permissions.deny` rules are prefix matches, where `:*` means "starts with".
+  `Bash(rm -rf:*)` does not match `rm -fr`, and `Bash(git push --force:*)` does not match `git push --force-with-lease` or a `+refspec` push.
+  They guard against accidents, not against a hostile model or prompt injection.
+- `hooks/memory-write-guard.sh` blocks `Write` and `Edit` outside agent memory and plan files for advisor agents.
+  Those agents also hold `Bash`, so the guard enforces a workflow convention and is not a security boundary.
+- Third-party skills are installed unpinned from the upstream repositories recorded in `skills-lock.json` when you run `install.sh`, and they run with the agent's full permissions.
+  Review `~/.claude/skills/<name>/SKILL.md` and drop any you do not trust from the manifest.
+- Nothing in `install.sh` runs with elevated privileges.
+  `--dry-run` shows every change first, and `--uninstall` reverses it.
+- Report a vulnerability privately through GitHub's private vulnerability reporting on this repository (Security tab, "Report a vulnerability"), not in a public issue.
 
-### Remove a skill
+## Working on this repo
 
-Delete its folder from the repo, commit, then on each machine:
-`npx skills remove <name> -g`
+There is no `CONTRIBUTING.md`; this section is the contributor guide.
 
-## Design decisions
+- Run `scripts/check.sh` before opening a pull request.
+  It validates the JSON files, keeps personal keys out of the committed defaults, lints the shell scripts when `shellcheck` is installed, validates agent frontmatter, tests the memory-write guard, and runs `install.sh` end to end in a throwaway home directory.
+  It ends with `check: ok`.
+  CI runs the same check on Linux and on macOS under `/bin/bash` 3.2, so keep shell scripts compatible with bash 3.2.
+- Test `install.sh` only with a throwaway `HOME` and `CLAUDE_CONFIG_LOCAL_DIR`, never against your real home directory:
 
-- **AGENTS.md at repo root** - the standard, agent-agnostic location; any agent
-  working *on this repo* picks it up automatically as project instructions.
-- **CLAUDE.md wraps AGENTS.md** - Claude Code doesn't read AGENTS.md natively, but
-  supports `@path` imports. Shared rules live once; Claude-only rules go below the
-  import. AGENTS.md itself stays self-contained - agents without an import
-  mechanism must be able to read it as a single file. Don't split it.
-- **Own vs vendored skills are separated** - `skills/` is editable, `.agents/skills/`
-  is overwritable by the CLI. Editing a vendored skill means forking it into `skills/`.
-- **Third-party skills are committed, not referenced** - pinned, reviewable via git
-  diff, installable offline. Trade-off: updates are deliberate (`skills update -p`)
-  instead of automatic.
-- **`.agents/skills/` uses the CLI's native path** - so project-scope install and
-  update tracking work without custom tooling; the `.claude/skills` symlink bridges
-  Claude Code's different project path.
-- **No credentials in the repo** - auth files (`.credentials.json`, tokens) stay
-  machine-local; re-authenticate per machine.
-- **Machine-specific overrides** - use `~/.claude/settings.local.json` etc., kept
-  out of the repo.
+  ```bash
+  mkdir -p /tmp/fake-home /tmp/fake-local
+  HOME=/tmp/fake-home CLAUDE_CONFIG_LOCAL_DIR=/tmp/fake-local ./install.sh --dry-run --no-skills
+  ```
+
+- Keep `install.sh` idempotent: a re-run prints `ok:` for everything already in place, creates no duplicate backups and writes nothing.
+- Keep the exit contract of `install.sh`: every intentional exit goes through `finish()` and the `COMPLETED` flag stays, because bash 3.2 reports status 0 for a `set -u` abort once an EXIT trap is set.
+- Make atomic commits: one logically complete change per commit, each passing `scripts/check.sh` on its own.
+- Never commit personal values or anything under `local/`.
+- The reasoning behind the settings overlay is in `docs/adr/0001-machine-local-overlay.md`.
+
+## License
+
+MIT, see `LICENSE`.
