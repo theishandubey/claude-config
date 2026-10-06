@@ -3,13 +3,15 @@
 # agent-config bootstrap
 #
 # - Symlinks Claude Code configs into place
-# - Installs all skills in this repo (own + vendored) globally via skills CLI
+# - Installs this repo's own skills and the third-party skills listed in
+#   skills-lock.json (from their upstream repos) globally via skills CLI
 #
 # Idempotent - re-run after every git pull.
 #
-# Usage: ./install.sh [--clean]
-#   --clean  also remove skills under ~/.claude/skills that are not part of
-#            this repo (leftovers from previous installs or removed skills)
+# Usage: ./install.sh [--clean] [--no-skills]
+#   --clean      also remove skills under ~/.claude/skills that are not part of
+#                this repo (leftovers from previous installs or removed skills)
+#   --no-skills  skip the skills CLI step (no network access)
 
 set -euo pipefail
 
@@ -30,10 +32,12 @@ trap 'exit 1' INT TERM HUP
 command -v jq >/dev/null || { warn "jq is required"; exit 1; }
 
 CLEAN=0
+NO_SKILLS=0
 for arg in "$@"; do
   case "$arg" in
     --clean) CLEAN=1 ;;
-    *) warn "unknown argument: $arg"; echo "Usage: ./install.sh [--clean]" >&2; exit 1 ;;
+    --no-skills) NO_SKILLS=1 ;;
+    *) warn "unknown argument: $arg"; echo "Usage: ./install.sh [--clean] [--no-skills]" >&2; exit 1 ;;
   esac
 done
 
@@ -275,24 +279,7 @@ link_personal_instructions() {
 check_settings_inputs
 
 # ---------------------------------------------------------------------------
-# 1. Repo-internal symlink: expose vendored skills to Claude Code project scope
-#    (.claude/skills -> ../.agents/skills, relative so it survives git clone)
-# ---------------------------------------------------------------------------
-info "Setting up repo-internal symlinks"
-mkdir -p "$REPO_DIR/.agents/skills" "$REPO_DIR/.claude"
-if [ ! -L "$REPO_DIR/.claude/skills" ]; then
-  if [ -e "$REPO_DIR/.claude/skills" ]; then
-    warn "backing up $REPO_DIR/.claude/skills"
-    mv "$REPO_DIR/.claude/skills" "$REPO_DIR/.claude/skills${BACKUP_SUFFIX}"
-  fi
-  ln -s ../.agents/skills "$REPO_DIR/.claude/skills"
-  info "linked: .claude/skills -> ../.agents/skills"
-else
-  info "ok: .claude/skills"
-fi
-
-# ---------------------------------------------------------------------------
-# 2. Claude shared instructions: symlink AGENTS.md next to CLAUDE.md, which
+# 1. Claude shared instructions: symlink AGENTS.md next to CLAUDE.md, which
 #    imports it via "@~/.claude/AGENTS.md" (home-anchored: a relative import
 #    would resolve against CLAUDE.md's realpath and break)
 # ---------------------------------------------------------------------------
@@ -300,7 +287,7 @@ info "Linking shared instructions for Claude Code"
 link "$REPO_DIR/claude/AGENTS.md" "$HOME/.claude/AGENTS.md"
 
 # ---------------------------------------------------------------------------
-# 3. Config symlinks (Claude Code)
+# 2. Config symlinks (Claude Code)
 # ---------------------------------------------------------------------------
 info "Linking Claude Code config"
 # Links this script no longer creates - remove them if they still point into this repo.
@@ -322,26 +309,31 @@ link "$REPO_DIR/tmux/tmux.conf"       "$HOME/.tmux.conf"
 chmod +x "$REPO_DIR"/hooks/*.sh 2>/dev/null || true
 
 # ---------------------------------------------------------------------------
-# 4. Install all skills in this repo globally, to all detected agents
-#    Discovers both skills/ (own) and .agents/skills/ (vendored)
+# 3. Install skills globally: this repo's own (skills/) and the third-party
+#    skills listed in skills-lock.json, each from its upstream repo
 # ---------------------------------------------------------------------------
-info "Installing skills globally via skills CLI"
-cd "$REPO_DIR"
-# Point at each skills dir explicitly: a bare "./" scan does not descend into
-# the hidden .agents/ directory, so vendored skills would be missed.
-# Target only agents that support global installs - the default "all detected
-# agents" includes project-scope-only targets (e.g. PromptScript), which emit
-# a spurious "does not support global skill installation" error per skill.
-for skills_dir in skills .agents/skills; do
-  if compgen -G "$skills_dir/*/SKILL.md" > /dev/null; then
-    npx skills add "./$skills_dir" -g -a claude-code -y
-  else
-    info "no skills in $skills_dir/ - skipping"
+if [ "$NO_SKILLS" = 1 ]; then
+  info "Skipping skills (--no-skills)"
+else
+  info "Installing skills globally via skills CLI"
+  cd "$REPO_DIR"
+  # Target only agents that support global installs - the default "all detected
+  # agents" includes project-scope-only targets (e.g. PromptScript), which emit
+  # a spurious "does not support global skill installation" error per skill.
+  if compgen -G "skills/*/SKILL.md" > /dev/null; then
+    npx -y skills add ./skills -g -a claude-code -y
   fi
-done
+  manifest="$(jq -r '.skills | to_entries | group_by(.value.source)[] | "\(.[0].value.source) \(map(.key) | join(" "))"' "$REPO_DIR/skills-lock.json")"
+  # The skills CLI reads stdin, which would otherwise be the manifest.
+  while read -r source names; do
+    args=()
+    for name in $names; do args+=(-s "$name"); done
+    npx -y skills add "$source" "${args[@]}" -g -a claude-code -y < /dev/null
+  done <<< "$manifest"
+fi
 
 # ---------------------------------------------------------------------------
-# 5. --clean: remove installed skills that this repo does not provide
+# 4. --clean: remove installed skills that this repo does not provide
 #    (the skills CLI copies rather than symlinks, so skills deleted from the
 #    repo - or installed by other means - linger in ~/.claude/skills forever)
 # ---------------------------------------------------------------------------
@@ -353,7 +345,8 @@ if [ "$CLEAN" = 1 ]; then
     name="$(basename "$installed")"
     # Claude Code owns ~/.claude/skills/synced (claude.ai skill sync) and .trash.
     case "$name" in synced|.trash) continue ;; esac
-    if [ ! -f "$REPO_DIR/skills/$name/SKILL.md" ] && [ ! -f "$REPO_DIR/.agents/skills/$name/SKILL.md" ]; then
+    if [ ! -f "$REPO_DIR/skills/$name/SKILL.md" ] \
+      && ! jq -e --arg n "$name" '.skills[$n]' "$REPO_DIR/skills-lock.json" >/dev/null; then
       warn "removing stale skill: $name"
       rm -rf "$installed"
       removed=1
@@ -366,6 +359,5 @@ info "Done."
 echo
 echo "Reminders:"
 echo "  - Authenticate each tool on this machine manually (credentials are not synced)."
-echo "  - To vendor a new third-party skill:"
-echo "      npx skills add <owner/repo> --skill <name> --copy -a claude-code -y && git add .agents && git commit"
-echo "  - To update vendored skills: npx skills update -p, review diff, commit."
+echo "  - To add a third-party skill: npx skills add <owner/repo> -s <name> -g -a claude-code -y, then add its entry to skills-lock.json."
+echo "  - To update third-party skills: npx skills update -g"
