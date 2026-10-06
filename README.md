@@ -95,7 +95,9 @@ On every run `install.sh` computes the defaults merged with your file and writes
   - Objects merge recursively.
   - A scalar you set is kept, and a key you do not have gets the default.
   - Arrays keep your elements in your order, then append the default elements you do not have.
-- If your file is not valid JSON, `install.sh` prints an error, exits with status 1 and leaves the file untouched.
+- An empty or whitespace-only file counts as `{}`.
+- If your file cannot be read, is not valid JSON, is not a single JSON object or holds more than one JSON document,
+  `install.sh` prints an error, exits with status 1 and leaves the file untouched.
 - If nothing would change, it prints `ok:` and writes nothing.
   Otherwise it writes the file atomically with mode 600 and lists what it added, for example `update: ~/.claude/settings.json (added: permissions.deny[...], env.X)`.
 

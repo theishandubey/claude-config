@@ -454,6 +454,45 @@ settings_invalid() {
   assert_eq "non-object JSON exit status" 1 "$RC"
   assert_eq "non-object file is untouched" '["not","an","object"]' "$(jq -c . "$SB_HOME/.claude/settings.json")"
 
+  scenario "settings: several JSON documents exit 1 and leave the file byte-identical"
+  new_sandbox
+  use_fixture_defaults
+  write_live '{"theme":"a"}{"theme":"b"}'
+  before="$(cksum < "$SB_HOME/.claude/settings.json")"
+  capture --yes --no-skills
+  assert_eq "multi-document exit status" 1 "$RC"
+  assert_match "multi-document message" 'settings\.json is not a valid JSON object' "$OUT"
+  assert_eq "multi-document file is byte-identical" "$before" "$(cksum < "$SB_HOME/.claude/settings.json")"
+  assert_false "nothing was linked" test -e "$SB_HOME/.claude/agents"
+
+  if [ "$(id -u)" != 0 ]; then
+    scenario "settings: an unreadable settings.json exits 1 with a cannot-read message"
+    new_sandbox
+    use_fixture_defaults
+    write_live '{"theme":"a"}'
+    chmod 000 "$SB_HOME/.claude/settings.json"
+    capture --yes --no-skills
+    chmod 600 "$SB_HOME/.claude/settings.json"
+    assert_eq "unreadable exit status" 1 "$RC"
+    assert_match "unreadable message" 'cannot read .*settings\.json' "$OUT"
+    assert_nomatch "unreadable is not reported as invalid JSON" 'not a valid JSON object' "$OUT"
+  fi
+}
+
+settings_empty() {
+  local content
+  for content in "" "   " $'\n\n'; do
+    scenario "settings: an empty or whitespace-only settings.json is treated as {}"
+    new_sandbox
+    use_fixture_defaults
+    mkdir -p "$SB_HOME/.claude"
+    printf '%s' "$content" > "$SB_HOME/.claude/settings.json"
+    capture --yes --no-skills
+    assert_eq "empty settings exit status" 0 "$RC"
+    assert_match "empty settings are updated" '^==> update: .*/\.claude/settings\.json' "$OUT"
+    assert_eq "settings equal the defaults" "$(jq -S . "$SB_REPO/claude/settings.json")" "$(live_json)"
+    assert_eq "empty settings leave no backup" 0 "$(count_entries "$SB_HOME/.claude" 'settings.json.bak.*')"
+  done
 }
 
 settings_symlinks() {
@@ -660,6 +699,7 @@ foreign_link
 settings_create
 settings_merge
 settings_invalid
+settings_empty
 settings_symlinks
 settings_directories
 clean_skills

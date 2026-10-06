@@ -215,11 +215,18 @@ check_settings_inputs() {
   local live="$HOME/.claude/settings.json"
   if ! jq -e 'type == "object"' "$defaults" >/dev/null 2>&1; then
     warn "$defaults is not a valid JSON object; nothing was changed"
-    exit 1
-  fi
-  if [ -f "$live" ] && [ ! -L "$live" ] && ! jq -e 'type == "object"' "$live" >/dev/null 2>&1; then
-    warn "$live is not a valid JSON object; fix it; nothing was changed"
     finish 1
+  fi
+  if [ -f "$live" ] && [ ! -L "$live" ]; then
+    if [ ! -r "$live" ]; then
+      warn "cannot read $live; nothing was changed"
+      finish 1
+    fi
+    if [ -n "$(tr -d '[:space:]' < "$live")" ] \
+      && ! jq -s -e 'length == 1 and (.[0] | type) == "object"' "$live" >/dev/null 2>&1; then
+      warn "$live is not a valid JSON object; fix it; nothing was changed"
+      finish 1
+    fi
   fi
 }
 
