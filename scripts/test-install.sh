@@ -400,6 +400,7 @@ settings_merge() {
   assert_match "added defaults are reported" 'update: .*/\.claude/settings\.json \(added: .*env\.B' "$OUT"
   assert_match "added array elements are reported" 'permissions\.deny\[\.\.\.\]' "$OUT"
   assert_match "added keys are reported" 'permissions\.allow' "$OUT"
+  assert_match "updated settings.json is private" '^-rw-------' "$(ls -l "$SB_HOME/.claude/settings.json")"
   assert_eq "no backup was made" 0 "$(count_entries "$SB_HOME/.claude" 'settings.json.bak.*')"
 
   scenario "settings: a second run says ok and writes nothing"
