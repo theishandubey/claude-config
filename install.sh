@@ -114,6 +114,7 @@ EOF
 MODE=apply
 PLAN_LINES=()
 NEEDS_CONFIRM=0
+PLAN_SUMS=""
 
 # plan_add: an action that touches something this repo does not own, so it needs confirmation.
 # plan_sync: routine sync of state this repo owns; listed in the plan but never prompts.
@@ -676,10 +677,17 @@ uninstall_all() {
   fi
 }
 
-# run <function>: plan pass first, then confirmation, then the apply pass.
+settings_sums() {
+  printf '%s|%s|%s' "$(fingerprint "$HOME/.claude/settings.json")" \
+    "$(fingerprint "$LOCAL_DIR/settings.json")" \
+    "$(fingerprint "$HOME/.claude/settings.generated.json")"
+}
+
+# run <function>: plan pass first, then confirmation when needed, then the apply pass.
 run() {
   MODE=plan
   "$1"
+  PLAN_SUMS="$(settings_sums)"
   if [ "$DRY_RUN" = 1 ] || [ "$NEEDS_CONFIRM" -gt 0 ] || [ "$UNINSTALL" = 1 ]; then print_plan; fi
   if [ "$DRY_RUN" = 1 ]; then finish 0; fi
   if [ "$UNINSTALL" = 1 ] && [ "$NEEDS_CONFIRM" -eq 0 ]; then
@@ -687,6 +695,10 @@ run() {
     finish 0
   fi
   if [ "$NEEDS_CONFIRM" -gt 0 ]; then confirm; fi
+  if [ "$(settings_sums)" != "$PLAN_SUMS" ]; then
+    warn "settings changed since the plan was shown; rerun install.sh"
+    exit 1
+  fi
   MODE=apply
   "$1"
 }
