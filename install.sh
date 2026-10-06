@@ -374,9 +374,13 @@ generate_settings() {
   local merged new_overlay="" snap_tmp live_sum p
   if [ "$MODE" = plan ]; then
     compute_settings
-    while IFS= read -r p; do
-      if [ -n "$p" ]; then plan_sync "adopt $p -> $overlay"; fi
-    done < <(printf '%s\n' "$S_ADOPT_PATHS")
+    if [ "$S_SEEDED" = 1 ]; then
+      plan_sync "seed $overlay from $live"
+    else
+      while IFS= read -r p; do
+        if [ -n "$p" ]; then plan_sync "adopt $p -> $overlay"; fi
+      done < <(printf '%s\n' "$S_ADOPT_PATHS")
+    fi
     if [ "$S_SAME" = 1 ]; then
       plan_ok "$live"
       if [ "$S_REFRESH" = 1 ]; then plan_note "ok: $snapshot (refresh snapshot)"; fi
@@ -678,16 +682,17 @@ uninstall_all() {
 }
 
 settings_sums() {
-  printf '%s|%s|%s' "$(fingerprint "$HOME/.claude/settings.json")" \
+  printf '%s|%s|%s|%s' "$(fingerprint "$HOME/.claude/settings.json")" \
     "$(fingerprint "$LOCAL_DIR/settings.json")" \
-    "$(fingerprint "$HOME/.claude/settings.generated.json")"
+    "$(fingerprint "$HOME/.claude/settings.generated.json")" \
+    "$(fingerprint "$REPO_DIR/claude/settings.json")"
 }
 
 # run <function>: plan pass first, then confirmation when needed, then the apply pass.
 run() {
   MODE=plan
-  "$1"
   PLAN_SUMS="$(settings_sums)"
+  "$1"
   if [ "$DRY_RUN" = 1 ] || [ "$NEEDS_CONFIRM" -gt 0 ] || [ "$UNINSTALL" = 1 ]; then print_plan; fi
   if [ "$DRY_RUN" = 1 ]; then finish 0; fi
   if [ "$UNINSTALL" = 1 ] && [ "$NEEDS_CONFIRM" -eq 0 ]; then
