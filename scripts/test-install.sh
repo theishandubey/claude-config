@@ -276,10 +276,12 @@ lifecycle() {
 
   scenario "lifecycle: second run is quiet and unattended"
   before="$(state_sum)"
+  mark_time
   capture --no-skills
   assert_eq "second run exit status" 0 "$RC"
   assert_nomatch "second run reports no changes" 'linked:|generated:|backing up|backup |adopted|seeded|warn:|removing|replacing|Plan' "$OUT"
   assert_eq "second run leaves state untouched" "$before" "$(state_sum)"
+  assert_untouched "second run"
   mark_time
   capture --dry-run --no-skills
   assert_eq "dry-run after install exit status" 0 "$RC"
@@ -297,9 +299,11 @@ lifecycle() {
   assert_eq "live settings keep the edit" light "$(jq -r .theme "$SB_HOME/.claude/settings.json")"
   assert_eq "committed defaults stay clean" 0 "$(jq -S . "$SB_REPO/claude/settings.json" | grep -c light)"
   before="$(state_sum)"
+  mark_time
   capture --no-skills
   assert_nomatch "run after adoption is quiet" 'adopted|seeded|warn:' "$OUT"
   assert_eq "run after adoption leaves state untouched" "$before" "$(state_sum)"
+  assert_untouched "run after a completed adoption"
 
   scenario "lifecycle: personal instructions are linked"
   printf '# Personal rules\n' > "$SB_LOCAL/CLAUDE.md"

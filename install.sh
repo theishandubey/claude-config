@@ -371,7 +371,7 @@ generate_settings() {
   local overlay="$LOCAL_DIR/settings.json"
   local live="$HOME/.claude/settings.json"
   local snapshot="$HOME/.claude/settings.generated.json"
-  local merged new_overlay="" snap_tmp live_sum p
+  local merged="" new_overlay="" snap_tmp="" live_sum p
   if [ "$MODE" = plan ]; then
     compute_settings
     if [ "$S_SEEDED" = 1 ]; then
@@ -400,12 +400,17 @@ generate_settings() {
     printf '%s\n' "$S_NEW_OVERLAY" > "$new_overlay"
   fi
   # Temp files live in ~/.claude so each mv below is an atomic same-filesystem rename.
-  merged="$(mktemp "$HOME/.claude/.settings.XXXXXX")"
-  TMP_FILES+=("$merged")
-  printf '%s\n' "$S_MERGED" > "$merged"
-  snap_tmp="$(mktemp "$HOME/.claude/.settings.XXXXXX")"
-  TMP_FILES+=("$snap_tmp")
-  cp "$merged" "$snap_tmp"
+  # A run with nothing to write creates none, so ~/.claude is not touched at all.
+  if [ "$S_SAME" != 1 ]; then
+    merged="$(mktemp "$HOME/.claude/.settings.XXXXXX")"
+    TMP_FILES+=("$merged")
+    printf '%s\n' "$S_MERGED" > "$merged"
+  fi
+  if [ "$S_SAME" != 1 ] || [ "$S_REFRESH" = 1 ]; then
+    snap_tmp="$(mktemp "$HOME/.claude/.settings.XXXXXX")"
+    TMP_FILES+=("$snap_tmp")
+    printf '%s\n' "$S_MERGED" > "$snap_tmp"
+  fi
   if [ "$(fingerprint "$live")" != "$live_sum" ]; then
     warn "$live changed while install.sh was running; nothing was written - close running Claude Code sessions and rerun"
     exit 1
@@ -437,7 +442,7 @@ generate_settings() {
     mv -f "$merged" "$live"
     info "generated: $live"
   fi
-  mv "$snap_tmp" "$snapshot"
+  if [ -n "$snap_tmp" ]; then mv "$snap_tmp" "$snapshot"; fi
 }
 
 link_personal_instructions() {
