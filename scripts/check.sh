@@ -31,12 +31,15 @@ for h in hooks/*.sh; do
   [ -x "$h" ] || { echo "check: $h is not executable" >&2; exit 1; }
 done
 
+tracked="$(git ls-files -- ':(glob,icase)**/CLAUDE.md' ':(glob,icase)**/CLAUDE.local.md' ':(glob,icase)**/AGENTS.md')" \
+  || { echo "check: not a git checkout, cannot verify tracked files" >&2; exit 1; }
 while IFS= read -r f; do
-  case "$f" in
-    claude/CLAUDE.md|claude/AGENTS.md) ;;
+  [ -n "$f" ] || continue
+  case "$(printf '%s' "$f" | tr '[:upper:]' '[:lower:]')" in
+    claude/claude.md|claude/agents.md) ;;
     *) echo "check: $f must not be tracked" >&2; exit 1 ;;
   esac
-done < <(git ls-files -- '*CLAUDE.md' '*CLAUDE.local.md' '*AGENTS.md')
+done <<< "$tracked"
 
 for f in CLAUDE.md CLAUDE.local.md AGENTS.md CONTRIBUTING.md SECURITY.md .claude/CLAUDE.md; do
   if [ -e "$f" ] || [ -L "$f" ]; then echo "check: $f must not exist" >&2; exit 1; fi
