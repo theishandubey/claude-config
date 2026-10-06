@@ -156,7 +156,8 @@ On the next `./install.sh`, every changed value is adopted into `local/settings.
 ### Permissions
 
 The committed allow list holds only `Edit` rules for the agent-memory directories and for `plans/*.md` and `advisor-plans/*.md`, so planning advisors can write plan files without prompting.
-It has no `Bash` rules because Claude Code already auto-approves the safe forms of read-only commands, and an explicit rule such as `Bash(find:*)` would also approve dangerous forms like `find -delete`.
+The committed deny list blocks force pushes, `git reset --hard` and `rm -rf`, and deny rules still apply in bypass mode: Claude Code 2.1.291 describes bypass as auto-approving every tool call except explicit deny rules.
+The allow list has no `Bash` rules because Claude Code already auto-approves the safe forms of read-only commands, and an explicit rule such as `Bash(find:*)` would also approve dangerous forms like `find -delete`.
 
 ### Syncing the overlay
 
@@ -258,9 +259,9 @@ claude plugin install agent-graph@claude-mods --scope user
 
 ## Security notes
 
-- The committed defaults never enable bypass permissions mode; it is reachable only through your own `local/settings.json`.
+- The committed defaults never enable bypass permissions mode, and turning it on is your choice.
 - `permissions.deny` rules are prefix matches, where `:*` means "starts with".
-  `Bash(rm -rf:*)` does not match `rm -fr`, and `Bash(git push --force:*)` does not match `git push --force-with-lease` or a `+refspec` push.
+  `Bash(rm -rf:*)` does not match `rm -fr`, and `Bash(git push --force:*)` does not match `git push origin main --force` (flag after the refspec), `git push --force-with-lease` or a `+refspec` push.
   They guard against accidents, not against a hostile model or prompt injection.
 - `hooks/memory-write-guard.sh` blocks `Write` and `Edit` outside agent memory and plan files for advisor agents.
   Those agents also hold `Bash`, so the guard enforces a workflow convention and is not a security boundary.
