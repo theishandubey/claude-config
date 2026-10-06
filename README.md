@@ -102,6 +102,7 @@ On every run `install.sh` computes the defaults merged with your file and writes
   Otherwise it writes the file atomically with mode 600 and lists what it added, for example `update: ~/.claude/settings.json (added: permissions.deny[...], env.X)`.
 
 Deletions do not stick: there is no record of what a previous run wrote, so a default you removed from `~/.claude/settings.json` comes back on the next run.
+This includes `permissions.allow` and `permissions.deny` entries.
 To drop a committed default for good, edit `claude/settings.json` in a fork.
 
 The committed defaults never enable bypass permissions mode.
