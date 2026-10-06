@@ -90,7 +90,8 @@ def adopt($o; $l; $b; $d):
       end)
   elif ($l | type) == "array" and ($d | type) == "array" then
     ($o | if type == "array" then . else [] end) as $oa
-    | (($l - $d) - $oa) as $new
+    | ($b | if type == "array" then . else [] end) as $ba
+    | ((($l - $ba) - $d) - $oa) as $new
     | if ($new | length) == 0 then $o else $oa + $new end
   else $l end;
 
@@ -193,7 +194,7 @@ generate_settings() {
       json_equal "$live" "$snapshot" || adopt_base="$snapshot"
     else
       backup=1
-      [ -f "$overlay" ] || adopt_base="$defaults"
+      adopt_base="$defaults"
     fi
     [ ! -L "$live" ] || backup=1
   elif [ -L "$live" ]; then
@@ -232,7 +233,7 @@ generate_settings() {
     exit 1
   fi
   if [ -n "$new_overlay" ] && ! json_equal "$new_overlay" "$overlay_src"; then
-    if [ "$adopt_base" = "$defaults" ]; then
+    if [ "$adopt_base" = "$defaults" ] && [ "$overlay_src" = /dev/null ]; then
       info "seeded $overlay from the existing $live"
     else
       adopted_paths "$overlay_src" "$new_overlay" | while read -r p; do
