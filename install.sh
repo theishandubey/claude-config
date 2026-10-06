@@ -59,7 +59,9 @@ generates ~/.claude/settings.json from claude/settings.json plus local/settings.
 and installs the skills listed in skills/ and skills-lock.json.
 
   --dry-run    print the planned changes and exit without touching anything
-  --yes, -y    do not ask for confirmation (required when stdin is not a terminal)
+  --yes, -y    do not ask for confirmation; needed when stdin is not a terminal and the run
+               would back up or remove something this repo does not own (backups, --clean,
+               --uninstall)
   --no-skills  skip the skills CLI (no network)
   --clean      also remove ~/.claude/skills entries this repo does not provide
   --uninstall  remove the links and generated settings, restoring the newest backups
@@ -111,9 +113,12 @@ EOF
 
 MODE=apply
 PLAN_LINES=()
-PENDING=0
+NEEDS_CONFIRM=0
 
-plan_add()  { PLAN_LINES+=("$*"); PENDING=$((PENDING + 1)); }
+# plan_add: an action that touches something this repo does not own, so it needs confirmation.
+# plan_sync: routine sync of state this repo owns; listed in the plan but never prompts.
+plan_add()  { PLAN_LINES+=("$*"); NEEDS_CONFIRM=$((NEEDS_CONFIRM + 1)); }
+plan_sync() { PLAN_LINES+=("$*"); }
 plan_ok()   { PLAN_LINES+=("ok: $*"); }
 plan_note() { PLAN_LINES+=("$*"); }
 
@@ -139,7 +144,7 @@ confirm() {
     y|Y|yes) return 0 ;;
   esac
   echo "Aborted."
-  finish 0
+  exit 1
 }
 
 # link <source-in-repo> <target-path>
@@ -166,7 +171,7 @@ link() {
     elif [ -e "$dst" ] || [ -L "$dst" ]; then
       plan_add "backup $dst -> ${dst}${BACKUP_SUFFIX}"
     fi
-    plan_add "link $dst -> $src"
+    plan_sync "link $dst -> $src"
     return 0
   fi
 
@@ -339,14 +344,14 @@ plan_settings() {
   fi
   if [ -n "$new_json" ] && ! json_equal <(printf '%s\n' "$new_json") "$overlay_src"; then
     while read -r p; do
-      [ -z "$p" ] || plan_add "adopt $p -> $overlay"
+      [ -z "$p" ] || plan_sync "adopt $p -> $overlay"
     done < <(adopted_paths "$overlay_src" <(printf '%s\n' "$new_json"))
   fi
   if [ "$same" = 1 ]; then
     plan_ok "$live"
   else
     if [ "$backup" = 1 ]; then plan_add "backup $live -> ${live}${BACKUP_SUFFIX}"; fi
-    plan_add "generate $live"
+    plan_sync "generate $live"
   fi
 }
 
@@ -431,7 +436,7 @@ link_personal_instructions() {
     link "$src" "$dst"
   elif [ -L "$dst" ] && [ ! -e "$dst" ]; then
     if [ "$MODE" = plan ]; then
-      plan_add "remove dangling link $dst"
+      plan_sync "remove dangling link $dst"
     else
       warn "removing dangling link: $dst"
       rm "$dst"
@@ -451,7 +456,7 @@ retire_links() {
     target="$(readlink "$retired" 2>/dev/null || true)"
     if [ -L "$retired" ] && [ "${target#"$REPO_DIR"/}" != "$target" ]; then
       if [ "$MODE" = plan ]; then
-        plan_add "remove retired link $retired"
+        plan_sync "remove retired link $retired"
       else
         warn "removing retired link: $retired"
         rm "$retired"
@@ -488,7 +493,7 @@ install_skills() {
     return 0
   fi
   if [ "$MODE" = plan ]; then
-    plan_add "install skills from ./skills and skills-lock.json"
+    plan_sync "install skills from ./skills and skills-lock.json"
     return 0
   fi
   info "Installing skills globally via skills CLI"
@@ -642,13 +647,13 @@ uninstall_all() {
 run() {
   MODE=plan
   "$1"
-  if [ "$DRY_RUN" = 1 ] || [ "$PENDING" -gt 0 ] || [ "$UNINSTALL" = 1 ]; then print_plan; fi
+  if [ "$DRY_RUN" = 1 ] || [ "$NEEDS_CONFIRM" -gt 0 ] || [ "$UNINSTALL" = 1 ]; then print_plan; fi
   if [ "$DRY_RUN" = 1 ]; then finish 0; fi
-  if [ "$UNINSTALL" = 1 ] && [ "$PENDING" -eq 0 ]; then
+  if [ "$UNINSTALL" = 1 ] && [ "$NEEDS_CONFIRM" -eq 0 ]; then
     info "Nothing to uninstall."
     finish 0
   fi
-  if [ "$PENDING" -gt 0 ]; then confirm; fi
+  if [ "$NEEDS_CONFIRM" -gt 0 ]; then confirm; fi
   MODE=apply
   "$1"
 }
