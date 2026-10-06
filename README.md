@@ -1,8 +1,8 @@
 # claude-config
 
-A complete, installable Claude Code setup: a two-tier agent roster (advisors plan and review, workers implement), the orchestration playbook that drives it, safe permission defaults, a write-guard hook, a tmux config and a curated list of third-party skills.
+A complete, installable Claude Code setup: a two-tier agent roster (advisors plan and review, workers implement), the orchestration playbook that drives it, the owner's personal Claude Code settings, a write-guard hook, a tmux config and a curated list of third-party skills.
 `install.sh` links the config into `~/.claude` and merges the committed settings defaults into your own `~/.claude/settings.json`.
-That file stays yours: the installer adds what is missing and never overwrites a value you set, so your machine keeps its own model, theme and permission mode.
+The installer never overwrites a value you already set, but it adds every default you do not have, and those defaults run Claude Code in bypass permissions mode (see the warning under [Install](#install)).
 
 ## What you get
 
@@ -48,6 +48,13 @@ The full playbook is in `claude/CLAUDE.md`, and the shared coding rules every ag
 
 ## Install
 
+> **Warning: installing applies bypass permissions mode and a broad allow list.**
+> The committed defaults in `claude/settings.json` are the owner's personal settings, not conservative ones.
+> They set `permissions.defaultMode` to `bypassPermissions` and `skipDangerousModePermissionPrompt` to `true`, so Claude Code runs commands and edits files without asking, and they allow `Read(*)` and a long list of `Bash` commands.
+> Any of these that your `~/.claude/settings.json` does not already set are added to it.
+> Review `claude/settings.json` before running `install.sh`.
+> To get prompts back afterwards, change `permissions.defaultMode` (for example to `default`) and trim `permissions.allow` in `~/.claude/settings.json`; your values win on every later run, as described in [Your settings](#your-settings).
+
 ```bash
 git clone https://github.com/theishandubey/claude-config.git ~/claude-config
 cd ~/claude-config
@@ -83,7 +90,14 @@ Afterwards start `claude` and run `/memory` to see which instruction files loade
 
 ## Your settings
 
-`claude/settings.json` holds only safe defaults.
+`claude/settings.json` holds the owner's own settings as the defaults:
+
+- Bypass permissions mode, with the dangerous-mode prompt skipped.
+- A broad allow list and a short deny list (see [Permissions](#permissions)).
+- The `opus` model, the dark theme, the fullscreen TUI, the `latest` update channel and notifications turned on.
+- The model alias pins, the agent teams flag, empty commit and pull request attribution, and the worktree and teammate settings the agent roster relies on.
+- The `claude-mods` marketplace and the `meter`, `agent-graph`, `auto-handoff` and `statusline` plugins, enabled (see [Plugins](#plugins)).
+
 Your personal settings live directly in `~/.claude/settings.json`, and you can edit that file, or let Claude Code write to it with `/model`, `/theme`, `/config` and `claude plugin`, as usual.
 
 On every run `install.sh` computes the defaults merged with your file and writes the result only when it differs:
@@ -104,25 +118,24 @@ Deletions do not stick: there is no record of what a previous run wrote, so a de
 This includes `permissions.allow` and `permissions.deny` entries.
 To drop a committed default for good, edit `claude/settings.json` in a fork.
 
-The committed defaults never enable bypass permissions mode.
-To opt in on your own machine, add this to `~/.claude/settings.json`:
-
-```json
-{
-  "permissions": {
-    "defaultMode": "bypassPermissions"
-  },
-  "skipDangerousModePermissionPrompt": true
-}
-```
-
-This removes the permission prompts, so the model can run commands and edit files without asking; read [Security notes](#security-notes) first.
+Because your values win, a `permissions.defaultMode` you already set is kept, and so are your own `model`, `theme` and the rest.
+To leave bypass mode on a machine that has already installed the defaults, set `permissions.defaultMode` to another mode and `skipDangerousModePermissionPrompt` to `false` in `~/.claude/settings.json`.
+Set values instead of deleting keys: a default you delete comes back on the next run.
+Read [Security notes](#security-notes) before keeping bypass mode.
 
 ### Permissions
 
-The committed allow list holds only `Edit` rules for the agent-memory directories and for `plans/*.md` and `advisor-plans/*.md`, so planning advisors can write plan files without prompting.
+The committed allow list approves:
+
+- `Edit` on the agent-memory directories and on `plans/*.md` and `advisor-plans/*.md`, so planning advisors can write plan files.
+- `Read(*)`.
+- `Bash` prefixes for `ls`, `cat`, `grep`, `find` and `mkdir`.
+- `Bash` prefixes for common toolchains: `node`, `npm run`, `npm test`, `npx`, `pnpm`, `yarn`, `python`, `pytest`, `pip install`, `cargo`, `go` and `make`.
+- `Bash` prefixes for `git status`, `git diff`, `git log`, `git branch`, `git add`, `git commit`, `git checkout` and `git worktree`.
+
 The committed deny list blocks force pushes, `git reset --hard` and `rm -rf`, and deny rules still apply in bypass mode: Claude Code 2.1.291 describes bypass as auto-approving every tool call except explicit deny rules.
-The allow list has no `Bash` rules because Claude Code already auto-approves the safe forms of read-only commands, and an explicit rule such as `Bash(find:*)` would also approve dangerous forms like `find -delete`.
+In bypass mode the allow list adds nothing for tool calls, so it matters when you switch to a mode that prompts.
+Allow rules are prefix matches, so some are broader than they look: `Bash(find:*)` also approves dangerous forms such as `find -delete`, and `Bash(npx:*)`, `Bash(python:*)` and `Bash(node:*)` approve arbitrary code.
 
 ## Layout
 
@@ -155,7 +168,7 @@ claude-config/
 - **Skills**: put your own in `skills/<name>/`.
   Third-party skills are listed in `skills-lock.json` and installed from their upstream repositories; their licenses are upstream's.
 - **Hooks**: `hooks/memory-write-guard.sh` is wired per agent through its `hooks:` frontmatter.
-- **Settings**: fork the repo to change the committed defaults, and edit `~/.claude/settings.json` for personal values.
+- **Settings**: fork the repo to change the committed defaults, and edit `~/.claude/settings.json` for values that win over them on your machine.
 - **tmux**: edit `tmux/tmux.conf`; it is linked live.
 
 ## Updating
@@ -179,45 +192,34 @@ This removes the links and restores the newest `.bak.<timestamp>` backup at each
 A legacy symlink into this repo is the exception: it is replaced by the newest backup if there is one, otherwise by a copy of the file it points to, and a dangling one is removed.
 Installed skills (`npx skills remove -g <name>`) and plugins (`claude plugin uninstall`) are left alone.
 
-## Optional plugins
+## Plugins
 
-The public [`claude-mods`](https://github.com/theishandubey/claude-mods) marketplace has plugins that this setup works well with:
+The committed defaults enable four plugins from the public [`claude-mods`](https://github.com/theishandubey/claude-mods) marketplace:
 
 - `meter` draws a band above the prompt with context, prompt cache, usage limits and cost, and `/meter` opens a detailed metrics pane.
 - `agent-graph` graphs running subagents: a card graph in the desktop app and an indented tree in the terminal, opened with `/agent-graph`.
 - `auto-handoff` writes a handoff and the knowledge it names into `.auto-handoff/` when the context grows large, then clears the context and continues.
+- `statusline` draws a status line under the prompt in the terminal with the model and effort, the working directory and the git state.
 
-The committed defaults enable none of them.
-Opt in by adding this to `~/.claude/settings.json`, or skip it and run the `claude plugin` commands below, which write the same keys:
-
-```json
-{
-  "enabledPlugins": {
-    "meter@claude-mods": true,
-    "agent-graph@claude-mods": true
-  },
-  "extraKnownMarketplaces": {
-    "claude-mods": {
-      "source": {
-        "source": "git",
-        "url": "https://github.com/theishandubey/claude-mods.git"
-      }
-    }
-  }
-}
-```
-
-The declaration does not fetch anything, so install each plugin once per machine:
+`claude/settings.json` declares the marketplace in `extraKnownMarketplaces` and turns the plugins on in `enabledPlugins`, and `install.sh` merges both into your settings.
+The declaration does not fetch anything, so each machine runs these once:
 
 ```bash
 claude plugin marketplace add https://github.com/theishandubey/claude-mods.git
 claude plugin install meter@claude-mods --scope user
 claude plugin install agent-graph@claude-mods --scope user
+claude plugin install auto-handoff@claude-mods --scope user
+claude plugin install statusline@claude-mods --scope user
 ```
+
+To run without a plugin, set its `enabledPlugins` entry to `false` in `~/.claude/settings.json`.
 
 ## Security notes
 
-- The committed defaults never enable bypass permissions mode, and turning it on is your choice in your own `~/.claude/settings.json`.
+- The committed defaults enable bypass permissions mode and skip its confirmation prompt, so installing them removes the permission prompts on your machine.
+  Review `claude/settings.json` first, and change the values in `~/.claude/settings.json` if you want prompts back.
+- The allow list is broad, and allow rules are prefix matches too: `Bash(find:*)` approves `find -delete`, and `Bash(npx:*)`, `Bash(python:*)` and `Bash(node:*)` approve arbitrary code.
+- Deny rules still apply in bypass mode.
 - `permissions.deny` rules are prefix matches, where `:*` means "starts with".
   `Bash(rm -rf:*)` does not match `rm -fr`, and `Bash(git push --force:*)` does not match `git push origin main --force` (flag after the refspec), `git push --force-with-lease` or a `+refspec` push.
   They guard against accidents, not against a hostile model or prompt injection.
@@ -234,7 +236,7 @@ claude plugin install agent-graph@claude-mods --scope user
 There is no `CONTRIBUTING.md`; this section is the contributor guide.
 
 - Run `scripts/check.sh` before opening a pull request.
-  It validates the JSON files, keeps personal keys out of the committed defaults, lints the shell scripts when `shellcheck` is installed, validates agent frontmatter, tests the memory-write guard, and runs `install.sh` end to end in a throwaway home directory.
+  It validates the JSON files, lints the shell scripts when `shellcheck` is installed, validates agent frontmatter, tests the memory-write guard, and runs `install.sh` end to end in a throwaway home directory.
   It ends with `check: ok`.
   CI runs the same check on Linux and on macOS under `/bin/bash` 3.2, so keep shell scripts compatible with bash 3.2.
 - Test `install.sh` only with a throwaway `HOME`, never against your real home directory:
@@ -247,7 +249,7 @@ There is no `CONTRIBUTING.md`; this section is the contributor guide.
 - Keep `install.sh` idempotent: a re-run prints `ok:` for everything already in place, creates no duplicate backups and writes nothing except reinstalling skills (skip with `--no-skills`).
 - Keep the exit contract of `install.sh`: every successful exit sets `COMPLETED=1`, through `finish()` or the final assignment at the end of the script, and the EXIT trap turns any exit without it into a failure, because bash 3.2 reports status 0 for a `set -eu` abort once an EXIT trap is set.
 - Make atomic commits: one logically complete change per commit, each passing `scripts/check.sh` on its own.
-- Never commit personal values.
+- Never commit credentials or machine-local state.
 
 ## License
 
