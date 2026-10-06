@@ -78,7 +78,7 @@ Afterwards start `claude` and run `/memory` to see which instruction files loade
   Links that already point into this repo are replaced without a backup.
 - `install.sh` asks for confirmation only before changes to things it does not own: creating backups, replacing links that point outside the repo, `--clean` and `--uninstall`.
   Declining exits with status 1.
-  A routine re-run needs no confirmation, prints `ok:` for everything that is already in place, writes nothing and exits 0.
+  A routine re-run needs no confirmation, prints `ok:` for everything that is already in place, writes nothing except reinstalling skills (skip with `--no-skills`) and exits 0.
 - Without a terminal, pass `--yes` (or `-y`) for a run that needs confirmation; otherwise it refuses and exits 1.
 - Skills come from the network: this repo's own skills are installed from `skills/`, the third-party ones from the upstream repositories recorded in `skills-lock.json`.
   `--no-skills` skips that step.
@@ -286,8 +286,8 @@ There is no `CONTRIBUTING.md`; this section is the contributor guide.
   HOME=/tmp/fake-home CLAUDE_CONFIG_LOCAL_DIR=/tmp/fake-local ./install.sh --dry-run --no-skills
   ```
 
-- Keep `install.sh` idempotent: a re-run prints `ok:` for everything already in place, creates no duplicate backups and writes nothing.
-- Keep the exit contract of `install.sh`: every intentional exit goes through `finish()` and the `COMPLETED` flag stays, because bash 3.2 reports status 0 for a `set -u` abort once an EXIT trap is set.
+- Keep `install.sh` idempotent: a re-run prints `ok:` for everything already in place, creates no duplicate backups and writes nothing except reinstalling skills (skip with `--no-skills`).
+- Keep the exit contract of `install.sh`: every successful exit sets `COMPLETED=1`, through `finish()` or the final assignment at the end of the script, and the EXIT trap turns any exit without it into a failure, because bash 3.2 reports status 0 for a `set -eu` abort once an EXIT trap is set.
 - Make atomic commits: one logically complete change per commit, each passing `scripts/check.sh` on its own.
 - Never commit personal values or anything under `local/`.
 - The reasoning behind the settings overlay is in `docs/adr/0001-machine-local-overlay.md`.
