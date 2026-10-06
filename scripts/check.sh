@@ -19,7 +19,7 @@ else
   echo "check: shellcheck not installed, skipping lint" >&2
 fi
 
-for f in claude/settings.json local.example/settings.json skills-lock.json; do
+for f in claude/settings.json skills-lock.json; do
   jq -e . "$f" >/dev/null || { echo "check: $f is not valid JSON" >&2; exit 1; }
 done
 

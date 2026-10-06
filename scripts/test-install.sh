@@ -3,7 +3,7 @@ set -uo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 
-unset CLAUDE_CONFIG_NO_OVERLAY NO_COLOR CLAUDE_CONFIG_LOCAL_DIR NPX_FAIL_SOURCE
+unset NO_COLOR CLAUDE_CONFIG_LOCAL_DIR NPX_FAIL_SOURCE
 
 command -v jq >/dev/null || { echo "install: jq is required" >&2; exit 1; }
 command -v python3 >/dev/null || { echo "install: python3 is required" >&2; exit 1; }
@@ -219,9 +219,8 @@ lifecycle() {
   capture --dry-run --no-skills
   assert_eq "dry-run exit status" 0 "$RC"
   assert_match "dry-run plans a tmux backup" '^backup .*\.tmux\.conf -> .*\.tmux\.conf\.bak\.' "$OUT"
-  assert_match "dry-run plans a settings backup" '^backup .*/\.claude/settings\.json -> ' "$OUT"
-  assert_match "dry-run plans seeding the overlay" "^seed $SB_LOCAL/settings\.json from " "$OUT"
-  assert_match "dry-run plans generating settings" '^generate .*/\.claude/settings\.json' "$OUT"
+  assert_nomatch "dry-run plans no settings backup" '^backup .*/\.claude/settings\.json' "$OUT"
+  assert_match "dry-run plans updating settings" '^update: .*/\.claude/settings\.json \(added: ' "$OUT"
   assert_match "dry-run plans links" "^link $SB_HOME/\.claude/agents -> $SB_REPO/agents" "$OUT"
   after="$(state_sum)"
   assert_eq "dry-run leaves HOME, overlay and repo untouched" "$before" "$after"
@@ -246,16 +245,13 @@ lifecycle() {
   assert_eq "declined leaves state untouched" "$before" "$(state_sum)"
   assert_untouched "dry-run, refused and declined runs"
 
-  scenario "lifecycle: --yes installs, backs up and seeds the overlay"
+  scenario "lifecycle: --yes installs and merges the defaults into the existing settings"
   capture --yes --no-skills
   assert_eq "install exit status" 0 "$RC"
-  assert_match "seeded overlay" 'seeded .*/settings\.json from the existing' "$OUT"
-  assert_match "generated settings" 'generated: ' "$OUT"
-  assert_false "settings.json is a generated file, not a link" test -L "$SB_HOME/.claude/settings.json"
-  assert_eq "overlay seeded with the user's keys" '{"model":"sonnet","theme":"solarized"}' \
-    "$(jq -Sc . "$SB_LOCAL/settings.json")"
-  assert_eq "live settings are defaults plus overlay" \
-    "$(jq -S -s '.[0] * .[1]' "$SB_REPO/claude/settings.json" "$SB_LOCAL/settings.json")" "$(live_json)"
+  assert_match "settings update reported" '^update: .*/\.claude/settings\.json \(added: ' "$OUT"
+  assert_false "settings.json is a real file, not a link" test -L "$SB_HOME/.claude/settings.json"
+  assert_eq "user scalars are kept" "solarized sonnet" "$(jq -r '.theme + " " + .model' "$SB_HOME/.claude/settings.json")"
+  assert_eq "defaults are merged in" "$(jq -S -s '.[0] * .[1]' "$SB_REPO/claude/settings.json" <(printf '{"theme":"solarized","model":"sonnet"}'))" "$(live_json)"
   assert_eq "agents link" "$SB_REPO/agents" "$(link_target "$SB_HOME/.claude/agents")"
   assert_eq "AGENTS.md link" "$SB_REPO/claude/AGENTS.md" "$(link_target "$SB_HOME/.claude/AGENTS.md")"
   assert_eq "CLAUDE.md link" "$SB_REPO/claude/CLAUDE.md" "$(link_target "$SB_HOME/.claude/CLAUDE.md")"
@@ -264,10 +260,7 @@ lifecycle() {
   assert_eq "one tmux backup" 1 "$(count_entries "$SB_HOME" '.tmux.conf.bak.*')"
   assert_eq "tmux backup keeps the old content" old \
     "$(cat "$SB_HOME"/.tmux.conf.bak.* 2>/dev/null)"
-  assert_eq "one settings backup" 1 "$(count_entries "$SB_HOME/.claude" 'settings.json.bak.*')"
-  assert_eq "settings backup keeps the original" '{"model":"sonnet","theme":"solarized"}' \
-    "$(jq -Sc . "$SB_HOME"/.claude/settings.json.bak.* 2>/dev/null)"
-  assert_true "settings snapshot written" test -f "$SB_HOME/.claude/settings.generated.json"
+  assert_eq "no settings backup" 0 "$(count_entries "$SB_HOME/.claude" 'settings.json.bak.*')"
   local guard="$SB_HOME/.claude/hooks/memory-write-guard.sh"
   printf '{"tool_input":{"file_path":"%s/x.md"},"cwd":"%s"}' "$SB_HOME" "$SB_HOME" | "$BASH" "$guard" >/dev/null 2>&1
   assert_eq "linked guard blocks a project write" 2 "$?"
@@ -280,33 +273,24 @@ lifecycle() {
   mark_time
   capture --no-skills
   assert_eq "second run exit status" 0 "$RC"
-  assert_nomatch "second run reports no changes" 'linked:|generated:|backing up|backup |adopted|seeded|warn:|removing|replacing|Plan' "$OUT"
+  assert_match "second run reports settings ok" 'ok: .*/\.claude/settings\.json' "$OUT"
+  assert_nomatch "second run reports no changes" 'linked:|create:|update:|backing up|backup |warn:|removing|replacing|Plan' "$OUT"
   assert_eq "second run leaves state untouched" "$before" "$(state_sum)"
   assert_untouched "second run"
   mark_time
   capture --dry-run --no-skills
   assert_eq "dry-run after install exit status" 0 "$RC"
-  assert_nomatch "dry-run after install plans no change" '^(link|backup|generate|adopt|seed|remove) ' "$OUT"
+  assert_nomatch "dry-run after install plans no change" '^(link|backup|create|update|replace|remove)[ :]' "$OUT"
   assert_eq "dry-run after install leaves state untouched" "$before" "$(state_sum)"
   assert_untouched "dry-run after install"
 
-  scenario "lifecycle: edits made in the live settings are adopted into the overlay"
+  scenario "lifecycle: edits made in the live settings survive a re-run"
   jq '.theme="light"' "$SB_HOME/.claude/settings.json" > "$SB_HOME/.claude/tmp.json" \
     && mv "$SB_HOME/.claude/tmp.json" "$SB_HOME/.claude/settings.json"
   capture --no-skills
-  assert_eq "adopt exit status" 0 "$RC"
-  assert_match "adoption reported" 'adopted into .*/settings\.json: theme' "$OUT"
-  assert_eq "overlay holds the edit" light "$(jq -r .theme "$SB_LOCAL/settings.json")"
+  assert_eq "re-run after an edit exit status" 0 "$RC"
   assert_eq "live settings keep the edit" light "$(jq -r .theme "$SB_HOME/.claude/settings.json")"
-  assert_eq "snapshot matches the live settings after adoption" "$(live_json)" \
-    "$(jq -S . "$SB_HOME/.claude/settings.generated.json")"
-  assert_eq "committed defaults stay clean" 0 "$(jq -S . "$SB_REPO/claude/settings.json" | grep -c light)"
-  before="$(state_sum)"
-  mark_time
-  capture --no-skills
-  assert_nomatch "run after adoption is quiet" 'adopted|seeded|warn:' "$OUT"
-  assert_eq "run after adoption leaves state untouched" "$before" "$(state_sum)"
-  assert_untouched "run after a completed adoption"
+  assert_eq "committed defaults stay clean" 0 "$(grep -c light "$SB_REPO/claude/settings.json")"
 
   scenario "lifecycle: personal instructions are linked"
   printf '# Personal rules\n' > "$SB_LOCAL/instructions.md"
@@ -314,24 +298,25 @@ lifecycle() {
   assert_eq "personal instructions exit status" 0 "$RC"
   assert_eq "CLAUDE.local.md link" "$SB_LOCAL/instructions.md" "$(link_target "$SB_HOME/.claude/CLAUDE.local.md")"
 
-  scenario "lifecycle: --uninstall removes links and restores backups"
+  scenario "lifecycle: --uninstall removes links and keeps settings.json"
   capture --uninstall --dry-run
   assert_eq "uninstall dry-run exit status" 0 "$RC"
   assert_match "uninstall dry-run plans unlinking" '^unlink ' "$OUT"
   assert_match "uninstall dry-run plans restoring" '^restore ' "$OUT"
+  assert_match "uninstall dry-run keeps settings" '^keep .*/\.claude/settings\.json' "$OUT"
   before="$(state_sum)"
   mark_time
   capture --uninstall --dry-run
   assert_eq "uninstall dry-run leaves state untouched" "$before" "$(state_sum)"
   assert_untouched "uninstall dry-run"
+  local settings_before
+  settings_before="$(cksum < "$SB_HOME/.claude/settings.json")"
   capture --uninstall --yes
   assert_eq "uninstall exit status" 0 "$RC"
   assert_eq "no links remain under HOME" 0 "$(find "$SB_HOME" -type l | wc -l | tr -d ' ')"
   assert_eq "tmux.conf restored" old "$(cat "$SB_HOME/.tmux.conf")"
-  assert_eq "settings.json restored" '{"model":"sonnet","theme":"solarized"}' "$(jq -Sc . "$SB_HOME/.claude/settings.json")"
-  assert_false "snapshot removed" test -e "$SB_HOME/.claude/settings.generated.json"
-  assert_true "overlay untouched" test -f "$SB_LOCAL/settings.json"
-  assert_eq "overlay keeps the adopted edit" light "$(jq -r .theme "$SB_LOCAL/settings.json")"
+  assert_eq "settings.json is kept as it was" "$settings_before" "$(cksum < "$SB_HOME/.claude/settings.json")"
+  assert_true "overlay untouched" test -d "$SB_LOCAL"
   assert_true "personal instructions file untouched" test -f "$SB_LOCAL/instructions.md"
   capture --uninstall --yes
   assert_eq "second uninstall exit status" 0 "$RC"
@@ -377,58 +362,154 @@ relative_overlay_dir() {
 }
 
 uninstall_without_backup() {
-  scenario "uninstall: a fresh install with no prior settings leaves a regular settings.json"
+  scenario "uninstall: a fresh install leaves the settings.json it created"
   new_sandbox
   capture --yes --no-skills
   assert_eq "fresh install exit status" 0 "$RC"
-  assert_true "fresh install generated settings.json" test -f "$SB_HOME/.claude/settings.json"
+  assert_true "fresh install created settings.json" test -f "$SB_HOME/.claude/settings.json"
   capture --uninstall --yes
   assert_eq "uninstall exit status" 0 "$RC"
-  assert_true "settings.json exists" test -e "$SB_HOME/.claude/settings.json"
   assert_true "settings.json is a regular file" test -f "$SB_HOME/.claude/settings.json"
   assert_false "settings.json is not a symlink" test -L "$SB_HOME/.claude/settings.json"
   assert_true "settings.json is valid JSON" jq -e . "$SB_HOME/.claude/settings.json" > /dev/null
-  assert_false "snapshot removed" test -e "$SB_HOME/.claude/settings.generated.json"
-}
 
-settings_array_merge() {
-  scenario "settings: a pulled removal and a user write-back in the same array adopt only the user's element"
-  new_sandbox
-  capture --yes --no-skills
-  assert_eq "initial install exit status" 0 "$RC"
-  local removed='Edit(advisor-plans/*.md)' added='Bash(make test:*)'
-  assert_eq "fixture element is among the committed defaults" true \
-    "$(jq --arg r "$removed" '.permissions.allow | index($r) != null' "$SB_REPO/claude/settings.json")"
-  jq --arg r "$removed" '.permissions.allow -= [$r]' "$SB_REPO/claude/settings.json" > "$SB_REPO/defaults.tmp" \
-    && mv "$SB_REPO/defaults.tmp" "$SB_REPO/claude/settings.json"
-  jq --arg a "$added" '.permissions.allow += [$a]' "$SB_HOME/.claude/settings.json" > "$SB_HOME/.claude/tmp.json" \
-    && mv "$SB_HOME/.claude/tmp.json" "$SB_HOME/.claude/settings.json"
-  capture --no-skills
-  assert_eq "merge run exit status" 0 "$RC"
-  assert_eq "overlay adopts only the user's element" "[\"$added\"]" "$(jq -c '.permissions.allow' "$SB_LOCAL/settings.json")"
-  assert_eq "live allow list has the user's element" true \
-    "$(jq --arg a "$added" '.permissions.allow | index($a) != null' "$SB_HOME/.claude/settings.json")"
-  assert_eq "live allow list drops the removed default" true \
-    "$(jq --arg r "$removed" '.permissions.allow | index($r) == null' "$SB_HOME/.claude/settings.json")"
-  assert_eq "live allow list keeps the other defaults" true \
-    "$(jq '.permissions.allow | index("Edit(plans/*.md)") != null' "$SB_HOME/.claude/settings.json")"
-}
-
-settings_legacy_link() {
-  scenario "settings: a legacy symlinked settings.json needs an overlay or an explicit opt-out"
+  scenario "uninstall: a legacy symlinked settings.json becomes a copy"
   new_sandbox
   mkdir -p "$SB_HOME/.claude"
   ln -s "$SB_REPO/claude/settings.json" "$SB_HOME/.claude/settings.json"
+  capture --uninstall --yes
+  assert_eq "legacy uninstall exit status" 0 "$RC"
+  assert_false "legacy settings.json is no longer a link" test -L "$SB_HOME/.claude/settings.json"
+  assert_eq "legacy settings.json is a copy of the defaults" "$(jq -S . "$SB_REPO/claude/settings.json")" "$(live_json)"
+}
+
+use_fixture_defaults() {
+  cat > "$SB_REPO/claude/settings.json" <<'JSON'
+{
+  "env": {"A": "1", "B": "2"},
+  "permissions": {"allow": ["a1", "a2"], "deny": ["d1", "d2", "d3"]},
+  "flag": true,
+  "nested": {"x": {"y": 1}}
+}
+JSON
+}
+
+write_live() {
+  mkdir -p "$SB_HOME/.claude"
+  printf '%s\n' "$1" > "$SB_HOME/.claude/settings.json"
+}
+
+settings_create() {
+  scenario "settings: a fresh HOME gets a private copy of the defaults"
+  new_sandbox
+  capture --no-skills
+  assert_eq "fresh install exit status" 0 "$RC"
+  assert_match "creation reported" '^==> create: .*/\.claude/settings\.json' "$OUT"
+  assert_false "settings.json is not a link" test -L "$SB_HOME/.claude/settings.json"
+  assert_eq "settings equal the defaults" "$(jq -S . "$SB_REPO/claude/settings.json")" "$(live_json)"
+  assert_match "settings.json is private" '^-rw-------' "$(ls -l "$SB_HOME/.claude/settings.json")"
+  assert_eq "no temp files are left behind" 0 "$(count_entries "$SB_HOME/.claude" '.settings.*')"
+}
+
+settings_merge() {
+  scenario "settings: user values win, missing defaults are added, array elements are appended once"
+  new_sandbox
+  use_fixture_defaults
+  write_live '{"theme":"t","env":{"A":"mine"},"permissions":{"deny":["d3","own","d1"]},"flag":false}'
+  capture --no-skills
+  assert_eq "merge exit status" 0 "$RC"
+  assert_eq "merged settings" \
+    '{"env":{"A":"mine","B":"2"},"flag":false,"nested":{"x":{"y":1}},"permissions":{"allow":["a1","a2"],"deny":["d3","own","d1","d2"]},"theme":"t"}' \
+    "$(jq -Sc . "$SB_HOME/.claude/settings.json")"
+  assert_match "added defaults are reported" 'update: .*/\.claude/settings\.json \(added: .*env\.B' "$OUT"
+  assert_match "added array elements are reported" 'permissions\.deny\[\.\.\.\]' "$OUT"
+  assert_match "added keys are reported" 'permissions\.allow' "$OUT"
+  assert_eq "no backup was made" 0 "$(count_entries "$SB_HOME/.claude" 'settings.json.bak.*')"
+
+  scenario "settings: a second run says ok and writes nothing"
+  local before
+  before="$(state_sum)"
+  mark_time
+  capture --no-skills
+  assert_eq "second run exit status" 0 "$RC"
+  assert_match "second run reports ok" 'ok: .*/\.claude/settings\.json' "$OUT"
+  assert_nomatch "second run reports no change" 'update:|create:' "$OUT"
+  assert_eq "second run leaves state untouched" "$before" "$(state_sum)"
+  assert_untouched "second run"
+
+  scenario "settings: a default the user removed comes back, other values stay"
+  jq 'del(.env.B) | .flag = false' "$SB_HOME/.claude/settings.json" > "$SB/tmp.json" \
+    && mv "$SB/tmp.json" "$SB_HOME/.claude/settings.json"
+  capture --no-skills
+  assert_eq "restore exit status" 0 "$RC"
+  assert_eq "removed default is back" 2 "$(jq -r .env.B "$SB_HOME/.claude/settings.json")"
+  assert_eq "user scalar is kept" false "$(jq -r .flag "$SB_HOME/.claude/settings.json")"
+
+  scenario "settings: a dry run shows the update and writes nothing"
+  jq 'del(.env.B)' "$SB_HOME/.claude/settings.json" > "$SB/tmp.json" \
+    && mv "$SB/tmp.json" "$SB_HOME/.claude/settings.json"
+  before="$(state_sum)"
+  mark_time
+  capture --dry-run --no-skills
+  assert_eq "dry-run exit status" 0 "$RC"
+  assert_match "dry-run plans the update" '^update: .*/\.claude/settings\.json \(added: env\.B\)' "$OUT"
+  assert_eq "dry-run leaves state untouched" "$before" "$(state_sum)"
+  assert_untouched "settings dry run"
+}
+
+settings_invalid() {
+  scenario "settings: invalid user JSON exits 1 and leaves the file byte-identical"
+  new_sandbox
+  use_fixture_defaults
+  write_live '{"theme": '
+  local before
+  before="$(cksum < "$SB_HOME/.claude/settings.json")"
+  mark_time
+  capture --no-skills
+  assert_eq "invalid JSON exit status" 1 "$RC"
+  assert_match "invalid JSON message" 'settings\.json is not a valid JSON object' "$OUT"
+  assert_eq "invalid file is byte-identical" "$before" "$(cksum < "$SB_HOME/.claude/settings.json")"
+  assert_eq "no temp files are left behind" 0 "$(count_entries "$SB_HOME/.claude" '.settings.*')"
+  assert_false "nothing else was linked" test -e "$SB_HOME/.claude/agents"
+  capture --yes --dry-run --no-skills
+  assert_eq "invalid JSON dry-run exit status" 1 "$RC"
+  write_live '["not","an","object"]'
+  capture --no-skills
+  assert_eq "non-object JSON exit status" 1 "$RC"
+  assert_eq "non-object file is untouched" '["not","an","object"]' "$(jq -c . "$SB_HOME/.claude/settings.json")"
+}
+
+settings_symlinks() {
+  scenario "settings: a legacy repo-symlinked settings.json becomes a real file silently"
+  new_sandbox
+  mkdir -p "$SB_HOME/.claude"
+  ln -s "$SB_REPO/claude/settings.json" "$SB_HOME/.claude/settings.json"
+  capture --no-skills
+  assert_eq "legacy link exit status" 0 "$RC"
+  assert_false "settings.json is no longer a link" test -L "$SB_HOME/.claude/settings.json"
+  assert_eq "settings equal the defaults" "$(jq -S . "$SB_REPO/claude/settings.json")" "$(live_json)"
+  assert_eq "legacy link leaves no backup" 0 "$(find "$SB_HOME" -name '*.bak.*' | wc -l | tr -d ' ')"
+  assert_eq "the committed defaults were not written through the link" \
+    "$(jq -S . "$REPO/claude/settings.json")" "$(jq -S . "$SB_REPO/claude/settings.json")"
+
+  scenario "settings: a foreign symlinked settings.json needs confirmation"
+  new_sandbox
+  mkdir -p "$SB_HOME/.claude"
+  printf '{"theme":"foreign"}\n' > "$SB/elsewhere.json"
+  ln -s "$SB/elsewhere.json" "$SB_HOME/.claude/settings.json"
   local before
   before="$(state_sum)"
   capture --no-skills
-  assert_eq "missing overlay exit status" 1 "$RC"
-  assert_match "missing overlay message" 'no personal overlay found' "$OUT"
-  assert_eq "missing overlay leaves state untouched" "$before" "$(state_sum)"
-  CLAUDE_CONFIG_NO_OVERLAY=1 capture --no-skills
-  assert_eq "opt-out exit status" 0 "$RC"
-  assert_false "settings.json is now a generated file" test -L "$SB_HOME/.claude/settings.json"
-  assert_eq "generated settings equal the defaults" "$(jq -S . "$SB_REPO/claude/settings.json")" "$(live_json)"
+  assert_eq "foreign link exit status" 1 "$RC"
+  assert_match "foreign link refusal" 'Refusing to change files without --yes' "$OUT"
+  assert_match "foreign link plans a backup" '^backup .*/\.claude/settings\.json -> ' "$OUT"
+  assert_eq "foreign link leaves state untouched" "$before" "$(state_sum)"
+  capture --yes --no-skills
+  assert_eq "confirmed foreign link exit status" 0 "$RC"
+  assert_false "settings.json is now a real file" test -L "$SB_HOME/.claude/settings.json"
+  assert_eq "settings equal the defaults" "$(jq -S . "$SB_REPO/claude/settings.json")" "$(live_json)"
+  assert_eq "the foreign link is kept as a backup" "$SB/elsewhere.json" "$(link_target "$SB_HOME"/.claude/settings.json.bak.*)"
+  assert_eq "the link target is untouched" '{"theme":"foreign"}' "$(jq -c . "$SB/elsewhere.json")"
 }
 
 stale_skills_fixture() {
@@ -570,8 +651,10 @@ uninstall_without_backup
 stale_overlay_link
 foreign_link_into_overlay_dir
 relative_overlay_dir
-settings_array_merge
-settings_legacy_link
+settings_create
+settings_merge
+settings_invalid
+settings_symlinks
 clean_skills
 skills_install
 exit_trap
