@@ -56,7 +56,8 @@ usage() {
 
 Links this repo's Claude Code config into ~/.claude (and tmux.conf into ~),
 merges the defaults in claude/settings.json into ~/.claude/settings.json (your values
-always win, missing keys and array elements are added), and installs the skills listed in skills/ and skills-lock.json.
+always win, missing keys and array elements are added), and installs the skills listed
+in skills/ and skills-lock.json.
 
   --dry-run    print the planned changes and exit without touching anything
   --yes, -y    do not ask for confirmation; needed when stdin is not a terminal and the run
