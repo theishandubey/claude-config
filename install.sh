@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# agent-config bootstrap
+# claude-config bootstrap
 #
 # - Symlinks Claude Code configs into place
 # - Installs this repo's own skills and the third-party skills listed in
@@ -67,7 +67,11 @@ and installs the skills listed in skills/ and skills-lock.json.
   --uninstall  remove the links and generated settings, restoring the newest backups
   --help, -h   show this help
 
-Environment: CLAUDE_CONFIG_LOCAL_DIR overrides the overlay directory (default: <repo>/local).
+Environment:
+  CLAUDE_CONFIG_LOCAL_DIR     overlay directory (default: <repo>/local)
+  CLAUDE_CONFIG_NO_OVERLAY=1  install the defaults only when ~/.claude/settings.json is still
+                              a link into this repo and there is no overlay
+  NO_COLOR                    set to any non-empty value to turn off colored output
 EOF
 }
 
