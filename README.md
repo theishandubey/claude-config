@@ -173,25 +173,25 @@ Copy it to another machine by hand, or make `local/` a symlink into a private do
 claude-config/
 ├── README.md
 ├── LICENSE
-├── .github/workflows/check.yml  # CI: runs scripts/check.sh on Linux and macOS
-├── install.sh                 # installer: --dry-run, --yes, --uninstall, --clean, --no-skills
-├── skills-lock.json           # third-party skills and their upstream repos, installed at install time
-├── agents/                    # subagent definitions, linked to ~/.claude/agents
+├── .github/workflows/check.yml # CI: runs scripts/check.sh on Linux and macOS
+├── install.sh                  # installer: --dry-run, --yes, --uninstall, --clean, --no-skills
+├── skills-lock.json            # third-party skills and their upstream repos, installed at install time
+├── agents/                     # subagent definitions, linked to ~/.claude/agents
 │   ├── advisors/
 │   ├── workers/
 │   └── explorers/
-├── claude/                    # global Claude Code config
-│   ├── AGENTS.md              # shared coding rules, linked to ~/.claude/AGENTS.md
-│   ├── CLAUDE.md              # orchestration playbook, linked to ~/.claude/CLAUDE.md
-│   └── settings.json          # committed defaults, merged into ~/.claude/settings.json
-├── local.example/             # copy to local/ (gitignored) for your personal overlay
+├── claude/                     # global Claude Code config
+│   ├── AGENTS.md               # shared coding rules, linked to ~/.claude/AGENTS.md
+│   ├── CLAUDE.md               # orchestration playbook, linked to ~/.claude/CLAUDE.md
+│   └── settings.json           # committed defaults, merged into ~/.claude/settings.json
+├── local.example/              # copy to local/ (gitignored) for your personal overlay
 │   ├── settings.json
 │   └── instructions.md
-├── hooks/                     # PreToolUse guards, linked to ~/.claude/hooks
-├── skills/                    # skills maintained in this repo
-├── tmux/tmux.conf             # linked to ~/.tmux.conf
-├── scripts/                   # check.sh and the tests it runs
-└── docs/adr/                  # architecture decision records
+├── hooks/                      # PreToolUse guards, linked to ~/.claude/hooks
+├── skills/                     # skills maintained in this repo
+├── tmux/tmux.conf              # linked to ~/.tmux.conf
+├── scripts/                    # check.sh and the tests it runs
+└── docs/adr/                   # architecture decision records
 ```
 
 ## Customizing
