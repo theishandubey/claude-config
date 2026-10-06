@@ -105,6 +105,9 @@ The merge rules:
 - Scalars replace the default.
 - `null` keeps the default.
 
+Because arrays only append, a committed default array element, such as a `permissions.allow` or `permissions.deny` rule, cannot be dropped through the overlay.
+Dropping one means editing `claude/settings.json` in a fork.
+
 A minimal overlay, which is also what `local.example/settings.json` contains:
 
 ```json
@@ -139,11 +142,14 @@ This removes the permission prompts, so the model can run commands and edit file
 Claude Code writes the results of `/model`, `/effort`, `/config`, `/tui`, `/theme`, `claude install <channel>` and `claude plugin` into `~/.claude/settings.json`.
 On the next `./install.sh`, every changed value is adopted into `local/settings.json` and printed as `adopted into ...`, so the repo never gets dirty.
 
-- A key Claude Code deleted is reported, and the committed default returns.
+- A key Claude Code deleted is reported, and it comes back from the committed defaults or from your overlay, whichever set it.
+  To remove a key your overlay sets, edit `local/settings.json`; this includes a key a command such as `claude plugin disable` deletes from `~/.claude/settings.json`.
 - A write-back cannot remove a committed default key or array element.
-  `install.sh` warns and restores it; override the value in `local/settings.json` instead.
-- If `~/.claude/settings.generated.json` is missing, the current `~/.claude/settings.json` wins over a freshly copied overlay for any key both set, shown as `adopted into` lines.
+  `install.sh` warns and restores it; override a scalar in `local/settings.json` instead, or edit `claude/settings.json` in a fork.
+- If `~/.claude/settings.generated.json` is missing, `install.sh` cannot tell your edits from changed defaults.
+  A live value that differs from the committed default wins over the overlay, shown as `adopted into` lines; a live value equal to the default does not, so the overlay's value stays.
   The old file is backed up first.
+- With an existing `~/.claude/settings.json` and no `local/`, the first run seeds `local/settings.json` with the values in it that differ from the committed defaults.
 - If `~/.claude/settings.json` is still a symlink into this repo (an older layout) and there is no overlay, `install.sh` stops with exit 1 and changes nothing.
   Copy `local/` from another machine, start from `local.example/`, or set `CLAUDE_CONFIG_NO_OVERLAY=1` to install the defaults only.
 
