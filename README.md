@@ -53,7 +53,9 @@ The full playbook is in `claude/CLAUDE.md`, and the shared coding rules every ag
 > They set `permissions.defaultMode` to `bypassPermissions` and `skipDangerousModePermissionPrompt` to `true`, so Claude Code runs commands and edits files without asking, and they allow `Read(*)` and a long list of `Bash` commands.
 > Any of these that your `~/.claude/settings.json` does not already set are added to it.
 > Review `claude/settings.json` before running `install.sh`.
-> To get prompts back afterwards, change `permissions.defaultMode` (for example to `default`) and trim `permissions.allow` in `~/.claude/settings.json`; your values win on every later run, as described in [Your settings](#your-settings).
+> To get prompts back afterwards, set `permissions.defaultMode` (for example to `default`) and `skipDangerousModePermissionPrompt` to `false` in `~/.claude/settings.json`; scalar values you set there stick on every later run.
+> Default allow entries come back on the next install even if you remove them, so dropping them for good needs a fork that edits `claude/settings.json`.
+> See [Your settings](#your-settings).
 
 ```bash
 git clone https://github.com/theishandubey/claude-config.git ~/claude-config
@@ -95,7 +97,10 @@ Afterwards start `claude` and run `/memory` to see which instruction files loade
 - Bypass permissions mode, with the dangerous-mode prompt skipped.
 - A broad allow list and a short deny list (see [Permissions](#permissions)).
 - The `opus` model, the dark theme, the fullscreen TUI, the `latest` update channel and notifications turned on.
-- The model alias pins, the agent teams flag, empty commit and pull request attribution, and the worktree and teammate settings the agent roster relies on.
+- The model alias pins and the agent teams flag in `env`, and `switchModelsOnFlag` set to `false`.
+- Empty commit and pull request attribution, with the session URL off.
+- The worktree and teammate settings the agent roster relies on.
+- `pluginConfigs`, the options for the `auto-handoff` plugin.
 - The `claude-mods` marketplace and the `meter`, `agent-graph`, `auto-handoff` and `statusline` plugins, enabled (see [Plugins](#plugins)).
 
 Your personal settings live directly in `~/.claude/settings.json`, and you can edit that file, or let Claude Code write to it with `/model`, `/theme`, `/config` and `claude plugin`, as usual.
@@ -133,9 +138,9 @@ The committed allow list approves:
 - `Bash` prefixes for common toolchains: `node`, `npm run`, `npm test`, `npx`, `pnpm`, `yarn`, `python`, `pytest`, `pip install`, `cargo`, `go` and `make`.
 - `Bash` prefixes for `git status`, `git diff`, `git log`, `git branch`, `git add`, `git commit`, `git checkout` and `git worktree`.
 
-The committed deny list blocks force pushes, `git reset --hard` and `rm -rf`, and deny rules still apply in bypass mode: Claude Code 2.1.291 describes bypass as auto-approving every tool call except explicit deny rules.
+The committed deny list blocks force pushes, `git reset --hard` and `rm -rf`.
 In bypass mode the allow list adds nothing for tool calls, so it matters when you switch to a mode that prompts.
-Allow rules are prefix matches, so some are broader than they look: `Bash(find:*)` also approves dangerous forms such as `find -delete`, and `Bash(npx:*)`, `Bash(python:*)` and `Bash(node:*)` approve arbitrary code.
+Allow and deny rules are prefix matches, and deny rules still apply in bypass mode; see [Security notes](#security-notes).
 
 ## Layout
 
@@ -179,6 +184,7 @@ git pull && ./install.sh
 
 `install.sh` reinstalls the third-party skills from upstream, so a re-run also brings them up to date.
 `npx skills update -g` updates installed skills without it, and `claude plugin update <name>@claude-mods` updates a plugin.
+Updating an existing install merges in bypass mode and the allow list unless you already set those values; see the warning under [Install](#install).
 
 ## Uninstalling
 
@@ -219,7 +225,7 @@ To run without a plugin, set its `enabledPlugins` entry to `false` in `~/.claude
 - The committed defaults enable bypass permissions mode and skip its confirmation prompt, so installing them removes the permission prompts on your machine.
   Review `claude/settings.json` first, and change the values in `~/.claude/settings.json` if you want prompts back.
 - The allow list is broad, and allow rules are prefix matches too: `Bash(find:*)` approves `find -delete`, and `Bash(npx:*)`, `Bash(python:*)` and `Bash(node:*)` approve arbitrary code.
-- Deny rules still apply in bypass mode.
+- Deny rules still apply in bypass mode: Claude Code 2.1.291 describes bypass as auto-approving every tool call except explicit deny rules.
 - `permissions.deny` rules are prefix matches, where `:*` means "starts with".
   `Bash(rm -rf:*)` does not match `rm -fr`, and `Bash(git push --force:*)` does not match `git push origin main --force` (flag after the refspec), `git push --force-with-lease` or a `+refspec` push.
   They guard against accidents, not against a hostile model or prompt injection.
