@@ -315,110 +315,115 @@ settings_state() {
   fi
 }
 
-plan_settings() {
+# Computes everything generate_settings needs without writing anything; results go to S_* globals.
+compute_settings() {
   local defaults="$REPO_DIR/claude/settings.json"
   local overlay="$LOCAL_DIR/settings.json"
   local live="$HOME/.claude/settings.json"
   local snapshot="$HOME/.claude/settings.generated.json"
   local overlay_src=/dev/null adopt_base="" has_snapshot=0 backup=0 same=0
-  local new_json="" merged_json p
   [ ! -f "$overlay" ] || overlay_src="$overlay"
+  S_NEW_OVERLAY=""
+  S_REMOVED=""
+  S_ADOPT_PATHS=""
+  S_SEEDED=0
+  S_OVERLAY_CHANGED=0
+  S_REFRESH=0
   settings_state
   if [ -n "$adopt_base" ]; then
-    new_json="$(adopt_into_overlay "$live" "$adopt_base" "$defaults" "$overlay_src")" \
+    S_NEW_OVERLAY="$(adopt_into_overlay "$live" "$adopt_base" "$defaults" "$overlay_src")" \
       || { warn "could not adopt $live into the overlay; nothing was changed"; exit 1; }
-    if printf '%s\n' "$new_json" | jq -e '. == {}' >/dev/null && [ ! -f "$overlay" ]; then
-      new_json=""
+    if printf '%s\n' "$S_NEW_OVERLAY" | jq -e '. == {}' >/dev/null && [ ! -f "$overlay" ]; then
+      S_NEW_OVERLAY=""
+    fi
+    if [ "$adopt_base" = "$snapshot" ]; then
+      S_REMOVED="$(removed_messages "$live" "$snapshot" "$overlay")" \
+        || { warn "could not compare $live with its snapshot; nothing was changed"; exit 1; }
     fi
   fi
-  if [ -n "$new_json" ]; then
-    merged_json="$(merge_settings "$defaults" <(printf '%s\n' "$new_json"))" \
+  if [ -n "$S_NEW_OVERLAY" ]; then
+    S_MERGED="$(merge_settings "$defaults" <(printf '%s\n' "$S_NEW_OVERLAY"))" \
       || { warn "could not merge $defaults with $overlay; nothing was changed"; exit 1; }
   else
-    merged_json="$(merge_settings "$defaults" "$overlay_src")" \
+    S_MERGED="$(merge_settings "$defaults" "$overlay_src")" \
       || { warn "could not merge $defaults with $overlay; nothing was changed"; exit 1; }
   fi
-  if [ ! -L "$live" ] && [ -f "$live" ] && json_equal "$live" <(printf '%s\n' "$merged_json"); then
+  if [ ! -L "$live" ] && [ -f "$live" ] && json_equal "$live" <(printf '%s\n' "$S_MERGED"); then
     same=1
     backup=0
   fi
-  if [ -n "$new_json" ] && ! json_equal <(printf '%s\n' "$new_json") "$overlay_src"; then
-    while read -r p; do
-      [ -z "$p" ] || plan_sync "adopt $p -> $overlay"
-    done < <(adopted_paths "$overlay_src" <(printf '%s\n' "$new_json"))
+  if [ -n "$S_NEW_OVERLAY" ] && ! json_equal <(printf '%s\n' "$S_NEW_OVERLAY") "$overlay_src"; then
+    S_OVERLAY_CHANGED=1
+    S_ADOPT_PATHS="$(adopted_paths "$overlay_src" <(printf '%s\n' "$S_NEW_OVERLAY"))"
+    if [ "$adopt_base" = "$defaults" ] && [ "$overlay_src" = /dev/null ]; then S_SEEDED=1; fi
   fi
   if [ "$same" = 1 ]; then
-    plan_ok "$live"
-  else
-    if [ "$backup" = 1 ]; then plan_add "backup $live -> ${live}${BACKUP_SUFFIX}"; fi
-    plan_sync "generate $live"
+    if [ "$has_snapshot" = 0 ] || ! json_equal "$snapshot" <(printf '%s\n' "$S_MERGED"); then
+      S_REFRESH=1
+    fi
   fi
+  S_SAME=$same
+  S_BACKUP=$backup
 }
 
 generate_settings() {
-  local defaults="$REPO_DIR/claude/settings.json"
   local overlay="$LOCAL_DIR/settings.json"
   local live="$HOME/.claude/settings.json"
   local snapshot="$HOME/.claude/settings.generated.json"
-  local overlay_src=/dev/null use_overlay adopt_base="" has_snapshot=0 backup=0 same=0
-  local merged new_overlay="" snap_tmp live_sum removed="" p
-  if [ "$MODE" = plan ]; then plan_settings; return 0; fi
+  local merged new_overlay="" snap_tmp live_sum p
+  if [ "$MODE" = plan ]; then
+    compute_settings
+    while IFS= read -r p; do
+      if [ -n "$p" ]; then plan_sync "adopt $p -> $overlay"; fi
+    done < <(printf '%s\n' "$S_ADOPT_PATHS")
+    if [ "$S_SAME" = 1 ]; then
+      plan_ok "$live"
+      if [ "$S_REFRESH" = 1 ]; then plan_note "ok: $snapshot (refresh snapshot)"; fi
+    else
+      if [ "$S_BACKUP" = 1 ]; then plan_add "backup $live -> ${live}${BACKUP_SUFFIX}"; fi
+      plan_sync "generate $live"
+    fi
+    return 0
+  fi
   mkdir -p "$HOME/.claude"
   live_sum="$(fingerprint "$live")"
-  [ ! -f "$overlay" ] || overlay_src="$overlay"
-  use_overlay="$overlay_src"
-  settings_state
-  if [ -n "$adopt_base" ]; then
+  compute_settings
+  if [ "$S_OVERLAY_CHANGED" = 1 ]; then
     mkdir -p "$LOCAL_DIR"
     new_overlay="$(mktemp "$LOCAL_DIR/.settings.XXXXXX")"
     TMP_FILES+=("$new_overlay")
-    adopt_into_overlay "$live" "$adopt_base" "$defaults" "$overlay_src" > "$new_overlay" \
-      || { warn "could not adopt $live into the overlay; nothing was changed"; exit 1; }
-    if jq -e '. == {}' "$new_overlay" >/dev/null && [ ! -f "$overlay" ]; then
-      new_overlay=""
-    else
-      use_overlay="$new_overlay"
-    fi
-    if [ "$adopt_base" = "$snapshot" ]; then
-      removed="$(removed_messages "$live" "$snapshot" "$overlay")" \
-        || { warn "could not compare $live with its snapshot; nothing was changed"; exit 1; }
-    fi
+    printf '%s\n' "$S_NEW_OVERLAY" > "$new_overlay"
   fi
   # Temp files live in ~/.claude so each mv below is an atomic same-filesystem rename.
   merged="$(mktemp "$HOME/.claude/.settings.XXXXXX")"
   TMP_FILES+=("$merged")
-  merge_settings "$defaults" "$use_overlay" > "$merged" \
-    || { warn "could not merge $defaults with $overlay; nothing was changed"; exit 1; }
+  printf '%s\n' "$S_MERGED" > "$merged"
   snap_tmp="$(mktemp "$HOME/.claude/.settings.XXXXXX")"
   TMP_FILES+=("$snap_tmp")
   cp "$merged" "$snap_tmp"
-  if [ ! -L "$live" ] && [ -f "$live" ] && json_equal "$live" "$merged"; then
-    same=1
-    backup=0
-  fi
   if [ "$(fingerprint "$live")" != "$live_sum" ]; then
     warn "$live changed while install.sh was running; nothing was written - close running Claude Code sessions and rerun"
     exit 1
   fi
-  if [ -n "$new_overlay" ] && ! json_equal "$new_overlay" "$overlay_src"; then
-    if [ "$adopt_base" = "$defaults" ] && [ "$overlay_src" = /dev/null ]; then
+  if [ -n "$new_overlay" ]; then
+    if [ "$S_SEEDED" = 1 ]; then
       info "seeded $overlay from the existing $live"
     else
-      adopted_paths "$overlay_src" "$new_overlay" | while read -r p; do
-        info "adopted into $overlay: $p"
-      done
+      while IFS= read -r p; do
+        if [ -n "$p" ]; then info "adopted into $overlay: $p"; fi
+      done < <(printf '%s\n' "$S_ADOPT_PATHS")
     fi
     mv "$new_overlay" "$overlay"
   fi
-  if [ -n "$removed" ]; then
-    printf '%s\n' "$removed" | while IFS= read -r p; do
+  if [ -n "$S_REMOVED" ]; then
+    while IFS= read -r p; do
       warn "$p"
-    done
+    done < <(printf '%s\n' "$S_REMOVED")
   fi
-  if [ "$same" = 1 ]; then
+  if [ "$S_SAME" = 1 ]; then
     info "ok: $live"
   else
-    if [ "$backup" = 1 ]; then
+    if [ "$S_BACKUP" = 1 ]; then
       warn "backing up existing $live -> ${live}${BACKUP_SUFFIX}"
       mv "$live" "${live}${BACKUP_SUFFIX}"
     elif [ -L "$live" ]; then
