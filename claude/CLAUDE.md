@@ -124,5 +124,3 @@ The count is derived from the task decomposition, never chosen as a target:
 
 - Opus advisors: consulted for judgment, not labor. Don't send them mechanical tasks.
 - Sonnet workers for writing code (implementation, fixes, tests) - the Opus review loop catches the quality gap; Fable only where top-end judgment compounds.
-
-@~/.claude/CLAUDE.local.md

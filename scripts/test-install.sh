@@ -3,7 +3,7 @@ set -uo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 
-unset NO_COLOR CLAUDE_CONFIG_LOCAL_DIR NPX_FAIL_SOURCE
+unset NO_COLOR NPX_FAIL_SOURCE
 
 command -v jq >/dev/null || { echo "install: jq is required" >&2; exit 1; }
 command -v python3 >/dev/null || { echo "install: python3 is required" >&2; exit 1; }
@@ -93,23 +93,22 @@ mark_time() {
 
 assert_untouched() {
   local touched
-  touched="$(find "$SB_HOME" "$SB_LOCAL" "$SB_REPO" -newer "$SB/marker" 2>/dev/null | LC_ALL=C sort)"
+  touched="$(find "$SB_HOME" "$SB_REPO" -newer "$SB/marker" 2>/dev/null | LC_ALL=C sort)"
   assert_eq "$1: no file or directory was written" "" "$touched"
 }
 
 state_sum() {
-  printf '%s %s %s' "$(tree_sum "$SB_HOME")" "$(tree_sum "$SB_LOCAL")" "$(tree_sum "$SB_REPO")"
+  printf '%s %s' "$(tree_sum "$SB_HOME")" "$(tree_sum "$SB_REPO")"
 }
 
 new_sandbox() {
   SB_N=$((SB_N + 1))
   SB="$WORK/sb$SB_N"
   SB_HOME="$SB/home"
-  SB_LOCAL="$SB/local"
   SB_REPO="$SB/repo"
   SB_STUB="$SB/stub"
   SB_NPX_LOG="$SB/npx.log"
-  mkdir -p "$SB_HOME" "$SB_LOCAL" "$SB_REPO" "$SB_STUB"
+  mkdir -p "$SB_HOME" "$SB_REPO" "$SB_STUB"
   local item
   for item in install.sh claude agents hooks tmux skills skills-lock.json; do
     cp -R "$REPO/$item" "$SB_REPO/$item"
@@ -127,11 +126,9 @@ STUB
 }
 
 assert_sandboxed() {
-  local home local_dir
+  local home
   home="$(cd "$SB_HOME" && pwd -P)" || { echo "install: sandbox home missing" >&2; exit 1; }
-  local_dir="$(cd "$SB_LOCAL" && pwd -P)" || { echo "install: sandbox local dir missing" >&2; exit 1; }
-  if [ "$home" = "$REAL_HOME" ] || [ "${home#"$WORK"/}" = "$home" ] \
-    || [ "$local_dir" = "$REAL_HOME" ] || [ "${local_dir#"$WORK"/}" = "$local_dir" ]; then
+  if [ "$home" = "$REAL_HOME" ] || [ "${home#"$WORK"/}" = "$home" ]; then
     echo "install: refusing to run install.sh outside the throwaway sandbox (HOME=$home)" >&2
     exit 1
   fi
@@ -139,7 +136,7 @@ assert_sandboxed() {
 
 ienv() {
   assert_sandboxed
-  env HOME="$SB_HOME" CLAUDE_CONFIG_LOCAL_DIR="$SB_LOCAL" NPX_LOG="$SB_NPX_LOG" \
+  env HOME="$SB_HOME" NPX_LOG="$SB_NPX_LOG" \
     PATH="$SB_STUB:$PATH" "$@"
 }
 
@@ -223,7 +220,7 @@ lifecycle() {
   assert_match "dry-run plans updating settings" '^update: .*/\.claude/settings\.json \(added: ' "$OUT"
   assert_match "dry-run plans links" "^link $SB_HOME/\.claude/agents -> $SB_REPO/agents" "$OUT"
   after="$(state_sum)"
-  assert_eq "dry-run leaves HOME, overlay and repo untouched" "$before" "$after"
+  assert_eq "dry-run leaves HOME and repo untouched" "$before" "$after"
 
   scenario "lifecycle: dry-run with skills does not call npx"
   capture --dry-run
@@ -292,12 +289,6 @@ lifecycle() {
   assert_eq "live settings keep the edit" light "$(jq -r .theme "$SB_HOME/.claude/settings.json")"
   assert_eq "committed defaults stay clean" 0 "$(grep -c light "$SB_REPO/claude/settings.json")"
 
-  scenario "lifecycle: personal instructions are linked"
-  printf '# Personal rules\n' > "$SB_LOCAL/instructions.md"
-  capture --no-skills
-  assert_eq "personal instructions exit status" 0 "$RC"
-  assert_eq "CLAUDE.local.md link" "$SB_LOCAL/instructions.md" "$(link_target "$SB_HOME/.claude/CLAUDE.local.md")"
-
   scenario "lifecycle: --uninstall removes links and keeps settings.json"
   capture --uninstall --dry-run
   assert_eq "uninstall dry-run exit status" 0 "$RC"
@@ -316,49 +307,34 @@ lifecycle() {
   assert_eq "no links remain under HOME" 0 "$(find "$SB_HOME" -type l | wc -l | tr -d ' ')"
   assert_eq "tmux.conf restored" old "$(cat "$SB_HOME/.tmux.conf")"
   assert_eq "settings.json is kept as it was" "$settings_before" "$(cksum < "$SB_HOME/.claude/settings.json")"
-  assert_true "overlay untouched" test -d "$SB_LOCAL"
-  assert_true "personal instructions file untouched" test -f "$SB_LOCAL/instructions.md"
   capture --uninstall --yes
   assert_eq "second uninstall exit status" 0 "$RC"
   assert_match "second uninstall has nothing to do" 'Nothing to uninstall' "$OUT"
 }
 
-stale_overlay_link() {
-  scenario "overlay: a stale link into an out-of-repo overlay directory is replaced without a backup or a prompt"
+stale_link() {
+  scenario "links: a stale link into the repo is replaced without a backup or a prompt"
   new_sandbox
-  mkdir -p "$SB_HOME/.claude"
-  printf '# Personal rules\n' > "$SB_LOCAL/instructions.md"
-  ln -s "$SB_LOCAL/CLAUDE.md" "$SB_HOME/.claude/CLAUDE.local.md"
+  ln -s "$SB_REPO/tmux/removed.conf" "$SB_HOME/.tmux.conf"
   capture --no-skills
-  assert_eq "stale overlay link exit status" 0 "$RC"
-  assert_eq "stale overlay link is repointed" "$SB_LOCAL/instructions.md" "$(link_target "$SB_HOME/.claude/CLAUDE.local.md")"
-  assert_eq "stale overlay link leaves no backup" 0 "$(find "$SB_HOME" -name '*.bak.*' | wc -l | tr -d ' ')"
+  assert_eq "stale link exit status" 0 "$RC"
+  assert_eq "stale link is repointed" "$SB_REPO/tmux/tmux.conf" "$(link_target "$SB_HOME/.tmux.conf")"
+  assert_eq "stale link leaves no backup" 0 "$(find "$SB_HOME" -name '*.bak.*' | wc -l | tr -d ' ')"
 }
 
-foreign_link_into_overlay_dir() {
-  scenario "overlay: a foreign link into a broad overlay directory is not owned"
+foreign_link() {
+  scenario "links: a foreign link outside the repo is backed up only after confirmation and survives uninstall"
   new_sandbox
-  SB_LOCAL="$SB/dotfiles"
-  mkdir -p "$SB_LOCAL"
-  printf 'set -g mouse on\n' > "$SB_LOCAL/tmux.conf"
-  ln -s "$SB_LOCAL/tmux.conf" "$SB_HOME/.tmux.conf"
+  mkdir -p "$SB/dotfiles"
+  printf 'set -g mouse on\n' > "$SB/dotfiles/tmux.conf"
+  ln -s "$SB/dotfiles/tmux.conf" "$SB_HOME/.tmux.conf"
   capture --no-skills
   assert_eq "foreign link exit status" 1 "$RC"
   assert_match "foreign link plans a backup" 'backup .*\.tmux\.conf' "$OUT"
-  assert_eq "foreign link is left in place" "$SB_LOCAL/tmux.conf" "$(link_target "$SB_HOME/.tmux.conf")"
+  assert_eq "foreign link is left in place" "$SB/dotfiles/tmux.conf" "$(link_target "$SB_HOME/.tmux.conf")"
   capture --uninstall --yes
   assert_eq "foreign link uninstall exit status" 0 "$RC"
-  assert_eq "foreign link survives uninstall" "$SB_LOCAL/tmux.conf" "$(link_target "$SB_HOME/.tmux.conf")"
-}
-
-relative_overlay_dir() {
-  scenario "overlay: a relative overlay directory with a trailing slash yields an absolute link target"
-  new_sandbox
-  printf '# Personal rules\n' > "$SB_LOCAL/instructions.md"
-  OUT="$(cd "$SB" && ienv env CLAUDE_CONFIG_LOCAL_DIR=./local/../local/ "$BASH" "$SB_REPO/install.sh" --no-skills 2>&1 < /dev/null)"
-  RC=$?
-  assert_eq "relative overlay exit status" 0 "$RC"
-  assert_eq "relative overlay link target is absolute" "$SB_LOCAL/instructions.md" "$(link_target "$SB_HOME/.claude/CLAUDE.local.md")"
+  assert_eq "foreign link survives uninstall" "$SB/dotfiles/tmux.conf" "$(link_target "$SB_HOME/.tmux.conf")"
 }
 
 uninstall_without_backup() {
@@ -648,9 +624,8 @@ arguments() {
 
 lifecycle
 uninstall_without_backup
-stale_overlay_link
-foreign_link_into_overlay_dir
-relative_overlay_dir
+stale_link
+foreign_link
 settings_create
 settings_merge
 settings_invalid

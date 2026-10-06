@@ -17,27 +17,6 @@ set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BACKUP_SUFFIX=".bak.$(date +%Y%m%d%H%M%S)"
-LOCAL_DIR="${CLAUDE_CONFIG_LOCAL_DIR:-$REPO_DIR/local}"
-
-# Lexical only: symlinks are not resolved, so the result stays comparable with the links install.sh creates.
-absolute_path() {
-  local path="$1" out="" segment saved_ifs="$IFS"
-  case "$path" in /*) ;; *) path="$PWD/$path" ;; esac
-  set -f
-  IFS=/
-  for segment in $path; do
-    case "$segment" in
-      ""|.) ;;
-      ..) out="${out%/*}" ;;
-      *) out="$out/$segment" ;;
-    esac
-  done
-  IFS="$saved_ifs"
-  set +f
-  printf '%s\n' "${out:-/}"
-}
-
-LOCAL_DIR="$(absolute_path "$LOCAL_DIR")"
 
 USE_COLOR=0
 if [ -t 1 ] && [ -z "${NO_COLOR:-}" ]; then USE_COLOR=1; fi
@@ -89,8 +68,7 @@ always win, missing keys and array elements are added), and installs the skills 
   --help, -h   show this help
 
 Environment:
-  CLAUDE_CONFIG_LOCAL_DIR  directory of the personal instructions file (default: <repo>/local)
-  NO_COLOR                 set to any non-empty value to turn off colored output
+  NO_COLOR  set to any non-empty value to turn off colored output
 EOF
 }
 
@@ -187,10 +165,10 @@ link() {
     return 0
   fi
 
-  # A symlink into this repo, or the personal-instructions link into the overlay directory, carries no user data, so it is replaced without a backup.
+  # A symlink into this repo carries no user data, so it is replaced without a backup.
   target="$(readlink "$dst" 2>/dev/null || true)"
   if [ "$MODE" = plan ]; then
-    if [ -L "$dst" ] && owned_link "$dst" "$target"; then
+    if [ -L "$dst" ] && points_into_repo "$target"; then
       :
     elif [ -e "$dst" ] || [ -L "$dst" ]; then
       plan_add "backup $dst -> ${dst}${BACKUP_SUFFIX}"
@@ -200,7 +178,7 @@ link() {
   fi
 
   mkdir -p "$(dirname "$dst")"
-  if [ -L "$dst" ] && owned_link "$dst" "$target"; then
+  if [ -L "$dst" ] && points_into_repo "$target"; then
     rm "$dst"
   elif [ -e "$dst" ] || [ -L "$dst" ]; then
     warn "backing up existing $dst -> ${dst}${BACKUP_SUFFIX}"
@@ -327,20 +305,6 @@ generate_settings() {
   esac
 }
 
-link_personal_instructions() {
-  local src="$LOCAL_DIR/instructions.md" dst="$HOME/.claude/CLAUDE.local.md"
-  if [ -f "$src" ]; then
-    link "$src" "$dst"
-  elif [ -L "$dst" ] && [ ! -e "$dst" ]; then
-    if [ "$MODE" = plan ]; then
-      plan_sync "remove dangling link $dst"
-    else
-      warn "removing dangling link: $dst"
-      rm "$dst"
-    fi
-  fi
-}
-
 read_lock_names() {
   jq -e '.skills | type == "object"' "$REPO_DIR/skills-lock.json" >/dev/null \
     && jq -r '.skills | keys[]' "$REPO_DIR/skills-lock.json"
@@ -372,7 +336,6 @@ install_config() {
   retire_links
   generate_settings
   link "$REPO_DIR/claude/CLAUDE.md"     "$HOME/.claude/CLAUDE.md"
-  link_personal_instructions
   link "$REPO_DIR/agents"               "$HOME/.claude/agents"
   # Agent frontmatter references hooks by absolute path ($HOME/.claude/hooks/...),
   # so they must resolve on every machine, not just inside this repo.
@@ -456,13 +419,6 @@ points_into_repo() {
   [ "${1#"$REPO_DIR"/}" != "$1" ]
 }
 
-# owned_link <path> <link-target>: only the personal-instructions link may point into the overlay directory, which can be a broad folder.
-owned_link() {
-  if points_into_repo "$2"; then return 0; fi
-  [ "$1" = "$HOME/.claude/CLAUDE.local.md" ] \
-    && { [ "$2" = "$LOCAL_DIR/instructions.md" ] || [ "$2" = "$LOCAL_DIR/CLAUDE.md" ]; }
-}
-
 newest_backup() {
   local f ts newest=""
   for f in "$1".bak.*; do
@@ -490,7 +446,7 @@ restore_backup() {
 
 uninstall_link() {
   local path="$1" free=0
-  if [ -L "$path" ] && owned_link "$path" "$(readlink "$path" 2>/dev/null || true)"; then
+  if [ -L "$path" ] && points_into_repo "$(readlink "$path" 2>/dev/null || true)"; then
     free=1
     if [ "$MODE" = plan ]; then
       plan_add "unlink $path"
@@ -539,7 +495,6 @@ uninstall_all() {
   step "Removing links"
   uninstall_link "$HOME/.claude/AGENTS.md"
   uninstall_link "$HOME/.claude/CLAUDE.md"
-  uninstall_link "$HOME/.claude/CLAUDE.local.md"
   uninstall_link "$HOME/.claude/agents"
   uninstall_link "$HOME/.claude/hooks"
   uninstall_link "$HOME/.tmux.conf"
