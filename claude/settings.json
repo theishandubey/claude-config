@@ -14,14 +14,8 @@
     "allow": [
       "Edit(.claude/agent-memory/**)",
       "Edit(.claude/agent-memory-local/**)",
-      "Bash(ls:*)",
-      "Bash(cat:*)",
-      "Bash(grep:*)",
-      "Bash(find:*)",
-      "Bash(git status:*)",
-      "Bash(git diff:*)",
-      "Bash(git log:*)",
-      "Bash(git branch:*)"
+      "Edit(plans/*.md)",
+      "Edit(advisor-plans/*.md)"
     ],
     "deny": [
       "Bash(git push --force:*)",
