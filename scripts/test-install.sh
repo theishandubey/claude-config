@@ -143,11 +143,23 @@ capture() {
 }
 
 DECLINE_PY='
-import os, pty, sys
+import os, pty, signal, sys
 pid, fd = pty.fork()
 if pid == 0:
     os.execvp(sys.argv[1], sys.argv[1:])
 buf = b""
+
+
+def on_timeout(signum, frame):
+    os.kill(pid, signal.SIGKILL)
+    os.waitpid(pid, 0)
+    sys.stdout.write(buf.decode("utf-8", "replace"))
+    sys.stderr.write("timed out waiting for the installer\n")
+    os._exit(1)
+
+
+signal.signal(signal.SIGALRM, on_timeout)
+signal.alarm(60)
 answered = False
 while True:
     try:
