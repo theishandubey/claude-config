@@ -144,7 +144,9 @@ Claude Code writes the results of `/model`, `/effort`, `/config`, `/tui`, `/them
 On the next `./install.sh`, every changed value is adopted into `local/settings.json` and printed as `adopted into ...`, so the repo never gets dirty.
 
 - A key Claude Code deleted is reported, and it comes back from the committed defaults or from your overlay, whichever set it.
-  To remove a key your overlay sets, edit `local/settings.json`; this includes a key a command such as `claude plugin disable` deletes from `~/.claude/settings.json`.
+  To remove a key your overlay sets, edit `local/settings.json`.
+  `claude plugin disable` writes `false`, which is adopted into `local/settings.json` like any other change.
+  Removing a plugin's entry, as plugin uninstall can, is a deletion, so the overlay's value returns until you edit `local/settings.json`.
 - A write-back cannot remove a committed default key or array element.
   `install.sh` warns and restores it; override a scalar in `local/settings.json` instead, or edit `claude/settings.json` in a fork.
 - If `~/.claude/settings.generated.json` is missing, `install.sh` cannot tell your edits from changed defaults.
