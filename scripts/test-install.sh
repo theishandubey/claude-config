@@ -183,8 +183,8 @@ while True:
     if not answered and b"Proceed?" in buf:
         os.write(fd, b"n\n")
         answered = True
-signal.alarm(0)
 _, status = os.waitpid(pid, 0)
+signal.alarm(0)
 sys.stdout.write(buf.decode("utf-8", "replace"))
 sys.exit(os.WEXITSTATUS(status) if os.WIFEXITED(status) else 1)
 '
