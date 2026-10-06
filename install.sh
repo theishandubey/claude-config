@@ -20,6 +20,15 @@ LOCAL_DIR="${CLAUDE_CONFIG_LOCAL_DIR:-$REPO_DIR/local}"
 info()  { printf '\033[1;34m==>\033[0m %s\n' "$*"; }
 warn()  { printf '\033[1;33mwarn:\033[0m %s\n' "$*"; }
 
+TMP_FILES=()
+cleanup() {
+  if [ "${#TMP_FILES[@]}" -gt 0 ]; then rm -f "${TMP_FILES[@]}"; fi
+}
+trap cleanup EXIT
+trap 'exit 1' INT TERM HUP
+
+command -v jq >/dev/null || { warn "jq is required"; exit 1; }
+
 CLEAN=0
 for arg in "$@"; do
   case "$arg" in
@@ -29,9 +38,9 @@ for arg in "$@"; do
 done
 
 # link <source-in-repo> <target-path>
-# Backs up an existing real file/dir at target, then symlinks to repo.
+# Backs up an existing real file/dir/foreign symlink at target, then symlinks to repo.
 link() {
-  local src="$1" dst="$2"
+  local src="$1" dst="$2" target
 
   if [ ! -e "$src" ]; then
     warn "skipping $dst - $src does not exist in repo"
@@ -46,8 +55,11 @@ link() {
     return 0
   fi
 
-  # Existing file/dir/wrong symlink - back it up.
-  if [ -e "$dst" ] || [ -L "$dst" ]; then
+  # A symlink into this repo carries no user data, so it is replaced without a backup.
+  target="$(readlink "$dst" 2>/dev/null || true)"
+  if [ -L "$dst" ] && [ "${target#"$REPO_DIR"/}" != "$target" ]; then
+    rm "$dst"
+  elif [ -e "$dst" ] || [ -L "$dst" ]; then
     warn "backing up existing $dst -> ${dst}${BACKUP_SUFFIX}"
     mv "$dst" "${dst}${BACKUP_SUFFIX}"
   fi
@@ -56,47 +68,103 @@ link() {
   info "linked: $dst -> $src"
 }
 
+JQ_LIB='
+def merge($a; $b):
+  if ($a | type) == "object" and ($b | type) == "object" then
+    reduce ($b | keys_unsorted[]) as $k ($a;
+      if $b[$k] == null and ($a | has($k) | not) then .
+      else .[$k] = merge($a[$k]; $b[$k]) end)
+  elif ($b | type) == "object" then merge({}; $b)
+  elif ($a | type) == "array" and ($b | type) == "array" then $a + ($b - $a)
+  elif $b == null then $a
+  else $b end;
+
+def adopt($o; $l; $b; $d):
+  if $l == $b then $o
+  elif ($l | type) == "object" and ($b | type) == "object" then
+    reduce ($l | keys_unsorted[]) as $k ($o | if type == "object" then . else {} end;
+      if $l[$k] == $b[$k] then .
+      else
+        adopt(.[$k]; $l[$k]; $b[$k]; ($d | if type == "object" then .[$k] else null end)) as $v
+        | if $v == null or ($v == {} and .[$k] == null) then . else .[$k] = $v end
+      end)
+  elif ($l | type) == "array" and ($d | type) == "array" then
+    ($o | if type == "array" then . else [] end) as $oa
+    | (($l - $d) - $oa) as $new
+    | if ($new | length) == 0 then $o else $oa + $new end
+  else $l end;
+
+def lost($l; $b; $p):
+  if ($b | type) == "object" then
+    if ($l | type) == "object" then
+      ($b | keys_unsorted[]) as $k | lost($l[$k]; $b[$k]; $p + [$k])
+    elif $l == null then {path: $p}
+    else empty end
+  elif $l == null then {path: $p}
+  elif ($b | type) == "array" and ($l | type) == "array" then
+    ($b - $l) | select(length > 0) | {path: $p, elements: .}
+  else empty end;
+'
+
 json_equal() {
-  diff -q <(jq -S . "$1") <(jq -S . "$2") >/dev/null 2>&1
+  jq -en --slurpfile a "$1" --slurpfile b "$2" '$a == $b' >/dev/null 2>&1
+}
+
+fingerprint() {
+  if [ -e "$1" ]; then cksum < "$1"; fi
+}
+
+is_repo_settings_link() {
+  [ -L "$1" ] && [ "$(readlink "$1")" = "$REPO_DIR/claude/settings.json" ]
 }
 
 merge_settings() {
-  jq -n --slurpfile d "$1" --slurpfile o "$2" '
-    def merge(a; b):
-      if (a | type) == "object" and (b | type) == "object" then
-        reduce (b | keys_unsorted[]) as $k (a; .[$k] = merge(a[$k]; b[$k]))
-      elif (a | type) == "array" and (b | type) == "array" then a + (b - a)
-      elif b == null then a
-      else b end;
-    merge($d[0]; $o[0])'
+  jq -n --slurpfile d "$1" --slurpfile o "$2" "$JQ_LIB"'merge($d[0]; $o[0])'
 }
 
-leaf_paths() {
-  jq -c 'paths(type != "object") | select(all(.[]; type == "string"))' "$1"
+adopt_into_overlay() {
+  jq -n --slurpfile o "$4" --slurpfile l "$1" --slurpfile b "$2" --slurpfile d "$3" "$JQ_LIB"'
+    adopt($o[0] // {}; $l[0]; $b[0]; $d[0])'
 }
 
-adopt_drift() {
-  local live="$1" snapshot="$2" overlay="$3" adopted removed
-  adopted="$(jq -n --slurpfile l "$live" --slurpfile g "$snapshot" '
-    [ $l[0] | paths(type != "object") | select(all(.[]; type == "string"))
-      | select(. as $p | ($l[0] | getpath($p)) != ($g[0] | getpath($p))) ]')"
-  removed="$(jq -n --slurpfile l "$live" --slurpfile g "$snapshot" '
-    [ $g[0] | paths(type != "object") | select(all(.[]; type == "string"))
-      | select(. as $p | ($l[0] | getpath($p)) == null) ]')"
-  if [ "$(printf '%s' "$adopted" | jq 'length')" -gt 0 ]; then
-    mkdir -p "$(dirname "$overlay")"
-    [ -f "$overlay" ] || printf '{}\n' > "$overlay"
-    jq --slurpfile l "$live" --argjson paths "$adopted" '
-      reduce $paths[] as $p (.; setpath($p; $l[0] | getpath($p)))' "$overlay" > "$overlay.tmp"
-    mv "$overlay.tmp" "$overlay"
-    printf '%s' "$adopted" | jq -r '.[] | join(".")' | while read -r p; do
-      info "adopted into $overlay: $p"
-    done
+adopted_paths() {
+  jq -nr --slurpfile o "$1" --slurpfile n "$2" '
+    $n[0] | paths(type != "object") | select(all(.[]; type == "string"))
+    | select(. as $p | (($o[0] // {}) | try getpath($p) catch null) != ($n[0] | getpath($p)))
+    | join(".")'
+}
+
+removed_messages() {
+  jq -nr --arg live "$1" --arg overlay "$3" --slurpfile l "$1" --slurpfile b "$2" "$JQ_LIB"'
+    lost($l[0]; $b[0]; [])
+    | (.path | join(".")) as $p
+    | if .elements then
+        "\($p): removing array elements through write-back is not supported; restored: \(.elements | tojson)"
+      else
+        "\($p) was removed from \($live); it is restored from the defaults or the overlay (removing a committed default key is not supported - edit \($overlay) to override its value instead)"
+      end'
+}
+
+check_settings_inputs() {
+  local defaults="$REPO_DIR/claude/settings.json"
+  local overlay="$LOCAL_DIR/settings.json"
+  local live="$HOME/.claude/settings.json"
+  if ! jq -e 'type == "object"' "$defaults" >/dev/null 2>&1; then
+    warn "$defaults is not a valid JSON object; nothing was changed"
+    exit 1
   fi
-  if [ "$(printf '%s' "$removed" | jq 'length')" -gt 0 ]; then
-    printf '%s' "$removed" | jq -r '.[] | join(".")' | while read -r p; do
-      warn "$p was removed from $live since the last run; the committed default is restored (remove it from $overlay too if that was intended)"
-    done
+  if [ -f "$overlay" ] && ! jq -e 'type == "object"' "$overlay" >/dev/null 2>&1; then
+    warn "$overlay is not a valid JSON object; fix or remove it; nothing was changed"
+    exit 1
+  fi
+  if is_repo_settings_link "$live"; then
+    if [ ! -f "$overlay" ] && [ "${CLAUDE_CONFIG_NO_OVERLAY:-}" != 1 ]; then
+      warn "no personal overlay found at $overlay; copy your local/ from another machine or start from local.example/, or rerun with CLAUDE_CONFIG_NO_OVERLAY=1 to install defaults only; nothing was changed"
+      exit 1
+    fi
+  elif [ -e "$live" ] && ! jq -e 'type == "object"' "$live" >/dev/null 2>&1; then
+    warn "$live is not a valid JSON object; fix or remove it; nothing was changed"
+    exit 1
   fi
 }
 
@@ -105,38 +173,92 @@ generate_settings() {
   local overlay="$LOCAL_DIR/settings.json"
   local live="$HOME/.claude/settings.json"
   local snapshot="$HOME/.claude/settings.generated.json"
-  local empty merged
+  local overlay_src=/dev/null use_overlay adopt_base="" has_snapshot=0 backup=0 same=0
+  local merged new_overlay="" snap_tmp live_sum removed="" p
   mkdir -p "$HOME/.claude"
-  if [ -L "$live" ]; then
-    warn "replacing symlink $live with a generated file"
-    rm "$live"
-  elif [ -f "$live" ] && [ ! -f "$snapshot" ]; then
-    if [ ! -f "$overlay" ]; then
-      mkdir -p "$LOCAL_DIR"
-      cp "$live" "$overlay"
-      info "seeded $overlay from the existing $live"
+  live_sum="$(fingerprint "$live")"
+  [ ! -f "$overlay" ] || overlay_src="$overlay"
+  use_overlay="$overlay_src"
+  if [ -f "$snapshot" ]; then
+    if jq -e 'type == "object"' "$snapshot" >/dev/null 2>&1; then
+      has_snapshot=1
+    else
+      warn "ignoring unreadable $snapshot"
     fi
-    warn "backing up existing $live -> ${live}${BACKUP_SUFFIX}"
-    mv "$live" "${live}${BACKUP_SUFFIX}"
-  elif [ -f "$live" ] && [ -f "$snapshot" ] && ! json_equal "$live" "$snapshot"; then
-    adopt_drift "$live" "$snapshot" "$overlay"
   fi
-  empty="$(mktemp)"
-  printf '{}\n' > "$empty"
-  merged="$(mktemp)"
-  if [ -f "$overlay" ]; then
-    merge_settings "$defaults" "$overlay" > "$merged"
-  else
-    merge_settings "$defaults" "$empty" > "$merged"
+  if is_repo_settings_link "$live"; then
+    :
+  elif [ -e "$live" ]; then
+    if [ "$has_snapshot" = 1 ]; then
+      json_equal "$live" "$snapshot" || adopt_base="$snapshot"
+    else
+      backup=1
+      [ -f "$overlay" ] || adopt_base="$defaults"
+    fi
+    [ ! -L "$live" ] || backup=1
+  elif [ -L "$live" ]; then
+    backup=1
   fi
-  if [ -f "$live" ] && json_equal "$live" "$merged"; then
+  if [ -n "$adopt_base" ]; then
+    mkdir -p "$LOCAL_DIR"
+    new_overlay="$(mktemp "$LOCAL_DIR/.settings.XXXXXX")"
+    TMP_FILES+=("$new_overlay")
+    adopt_into_overlay "$live" "$adopt_base" "$defaults" "$overlay_src" > "$new_overlay" \
+      || { warn "could not adopt $live into the overlay; nothing was changed"; exit 1; }
+    if jq -e '. == {}' "$new_overlay" >/dev/null && [ ! -f "$overlay" ]; then
+      new_overlay=""
+    else
+      use_overlay="$new_overlay"
+    fi
+    if [ "$adopt_base" = "$snapshot" ]; then
+      removed="$(removed_messages "$live" "$snapshot" "$overlay")" \
+        || { warn "could not compare $live with its snapshot; nothing was changed"; exit 1; }
+    fi
+  fi
+  # Temp files live in ~/.claude so each mv below is an atomic same-filesystem rename.
+  merged="$(mktemp "$HOME/.claude/.settings.XXXXXX")"
+  TMP_FILES+=("$merged")
+  merge_settings "$defaults" "$use_overlay" > "$merged" \
+    || { warn "could not merge $defaults with $overlay; nothing was changed"; exit 1; }
+  snap_tmp="$(mktemp "$HOME/.claude/.settings.XXXXXX")"
+  TMP_FILES+=("$snap_tmp")
+  cp "$merged" "$snap_tmp"
+  if [ ! -L "$live" ] && [ -f "$live" ] && json_equal "$live" "$merged"; then
+    same=1
+    backup=0
+  fi
+  if [ "$(fingerprint "$live")" != "$live_sum" ]; then
+    warn "$live changed while install.sh was running; nothing was written - close running Claude Code sessions and rerun"
+    exit 1
+  fi
+  if [ -n "$new_overlay" ] && ! json_equal "$new_overlay" "$overlay_src"; then
+    if [ "$adopt_base" = "$defaults" ]; then
+      info "seeded $overlay from the existing $live"
+    else
+      adopted_paths "$overlay_src" "$new_overlay" | while read -r p; do
+        info "adopted into $overlay: $p"
+      done
+    fi
+    mv "$new_overlay" "$overlay"
+  fi
+  if [ -n "$removed" ]; then
+    printf '%s\n' "$removed" | while IFS= read -r p; do
+      warn "$p"
+    done
+  fi
+  if [ "$same" = 1 ]; then
     info "ok: $live"
   else
-    mv "$merged" "$live"
+    if [ "$backup" = 1 ]; then
+      warn "backing up existing $live -> ${live}${BACKUP_SUFFIX}"
+      mv "$live" "${live}${BACKUP_SUFFIX}"
+    elif [ -L "$live" ]; then
+      warn "replacing symlink $live with a generated file"
+    fi
+    mv -f "$merged" "$live"
     info "generated: $live"
   fi
-  cp "$live" "$snapshot"
-  rm -f "$empty" "$merged"
+  mv "$snap_tmp" "$snapshot"
 }
 
 link_personal_instructions() {
@@ -148,6 +270,8 @@ link_personal_instructions() {
     rm "$dst"
   fi
 }
+
+check_settings_inputs
 
 # ---------------------------------------------------------------------------
 # 1. Repo-internal symlink: expose vendored skills to Claude Code project scope
