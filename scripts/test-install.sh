@@ -350,6 +350,22 @@ stale_overlay_link() {
   assert_eq "stale overlay link leaves no backup" 0 "$(find "$SB_HOME" -name '*.bak.*' | wc -l | tr -d ' ')"
 }
 
+foreign_link_into_overlay_dir() {
+  scenario "overlay: a foreign link into a broad overlay directory is not owned"
+  new_sandbox
+  SB_LOCAL="$SB/dotfiles"
+  mkdir -p "$SB_LOCAL"
+  printf 'set -g mouse on\n' > "$SB_LOCAL/tmux.conf"
+  ln -s "$SB_LOCAL/tmux.conf" "$SB_HOME/.tmux.conf"
+  capture --no-skills
+  assert_eq "foreign link exit status" 1 "$RC"
+  assert_match "foreign link plans a backup" 'backup .*\.tmux\.conf' "$OUT"
+  assert_eq "foreign link is left in place" "$SB_LOCAL/tmux.conf" "$(link_target "$SB_HOME/.tmux.conf")"
+  capture --uninstall --yes
+  assert_eq "foreign link uninstall exit status" 0 "$RC"
+  assert_eq "foreign link survives uninstall" "$SB_LOCAL/tmux.conf" "$(link_target "$SB_HOME/.tmux.conf")"
+}
+
 uninstall_without_backup() {
   scenario "uninstall: a fresh install with no prior settings leaves a regular settings.json"
   new_sandbox
@@ -542,6 +558,7 @@ arguments() {
 lifecycle
 uninstall_without_backup
 stale_overlay_link
+foreign_link_into_overlay_dir
 settings_array_merge
 settings_legacy_link
 clean_skills
