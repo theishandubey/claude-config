@@ -527,6 +527,21 @@ settings_symlinks() {
   assert_eq "settings equal the defaults" "$(jq -S . "$SB_REPO/claude/settings.json")" "$(live_json)"
   assert_eq "the foreign link is kept as a backup" "$SB/elsewhere.json" "$(link_target "$SB_HOME"/.claude/settings.json.bak.*)"
   assert_eq "the link target is untouched" '{"theme":"foreign"}' "$(jq -c . "$SB/elsewhere.json")"
+
+  if [ "$(id -u)" != 0 ]; then
+    scenario "settings: a symlinked settings.json pointing to an unreadable file is backed up and replaced"
+    new_sandbox
+    mkdir -p "$SB_HOME/.claude"
+    printf '{"theme":"foreign"}\n' > "$SB/elsewhere.json"
+    chmod 000 "$SB/elsewhere.json"
+    ln -s "$SB/elsewhere.json" "$SB_HOME/.claude/settings.json"
+    capture --yes --no-skills
+    chmod 600 "$SB/elsewhere.json"
+    assert_eq "unreadable link target exit status" 0 "$RC"
+    assert_false "settings.json is now a real file" test -L "$SB_HOME/.claude/settings.json"
+    assert_eq "settings equal the defaults" "$(jq -S . "$SB_REPO/claude/settings.json")" "$(live_json)"
+    assert_eq "the link is kept as a backup" "$SB/elsewhere.json" "$(link_target "$SB_HOME"/.claude/settings.json.bak.*)"
+  fi
 }
 
 settings_directories() {
