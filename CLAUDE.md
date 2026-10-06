@@ -11,7 +11,7 @@ Configs are symlinked into `~/.claude` by `install.sh`, so files here are LIVE -
 | Claude-only global rules | `claude/CLAUDE.md` | `~/.claude/CLAUDE.md` (symlink) |
 | Subagent definitions | `agents/**/*.md` | |
 | My own skills | `skills/<name>/` | |
-| Vendored skills | never by hand - use the skills CLI | `.agents/skills/**` (fork into `skills/` to customize) |
+| Third-party skills | `skills-lock.json` (the manifest `install.sh` installs from; nothing is vendored) | copies under `.agents/skills/**` (fork into `skills/` to customize) |
 | Mods (function-hooks plugins: bands, panes) | the `claude-mods` repo (github.com/theishandubey/claude-mods), `plugins/<name>/` | `~/.claude/plugins/**` (machine-local install state) |
 | tmux | `tmux/tmux.conf` | `~/.tmux.conf` (symlink) |
 
@@ -52,8 +52,8 @@ Do not confuse the two CLAUDE.md files: this one (repo root) is project instruct
   The `Explore` and `Plan` built-ins inherit the session model, capped at `opus`.
   Opus 5.5 requires Claude Code 2.1.280 or later; an older build fails the pinned requests instead of falling back.
   Do not set a top-level `effortLevel` or any `modelSettings` effort in `claude/settings.json`: every model runs at its API default effort, and `effortLevel` does not apply to Opus 5.5 anyway.
-- `.claude/skills` is a committed relative symlink to `../.agents/skills`; never replace it with a real directory.
-- `skills-lock.json` tracks vendored-skill provenance for `npx skills update -p`; do not hand-edit it except to reconcile after a CLI failure.
+- Third-party skills are installed from their upstream repos by `install.sh`, using `skills-lock.json`; nothing is vendored into this repo, so do not commit `.agents/` or a `.claude/skills` link.
+- `skills-lock.json` is the manifest `install.sh` installs third-party skills from; hand-edit it only to add or remove an entry or to reconcile after a CLI failure.
 - `install.sh` must stay idempotent: re-runs must print `ok:` for existing links and create no duplicate backups.
   Test changes against a throwaway `HOME` before running for real: `mkdir -p /tmp/fake-home && HOME=/tmp/fake-home ./install.sh`.
 - Never commit credentials or machine-local state (`~/.claude/projects`, session data, `.bak` files, lock files under `~/.agents`).
@@ -61,7 +61,7 @@ Do not confuse the two CLAUDE.md files: this one (repo root) is project instruct
 ## Common workflows
 
 - New skill of my own: `npx skills init skills/<name>`, then `./install.sh`.
-- Vendor a third-party skill: `npx skills add <owner/repo> --skill <name> --copy -a claude-code -y`, then commit `.agents/` and `skills-lock.json`.
+- Add a third-party skill: `npx skills add <owner/repo> -s <name> -g -a claude-code -y`, then add its entry to `skills-lock.json` and commit it.
 - New subagent: add `agents/<tier>/<name>.md` with frontmatter (`name`, `description`, `tools`, `model`), then restart Claude Code to pick it up.
   Valid `tools:` names in this build are `Read`, `Bash`, `Write`, `Edit`, `Skill`, `WebSearch`, `WebFetch`, `Grep`, `Glob`.
   `Glob` and `Grep` are real tools but are absent from the default tool set on macOS, Linux and WSL; Claude searches with `find` and `grep` through Bash instead.
