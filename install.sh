@@ -8,10 +8,8 @@
 #
 # Idempotent - re-run after every git pull.
 #
-# Usage: ./install.sh [--clean] [--no-skills]
-#   --clean      also remove skills under ~/.claude/skills that are not part of
-#                this repo (leftovers from previous installs or removed skills)
-#   --no-skills  skip the skills CLI step (no network access)
+# Usage: ./install.sh [--dry-run] [--yes] [--no-skills] [--clean]
+# Run ./install.sh --help for the flags.
 
 set -euo pipefail
 
@@ -19,8 +17,15 @@ REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BACKUP_SUFFIX=".bak.$(date +%Y%m%d%H%M%S)"
 LOCAL_DIR="${CLAUDE_CONFIG_LOCAL_DIR:-$REPO_DIR/local}"
 
-info()  { printf '\033[1;34m==>\033[0m %s\n' "$*"; }
-warn()  { printf '\033[1;33mwarn:\033[0m %s\n' "$*"; }
+USE_COLOR=0
+if [ -t 1 ] && [ -z "${NO_COLOR+x}" ]; then USE_COLOR=1; fi
+
+info() {
+  if [ "$USE_COLOR" = 1 ]; then printf '\033[1;34m==>\033[0m %s\n' "$*"; else printf '==> %s\n' "$*"; fi
+}
+warn() {
+  if [ "$USE_COLOR" = 1 ]; then printf '\033[1;33mwarn:\033[0m %s\n' "$*"; else printf 'warn: %s\n' "$*"; fi
+}
 
 COMPLETED=0
 FAILED=0
@@ -37,17 +42,79 @@ cleanup() {
 trap cleanup EXIT
 trap 'exit 1' INT TERM HUP
 
+finish() { COMPLETED=1; exit "${1:-0}"; }
+
 command -v jq >/dev/null || { warn "jq is required"; exit 1; }
+
+usage_lines() {
+  echo "Usage: ./install.sh [--dry-run] [--yes] [--no-skills] [--clean]"
+}
+
+usage() {
+  usage_lines
+  cat <<'EOF'
+
+Links this repo's Claude Code config into ~/.claude (and tmux.conf into ~),
+generates ~/.claude/settings.json from claude/settings.json plus local/settings.json,
+and installs the skills listed in skills/ and skills-lock.json.
+
+  --dry-run    print the planned changes and exit without touching anything
+  --yes, -y    do not ask for confirmation (required when stdin is not a terminal)
+  --no-skills  skip the skills CLI (no network)
+  --clean      also remove ~/.claude/skills entries this repo does not provide
+  --help, -h   show this help
+
+Environment: CLAUDE_CONFIG_LOCAL_DIR overrides the overlay directory (default: <repo>/local).
+EOF
+}
 
 CLEAN=0
 NO_SKILLS=0
+DRY_RUN=0
+ASSUME_YES=0
 for arg in "$@"; do
   case "$arg" in
     --clean) CLEAN=1 ;;
     --no-skills) NO_SKILLS=1 ;;
-    *) warn "unknown argument: $arg"; echo "Usage: ./install.sh [--clean] [--no-skills]" >&2; exit 1 ;;
+    --dry-run) DRY_RUN=1 ;;
+    --yes|-y) ASSUME_YES=1 ;;
+    --help|-h) usage; finish 0 ;;
+    *) warn "unknown argument: $arg"; usage_lines >&2; exit 1 ;;
   esac
 done
+
+MODE=apply
+PLAN_LINES=()
+PENDING=0
+
+plan_add()  { PLAN_LINES+=("$*"); PENDING=$((PENDING + 1)); }
+plan_ok()   { PLAN_LINES+=("ok: $*"); }
+plan_note() { PLAN_LINES+=("$*"); }
+
+print_plan() {
+  local line
+  info "Plan"
+  if [ "${#PLAN_LINES[@]}" -gt 0 ]; then
+    for line in "${PLAN_LINES[@]}"; do printf '%s\n' "$line"; done
+  fi
+}
+
+step() { if [ "$MODE" = apply ]; then info "$*"; fi; }
+
+confirm() {
+  local reply=""
+  if [ "$ASSUME_YES" = 1 ]; then return 0; fi
+  if [ ! -t 0 ]; then
+    echo "Refusing to change files without --yes when not interactive." >&2
+    exit 1
+  fi
+  read -r -p 'Proceed? [y/N] ' reply || reply=""
+  case "$reply" in
+    y|Y|yes) return 0 ;;
+  esac
+  echo "Aborted."
+  finish 0
+}
 
 # link <source-in-repo> <target-path>
 # Backs up an existing real file/dir/foreign symlink at target, then symlinks to repo.
@@ -55,20 +122,29 @@ link() {
   local src="$1" dst="$2" target
 
   if [ ! -e "$src" ]; then
-    warn "skipping $dst - $src does not exist in repo"
+    if [ "$MODE" = apply ]; then warn "skipping $dst - $src does not exist in repo"; fi
     return 0
   fi
 
-  mkdir -p "$(dirname "$dst")"
-
   # Already correctly linked? Nothing to do.
   if [ -L "$dst" ] && [ "$(readlink "$dst")" = "$src" ]; then
-    info "ok: $dst"
+    if [ "$MODE" = plan ]; then plan_ok "$dst"; else info "ok: $dst"; fi
     return 0
   fi
 
   # A symlink into this repo carries no user data, so it is replaced without a backup.
   target="$(readlink "$dst" 2>/dev/null || true)"
+  if [ "$MODE" = plan ]; then
+    if [ -L "$dst" ] && [ "${target#"$REPO_DIR"/}" != "$target" ]; then
+      :
+    elif [ -e "$dst" ] || [ -L "$dst" ]; then
+      plan_add "backup $dst -> ${dst}${BACKUP_SUFFIX}"
+    fi
+    plan_add "link $dst -> $src"
+    return 0
+  fi
+
+  mkdir -p "$(dirname "$dst")"
   if [ -L "$dst" ] && [ "${target#"$REPO_DIR"/}" != "$target" ]; then
     rm "$dst"
   elif [ -e "$dst" ] || [ -L "$dst" ]; then
@@ -181,21 +257,15 @@ check_settings_inputs() {
   fi
 }
 
-generate_settings() {
-  local defaults="$REPO_DIR/claude/settings.json"
-  local overlay="$LOCAL_DIR/settings.json"
-  local live="$HOME/.claude/settings.json"
-  local snapshot="$HOME/.claude/settings.generated.json"
-  local overlay_src=/dev/null use_overlay adopt_base="" has_snapshot=0 backup=0 same=0
-  local merged new_overlay="" snap_tmp live_sum removed="" p
-  mkdir -p "$HOME/.claude"
-  live_sum="$(fingerprint "$live")"
-  [ ! -f "$overlay" ] || overlay_src="$overlay"
-  use_overlay="$overlay_src"
+# Sets has_snapshot, adopt_base and backup in the calling function's scope.
+settings_state() {
+  has_snapshot=0
+  adopt_base=""
+  backup=0
   if [ -f "$snapshot" ]; then
     if jq -e 'type == "object"' "$snapshot" >/dev/null 2>&1; then
       has_snapshot=1
-    else
+    elif [ "$MODE" = apply ]; then
       warn "ignoring unreadable $snapshot"
     fi
   fi
@@ -212,6 +282,61 @@ generate_settings() {
   elif [ -L "$live" ]; then
     backup=1
   fi
+}
+
+plan_settings() {
+  local defaults="$REPO_DIR/claude/settings.json"
+  local overlay="$LOCAL_DIR/settings.json"
+  local live="$HOME/.claude/settings.json"
+  local snapshot="$HOME/.claude/settings.generated.json"
+  local overlay_src=/dev/null adopt_base="" has_snapshot=0 backup=0 same=0
+  local new_json="" merged_json p
+  [ ! -f "$overlay" ] || overlay_src="$overlay"
+  settings_state
+  if [ -n "$adopt_base" ]; then
+    new_json="$(adopt_into_overlay "$live" "$adopt_base" "$defaults" "$overlay_src")" \
+      || { warn "could not adopt $live into the overlay; nothing was changed"; exit 1; }
+    if printf '%s\n' "$new_json" | jq -e '. == {}' >/dev/null && [ ! -f "$overlay" ]; then
+      new_json=""
+    fi
+  fi
+  if [ -n "$new_json" ]; then
+    merged_json="$(merge_settings "$defaults" <(printf '%s\n' "$new_json"))" \
+      || { warn "could not merge $defaults with $overlay; nothing was changed"; exit 1; }
+  else
+    merged_json="$(merge_settings "$defaults" "$overlay_src")" \
+      || { warn "could not merge $defaults with $overlay; nothing was changed"; exit 1; }
+  fi
+  if [ ! -L "$live" ] && [ -f "$live" ] && json_equal "$live" <(printf '%s\n' "$merged_json"); then
+    same=1
+    backup=0
+  fi
+  if [ -n "$new_json" ] && ! json_equal <(printf '%s\n' "$new_json") "$overlay_src"; then
+    while read -r p; do
+      [ -z "$p" ] || plan_add "adopt $p -> $overlay"
+    done < <(adopted_paths "$overlay_src" <(printf '%s\n' "$new_json"))
+  fi
+  if [ "$same" = 1 ]; then
+    plan_ok "$live"
+  else
+    if [ "$backup" = 1 ]; then plan_add "backup $live -> ${live}${BACKUP_SUFFIX}"; fi
+    plan_add "generate $live"
+  fi
+}
+
+generate_settings() {
+  local defaults="$REPO_DIR/claude/settings.json"
+  local overlay="$LOCAL_DIR/settings.json"
+  local live="$HOME/.claude/settings.json"
+  local snapshot="$HOME/.claude/settings.generated.json"
+  local overlay_src=/dev/null use_overlay adopt_base="" has_snapshot=0 backup=0 same=0
+  local merged new_overlay="" snap_tmp live_sum removed="" p
+  if [ "$MODE" = plan ]; then plan_settings; return 0; fi
+  mkdir -p "$HOME/.claude"
+  live_sum="$(fingerprint "$live")"
+  [ ! -f "$overlay" ] || overlay_src="$overlay"
+  use_overlay="$overlay_src"
+  settings_state
   if [ -n "$adopt_base" ]; then
     mkdir -p "$LOCAL_DIR"
     new_overlay="$(mktemp "$LOCAL_DIR/.settings.XXXXXX")"
@@ -279,8 +404,12 @@ link_personal_instructions() {
   if [ -f "$src" ]; then
     link "$src" "$dst"
   elif [ -L "$dst" ] && [ ! -e "$dst" ]; then
-    warn "removing dangling link: $dst"
-    rm "$dst"
+    if [ "$MODE" = plan ]; then
+      plan_add "remove dangling link $dst"
+    else
+      warn "removing dangling link: $dst"
+      rm "$dst"
+    fi
   fi
 }
 
@@ -289,45 +418,53 @@ read_lock_names() {
     && jq -r '.skills | keys[]' "$REPO_DIR/skills-lock.json"
 }
 
-check_settings_inputs
+retire_links() {
+  local retired target
+  # Links this script no longer creates - remove them if they still point into this repo.
+  for retired in "$HOME/.claude/commands" "$HOME/.claude/statusline" "$HOME/.claude/mods"; do
+    target="$(readlink "$retired" 2>/dev/null || true)"
+    if [ -L "$retired" ] && [ "${target#"$REPO_DIR"/}" != "$target" ]; then
+      if [ "$MODE" = plan ]; then
+        plan_add "remove retired link $retired"
+      else
+        warn "removing retired link: $retired"
+        rm "$retired"
+      fi
+    fi
+  done
+}
 
-# ---------------------------------------------------------------------------
-# 1. Claude shared instructions: symlink AGENTS.md next to CLAUDE.md, which
-#    imports it via "@~/.claude/AGENTS.md" (home-anchored: a relative import
-#    would resolve against CLAUDE.md's realpath and break)
-# ---------------------------------------------------------------------------
-info "Linking shared instructions for Claude Code"
-link "$REPO_DIR/claude/AGENTS.md" "$HOME/.claude/AGENTS.md"
+# Claude shared instructions: AGENTS.md is symlinked next to CLAUDE.md, which
+# imports it via "@~/.claude/AGENTS.md" (home-anchored: a relative import
+# would resolve against CLAUDE.md's realpath and break).
+install_config() {
+  step "Linking shared instructions for Claude Code"
+  link "$REPO_DIR/claude/AGENTS.md" "$HOME/.claude/AGENTS.md"
+  step "Linking Claude Code config"
+  retire_links
+  generate_settings
+  link "$REPO_DIR/claude/CLAUDE.md"     "$HOME/.claude/CLAUDE.md"
+  link_personal_instructions
+  link "$REPO_DIR/agents"               "$HOME/.claude/agents"
+  # Agent frontmatter references hooks by absolute path ($HOME/.claude/hooks/...),
+  # so they must resolve on every machine, not just inside this repo.
+  link "$REPO_DIR/hooks"                "$HOME/.claude/hooks"
+  link "$REPO_DIR/tmux/tmux.conf"       "$HOME/.tmux.conf"
+  if [ "$MODE" = apply ]; then chmod +x "$REPO_DIR"/hooks/*.sh 2>/dev/null || true; fi
+}
 
-# ---------------------------------------------------------------------------
-# 2. Config symlinks (Claude Code)
-# ---------------------------------------------------------------------------
-info "Linking Claude Code config"
-# Links this script no longer creates - remove them if they still point into this repo.
-for retired in "$HOME/.claude/commands" "$HOME/.claude/statusline" "$HOME/.claude/mods"; do
-  target="$(readlink "$retired" 2>/dev/null || true)"
-  if [ -L "$retired" ] && [ "${target#"$REPO_DIR"/}" != "$target" ]; then
-    warn "removing retired link: $retired"
-    rm "$retired"
+# Install skills globally: this repo's own (skills/) and the third-party
+# skills listed in skills-lock.json, each from its upstream repo.
+install_skills() {
+  local manifest source names name args
+  if [ "$NO_SKILLS" = 1 ]; then
+    step "Skipping skills (--no-skills)"
+    return 0
   fi
-done
-generate_settings
-link "$REPO_DIR/claude/CLAUDE.md"     "$HOME/.claude/CLAUDE.md"
-link_personal_instructions
-link "$REPO_DIR/agents"               "$HOME/.claude/agents"
-# Agent frontmatter references hooks by absolute path ($HOME/.claude/hooks/...),
-# so they must resolve on every machine, not just inside this repo.
-link "$REPO_DIR/hooks"                "$HOME/.claude/hooks"
-link "$REPO_DIR/tmux/tmux.conf"       "$HOME/.tmux.conf"
-chmod +x "$REPO_DIR"/hooks/*.sh 2>/dev/null || true
-
-# ---------------------------------------------------------------------------
-# 3. Install skills globally: this repo's own (skills/) and the third-party
-#    skills listed in skills-lock.json, each from its upstream repo
-# ---------------------------------------------------------------------------
-if [ "$NO_SKILLS" = 1 ]; then
-  info "Skipping skills (--no-skills)"
-else
+  if [ "$MODE" = plan ]; then
+    plan_add "install skills from ./skills and skills-lock.json"
+    return 0
+  fi
   info "Installing skills globally via skills CLI"
   cd "$REPO_DIR"
   # Target only agents that support global installs - the default "all detected
@@ -349,34 +486,57 @@ else
     npx -y skills add "$source" "${args[@]}" -g -a claude-code -y < /dev/null \
       || { warn "failed to install from $source: $names"; FAILED=1; }
   done <<< "$manifest"
-fi
+}
 
-# ---------------------------------------------------------------------------
-# 4. --clean: remove installed skills that this repo does not provide
-#    (the skills CLI copies rather than symlinks, so skills deleted from the
-#    repo - or installed by other means - linger in ~/.claude/skills forever)
-# ---------------------------------------------------------------------------
-if [ "$CLEAN" = 1 ]; then
+# --clean: remove installed skills that this repo does not provide
+# (the skills CLI copies rather than symlinks, so skills deleted from the
+# repo - or installed by other means - linger in ~/.claude/skills forever).
+clean_skills() {
+  local lock_names removed installed name
+  if [ "$MODE" = plan ]; then
+    plan_add "clean stale skills under $HOME/.claude/skills"
+    return 0
+  fi
   if [ "$FAILED" = 1 ]; then
     warn "skipping --clean: some skills failed to install"
-  else
-    lock_names="$(read_lock_names)" || { warn "skills-lock.json unreadable; skipping --clean"; exit 1; }
-    info "Removing skills not provided by this repo from $HOME/.claude/skills"
-    removed=0
-    for installed in "$HOME/.claude/skills"/*; do
-      [ -d "$installed" ] || [ -L "$installed" ] || continue
-      name="$(basename "$installed")"
-      # Claude Code owns ~/.claude/skills/synced (claude.ai skill sync) and .trash.
-      case "$name" in synced|.*|*..*|*/*) continue ;; esac
-      if [ ! -f "$REPO_DIR/skills/$name/SKILL.md" ] && ! printf '%s\n' "$lock_names" | grep -qxF -- "$name"; then
-        warn "removing stale skill: $name"
-        if [ -L "$installed" ]; then rm "$installed"; else rm -rf "$installed"; fi
-        removed=1
-      fi
-    done
-    [ "$removed" = 0 ] && info "ok: no stale skills"
+    return 0
   fi
-fi
+  lock_names="$(read_lock_names)" || { warn "skills-lock.json unreadable; skipping --clean"; exit 1; }
+  info "Removing skills not provided by this repo from $HOME/.claude/skills"
+  removed=0
+  for installed in "$HOME/.claude/skills"/*; do
+    [ -d "$installed" ] || [ -L "$installed" ] || continue
+    name="$(basename "$installed")"
+    # Claude Code owns ~/.claude/skills/synced (claude.ai skill sync) and .trash.
+    case "$name" in synced|.*|*..*|*/*) continue ;; esac
+    if [ ! -f "$REPO_DIR/skills/$name/SKILL.md" ] && ! printf '%s\n' "$lock_names" | grep -qxF -- "$name"; then
+      warn "removing stale skill: $name"
+      if [ -L "$installed" ]; then rm "$installed"; else rm -rf "$installed"; fi
+      removed=1
+    fi
+  done
+  if [ "$removed" = 0 ]; then info "ok: no stale skills"; fi
+}
+
+install_all() {
+  install_config
+  install_skills
+  if [ "$CLEAN" = 1 ]; then clean_skills; fi
+}
+
+# run <function>: plan pass first, then confirmation, then the apply pass.
+run() {
+  MODE=plan
+  "$1"
+  if [ "$DRY_RUN" = 1 ] || [ "$PENDING" -gt 0 ]; then print_plan; fi
+  if [ "$DRY_RUN" = 1 ]; then finish 0; fi
+  if [ "$PENDING" -gt 0 ]; then confirm; fi
+  MODE=apply
+  "$1"
+}
+
+check_settings_inputs
+run install_all
 
 if [ "$FAILED" = 1 ]; then
   warn "finished with errors: some skills failed to install"
