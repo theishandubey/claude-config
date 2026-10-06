@@ -11,7 +11,7 @@ command -v python3 >/dev/null || { echo "install: python3 is required" >&2; exit
 REAL_HOME="$(cd "$(eval echo "~$(id -un)")" 2>/dev/null && pwd -P)"
 [ -n "$REAL_HOME" ] || { echo "install: cannot resolve the real home directory" >&2; exit 1; }
 
-WORK="$(mktemp -d "${TMPDIR:-/tmp}/agent-config-test.XXXXXX")"
+WORK="$(mktemp -d "${TMPDIR:-/tmp}/claude-config-test.XXXXXX")"
 WORK="$(cd "$WORK" && pwd -P)"
 trap 'rm -rf "$WORK"' EXIT
 
