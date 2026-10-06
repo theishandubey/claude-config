@@ -366,6 +366,16 @@ foreign_link_into_overlay_dir() {
   assert_eq "foreign link survives uninstall" "$SB_LOCAL/tmux.conf" "$(link_target "$SB_HOME/.tmux.conf")"
 }
 
+relative_overlay_dir() {
+  scenario "overlay: a relative overlay directory with a trailing slash yields an absolute link target"
+  new_sandbox
+  printf '# Personal rules\n' > "$SB_LOCAL/instructions.md"
+  OUT="$(cd "$SB" && ienv env CLAUDE_CONFIG_LOCAL_DIR=./local/../local/ "$BASH" "$SB_REPO/install.sh" --no-skills 2>&1 < /dev/null)"
+  RC=$?
+  assert_eq "relative overlay exit status" 0 "$RC"
+  assert_eq "relative overlay link target is absolute" "$SB_LOCAL/instructions.md" "$(link_target "$SB_HOME/.claude/CLAUDE.local.md")"
+}
+
 uninstall_without_backup() {
   scenario "uninstall: a fresh install with no prior settings leaves a regular settings.json"
   new_sandbox
@@ -559,6 +569,7 @@ lifecycle
 uninstall_without_backup
 stale_overlay_link
 foreign_link_into_overlay_dir
+relative_overlay_dir
 settings_array_merge
 settings_legacy_link
 clean_skills

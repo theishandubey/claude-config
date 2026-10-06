@@ -18,6 +18,26 @@ REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BACKUP_SUFFIX=".bak.$(date +%Y%m%d%H%M%S)"
 LOCAL_DIR="${CLAUDE_CONFIG_LOCAL_DIR:-$REPO_DIR/local}"
 
+# Lexical only: symlinks are not resolved, so the result stays comparable with the links install.sh creates.
+absolute_path() {
+  local path="$1" out="" segment saved_ifs="$IFS"
+  case "$path" in /*) ;; *) path="$PWD/$path" ;; esac
+  set -f
+  IFS=/
+  for segment in $path; do
+    case "$segment" in
+      ""|.) ;;
+      ..) out="${out%/*}" ;;
+      *) out="$out/$segment" ;;
+    esac
+  done
+  IFS="$saved_ifs"
+  set +f
+  printf '%s\n' "${out:-/}"
+}
+
+LOCAL_DIR="$(absolute_path "$LOCAL_DIR")"
+
 USE_COLOR=0
 if [ -t 1 ] && [ -z "${NO_COLOR:-}" ]; then USE_COLOR=1; fi
 
