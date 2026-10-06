@@ -15,9 +15,13 @@ git init -q "$PROJ"
 
 NOJQ="$TMP/nojq-bin"
 mkdir -p "$NOJQ"
-for tool in cat git python3; do
-  ln -s "$(command -v "$tool")" "$NOJQ/$tool"
-done
+ln -s "$(command -v cat)" "$NOJQ/cat"
+ln -s "$(command -v git)" "$NOJQ/git"
+ln -s "$(python3 -c 'import sys; print(sys.executable)')" "$NOJQ/python3"
+
+NOTOOLS="$TMP/notools-bin"
+mkdir -p "$NOTOOLS"
+ln -s "$(command -v cat)" "$NOTOOLS/cat"
 
 n=0
 failures=0
@@ -35,14 +39,14 @@ run() {
   local flags="$1" file_path="$2" cwd="$3" expected="$4" got
   # shellcheck disable=SC2086
   jq -n --arg f "$file_path" --arg c "$cwd" '{tool_name:"Write",tool_input:{file_path:$f},cwd:$c}' \
-    | "$HOOK" $flags >/dev/null 2>&1
+    | "$BASH" "$HOOK" $flags >/dev/null 2>&1
   got=$?
   check "${flags:-no flags} $file_path" "$expected" "$got"
 }
 
 run_raw() {
   local label="$1" payload="$2" expected="$3" got
-  printf '%s' "$payload" | "$HOOK" >/dev/null 2>&1
+  printf '%s' "$payload" | "$BASH" "$HOOK" >/dev/null 2>&1
   got=$?
   check "$label" "$expected" "$got"
 }
@@ -50,6 +54,13 @@ run_raw() {
 run_raw_nojq() {
   local label="$1" payload="$2" expected="$3" got
   printf '%s' "$payload" | env PATH="$NOJQ" /bin/bash "$HOOK" >/dev/null 2>&1
+  got=$?
+  check "$label" "$expected" "$got"
+}
+
+run_raw_notools() {
+  local label="$1" payload="$2" expected="$3" got
+  printf '%s' "$payload" | env PATH="$NOTOOLS" /bin/bash "$HOOK" >/dev/null 2>&1
   got=$?
   check "$label" "$expected" "$got"
 }
@@ -72,6 +83,7 @@ run_raw "empty file_path" '{"tool_input":{"file_path":""}}' 2
 run_raw_nojq "empty object payload without jq" '{}' 2
 run_raw_nojq "non-JSON payload without jq" 'not json' 2
 run_raw_nojq "memory path without jq" "{\"tool_input\":{\"file_path\":\"$REPO/.claude/agent-memory/x/a.md\"},\"cwd\":\"$REPO\"}" 0
+run_raw_notools "memory path without jq or python3 fails closed" "{\"tool_input\":{\"file_path\":\"$REPO/.claude/agent-memory/x/a.md\"},\"cwd\":\"$REPO\"}" 2
 
 if [ "$failures" -gt 0 ]; then
   exit 1
