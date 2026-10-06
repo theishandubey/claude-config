@@ -53,12 +53,18 @@ def parse_keys(lines):
             problems.append("unparseable frontmatter line: " + line)
             continue
         current = match.group(1)
+        if current in keys:
+            problems.append("duplicate frontmatter key: " + current)
         keys[current] = {"value": match.group(2).strip(), "nested": []}
     return keys, problems
 
 
 def check_tool_list(key, entry, errors):
-    for tool in (item.strip() for item in entry["value"].split(",")):
+    value = unquote(entry["value"])
+    if not value and any(line.lstrip().startswith("-") for line in entry["nested"]):
+        errors.append("%s: YAML block lists are not supported, use a comma-separated line" % key)
+        return
+    for tool in (item.strip() for item in value.split(",")):
         if tool not in TOOLS:
             errors.append("%s: unknown tool %r" % (key, tool))
 
@@ -75,6 +81,8 @@ def check_hook_commands(entry, root, errors):
         resolved = os.path.join(root, script)
         if not script or not os.path.isfile(resolved):
             errors.append("hooks: command script %r does not exist in the repo" % script)
+        elif not os.path.realpath(resolved).startswith(os.path.realpath(root) + os.sep):
+            errors.append("hooks: command script %r resolves outside the repo" % script)
         elif not os.access(resolved, os.X_OK):
             errors.append("hooks: command script %r is not executable" % script)
 
