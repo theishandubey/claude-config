@@ -114,7 +114,7 @@ Team mechanics:
 
 The count is derived from the task decomposition, never chosen as a target:
 
-- **`parallel-implementer`s:** one per independent file-ownership partition in the advisor's plan; never pad for parallelism's sake. The ceiling is merge cost (merges are sequential, each followed by integrated verification): ~4-6 streams per wave. If the plan yields more independent steps, run them in waves - merge and verify a batch before dispatching the next.
+- **`parallel-implementer`s:** one per independent file-ownership partition in the advisor's plan; never pad for parallelism's sake. The ceiling is merge cost (merges are sequential, each followed by integrated verification): at most 4 streams per wave, the cap the `parallel-build` skill enforces. If the plan yields more independent steps, run them in waves - merge and verify a batch before dispatching the next.
 - **Explorers:** cheap - fan out liberally, but with distinct scopes (one agent per question or area). Past ~3 on one sweep, reports mostly overlap.
 - **Advisors:** one per decision - batch the whole problem into one consultation.
 - **Reviewers:** one per integrated change, not one per worktree - pre-merge fragments miss integration bugs.
