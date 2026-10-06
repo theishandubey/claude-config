@@ -23,6 +23,17 @@ for f in claude/settings.json skills-lock.json; do
   jq -e . "$f" >/dev/null || { echo "check: $f is not valid JSON" >&2; exit 1; }
 done
 
+forbidden="$(jq -r '[
+  (select(.effortLevel != null) | "effortLevel"),
+  (select(.modelSettings != null) | "modelSettings"),
+  (select(.env.ANTHROPIC_DEFAULT_HAIKU_MODEL != null) | "env.ANTHROPIC_DEFAULT_HAIKU_MODEL"),
+  (select(.env.CLAUDE_CODE_PLUGIN_DIRS != null) | "env.CLAUDE_CODE_PLUGIN_DIRS")
+] | .[]' claude/settings.json)"
+if [ -n "$forbidden" ]; then
+  echo "check: claude/settings.json must not set: $(printf '%s' "$forbidden" | tr '\n' ' ')" >&2
+  exit 1
+fi
+
 for h in hooks/*.sh; do
   [ -x "$h" ] || { echo "check: $h is not executable" >&2; exit 1; }
 done
