@@ -605,26 +605,54 @@ uninstall_link() {
 uninstall_settings() {
   local live="$HOME/.claude/settings.json"
   local snapshot="$HOME/.claude/settings.generated.json"
-  local free=0
-  if [ ! -f "$snapshot" ] || [ -L "$snapshot" ]; then return 0; fi
-  if [ ! -e "$live" ] && [ ! -L "$live" ]; then
-    free=1
-  elif [ -f "$live" ] && [ ! -L "$live" ] && json_equal "$live" "$snapshot"; then
-    free=1
-    if [ "$MODE" = plan ]; then
-      plan_add "remove $live"
+  local has_snap=0 free=0 target="" bak tmp
+  if [ -f "$snapshot" ] && [ ! -L "$snapshot" ]; then has_snap=1; fi
+  bak="$(newest_backup "$live")"
+  if [ -L "$live" ] && points_into_repo "$(readlink "$live" 2>/dev/null || true)"; then
+    target="$(readlink "$live")"
+    if [ -n "$bak" ] || [ ! -f "$target" ]; then
+      free=1
+      if [ "$MODE" = plan ]; then
+        plan_add "unlink $live"
+      else
+        rm "$live"
+        info "unlinked: $live"
+      fi
+    elif [ "$MODE" = plan ]; then
+      plan_add "replace $live with a copy of $target (no backup to restore)"
     else
-      rm "$live"
-      info "removed: $live"
+      tmp="$(mktemp "$HOME/.claude/.settings.XXXXXX")"
+      TMP_FILES+=("$tmp")
+      cp "$target" "$tmp"
+      mv -f "$tmp" "$live"
+      info "replaced: $live with a copy of $target"
     fi
-  elif [ "$MODE" = plan ]; then
-    plan_note "keep $live (edited since generation; not removed)"
+  elif [ "$has_snap" = 1 ]; then
+    if [ ! -e "$live" ] && [ ! -L "$live" ]; then
+      free=1
+    elif [ -f "$live" ] && [ ! -L "$live" ] && json_equal "$live" "$snapshot"; then
+      if [ -n "$bak" ]; then
+        free=1
+        if [ "$MODE" = plan ]; then
+          plan_add "remove $live"
+        else
+          rm "$live"
+          info "removed: $live"
+        fi
+      elif [ "$MODE" = plan ]; then
+        plan_note "keep $live (no backup to restore; left as an unmanaged file)"
+      fi
+    elif [ "$MODE" = plan ]; then
+      plan_note "keep $live (edited since generation; not removed)"
+    fi
   fi
-  if [ "$MODE" = plan ]; then
-    plan_add "remove $snapshot"
-  else
-    rm "$snapshot"
-    info "removed: $snapshot"
+  if [ "$has_snap" = 1 ]; then
+    if [ "$MODE" = plan ]; then
+      plan_add "remove $snapshot"
+    else
+      rm "$snapshot"
+      info "removed: $snapshot"
+    fi
   fi
   if [ "$free" = 1 ]; then restore_backup "$live"; fi
 }
