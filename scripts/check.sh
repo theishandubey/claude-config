@@ -23,9 +23,9 @@ for f in claude/settings.json local.example/settings.json skills-lock.json; do
   jq -e . "$f" >/dev/null || { echo "check: $f is not valid JSON" >&2; exit 1; }
 done
 
-personal_keys='[.permissions.defaultMode, .skipDangerousModePermissionPrompt, .model, .theme, .enabledPlugins, .extraKnownMarketplaces] | map(select(. != null)) | length == 0'
-jq -e "$personal_keys" claude/settings.json >/dev/null \
-  || { echo "check: claude/settings.json carries a personal or unsafe key (defaultMode, model, theme, enabledPlugins, extraKnownMarketplaces, skipDangerousModePermissionPrompt)" >&2; exit 1; }
+forbidden_keys='[.permissions.defaultMode, .skipDangerousModePermissionPrompt, .model, .theme, .enabledPlugins, .extraKnownMarketplaces, .effortLevel, .modelSettings, .env.ANTHROPIC_DEFAULT_HAIKU_MODEL, .env.CLAUDE_CODE_PLUGIN_DIRS] | map(select(. != null)) | length == 0'
+jq -e "$forbidden_keys" claude/settings.json >/dev/null \
+  || { echo "check: claude/settings.json carries a forbidden key (defaultMode, skipDangerousModePermissionPrompt, model, theme, enabledPlugins, extraKnownMarketplaces, effortLevel, modelSettings, env.ANTHROPIC_DEFAULT_HAIKU_MODEL, env.CLAUDE_CODE_PLUGIN_DIRS)" >&2; exit 1; }
 
 for h in hooks/*.sh; do
   [ -x "$h" ] || { echo "check: $h is not executable" >&2; exit 1; }
