@@ -59,6 +59,9 @@ merges the defaults in claude/settings.json into ~/.claude/settings.json (your v
 always win, missing keys and array elements are added), and installs the skills listed
 in skills/ and skills-lock.json.
 
+The committed defaults enable bypass permissions mode and a broad allow list.
+Review claude/settings.json before installing.
+
   --dry-run    print the planned changes and exit without touching anything
   --yes, -y    do not ask for confirmation; needed when stdin is not a terminal and the run
                would back up or remove something this repo does not own (backups, --clean,
