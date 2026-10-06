@@ -75,8 +75,8 @@ Afterwards start `claude` and run `/memory` to see which instruction files loade
 | `~/.claude/skills/` | skills from `skills/` and `skills-lock.json`, installed through the skills CLI |
 
 - A file, directory or foreign symlink already at a target is moved to `<path>.bak.<timestamp>` first and never overwritten.
-  Links that already point into this repo are replaced without a backup.
-- `install.sh` asks for confirmation only before changes to things it does not own: creating backups, replacing links that point outside the repo, `--clean` and `--uninstall`.
+  Links that already point into this repo or your overlay directory are replaced without a backup.
+- `install.sh` asks for confirmation only before changes to things it does not own: creating backups, replacing links that point outside the repo and the overlay directory, `--clean` and `--uninstall`.
   Declining exits with status 1.
   A routine re-run needs no confirmation, prints `ok:` for everything that is already in place, writes nothing except reinstalling skills (skip with `--no-skills`) and exits 0.
 - Without a terminal, pass `--yes` (or `-y`) for a run that needs confirmation; otherwise it refuses and exits 1.

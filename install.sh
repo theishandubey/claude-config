@@ -168,10 +168,10 @@ link() {
     return 0
   fi
 
-  # A symlink into this repo carries no user data, so it is replaced without a backup.
+  # A symlink into this repo or the overlay directory carries no user data, so it is replaced without a backup.
   target="$(readlink "$dst" 2>/dev/null || true)"
   if [ "$MODE" = plan ]; then
-    if [ -L "$dst" ] && [ "${target#"$REPO_DIR"/}" != "$target" ]; then
+    if [ -L "$dst" ] && points_into_repo "$target"; then
       :
     elif [ -e "$dst" ] || [ -L "$dst" ]; then
       plan_add "backup $dst -> ${dst}${BACKUP_SUFFIX}"
@@ -181,7 +181,7 @@ link() {
   fi
 
   mkdir -p "$(dirname "$dst")"
-  if [ -L "$dst" ] && [ "${target#"$REPO_DIR"/}" != "$target" ]; then
+  if [ -L "$dst" ] && points_into_repo "$target"; then
     rm "$dst"
   elif [ -e "$dst" ] || [ -L "$dst" ]; then
     warn "backing up existing $dst -> ${dst}${BACKUP_SUFFIX}"

@@ -338,6 +338,18 @@ lifecycle() {
   assert_match "second uninstall has nothing to do" 'Nothing to uninstall' "$OUT"
 }
 
+stale_overlay_link() {
+  scenario "overlay: a stale link into an out-of-repo overlay directory is replaced without a backup or a prompt"
+  new_sandbox
+  mkdir -p "$SB_HOME/.claude"
+  printf '# Personal rules\n' > "$SB_LOCAL/instructions.md"
+  ln -s "$SB_LOCAL/CLAUDE.md" "$SB_HOME/.claude/CLAUDE.local.md"
+  capture --no-skills
+  assert_eq "stale overlay link exit status" 0 "$RC"
+  assert_eq "stale overlay link is repointed" "$SB_LOCAL/instructions.md" "$(link_target "$SB_HOME/.claude/CLAUDE.local.md")"
+  assert_eq "stale overlay link leaves no backup" 0 "$(find "$SB_HOME" -name '*.bak.*' | wc -l | tr -d ' ')"
+}
+
 uninstall_without_backup() {
   scenario "uninstall: a fresh install with no prior settings leaves a regular settings.json"
   new_sandbox
@@ -529,6 +541,7 @@ arguments() {
 
 lifecycle
 uninstall_without_backup
+stale_overlay_link
 settings_array_merge
 settings_legacy_link
 clean_skills
