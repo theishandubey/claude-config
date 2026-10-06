@@ -13,12 +13,20 @@ jobs:
         os: [ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - name: Install shellcheck
+        env:
+          HOMEBREW_NO_AUTO_UPDATE: 1
         run: |
           if [ "$RUNNER_OS" = "Linux" ]; then
             sudo apt-get update && sudo apt-get install -y shellcheck
           else
             brew install shellcheck
           fi
-      - run: scripts/check.sh
+      - name: Run checks
+        run: |
+          if [ "$RUNNER_OS" = macOS ]; then
+            /bin/bash scripts/check.sh
+          else
+            scripts/check.sh
+          fi
