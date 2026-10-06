@@ -309,10 +309,10 @@ lifecycle() {
   assert_untouched "run after a completed adoption"
 
   scenario "lifecycle: personal instructions are linked"
-  printf '# Personal rules\n' > "$SB_LOCAL/CLAUDE.md"
+  printf '# Personal rules\n' > "$SB_LOCAL/instructions.md"
   capture --no-skills
   assert_eq "personal instructions exit status" 0 "$RC"
-  assert_eq "CLAUDE.local.md link" "$SB_LOCAL/CLAUDE.md" "$(link_target "$SB_HOME/.claude/CLAUDE.local.md")"
+  assert_eq "CLAUDE.local.md link" "$SB_LOCAL/instructions.md" "$(link_target "$SB_HOME/.claude/CLAUDE.local.md")"
 
   scenario "lifecycle: --uninstall removes links and restores backups"
   capture --uninstall --dry-run
@@ -332,7 +332,7 @@ lifecycle() {
   assert_false "snapshot removed" test -e "$SB_HOME/.claude/settings.generated.json"
   assert_true "overlay untouched" test -f "$SB_LOCAL/settings.json"
   assert_eq "overlay keeps the adopted edit" light "$(jq -r .theme "$SB_LOCAL/settings.json")"
-  assert_true "personal instructions file untouched" test -f "$SB_LOCAL/CLAUDE.md"
+  assert_true "personal instructions file untouched" test -f "$SB_LOCAL/instructions.md"
   capture --uninstall --yes
   assert_eq "second uninstall exit status" 0 "$RC"
   assert_match "second uninstall has nothing to do" 'Nothing to uninstall' "$OUT"

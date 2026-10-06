@@ -56,7 +56,7 @@ cp -r local.example local
 ./install.sh
 ```
 
-The `cp` step is optional: edit `local/settings.json` and `local/CLAUDE.md` first if you want your own values from the start (see [Your personal overlay](#your-personal-overlay)).
+The `cp` step is optional: edit `local/settings.json` and `local/instructions.md` first if you want your own values from the start (see [Your personal overlay](#your-personal-overlay)).
 `--dry-run` prints every planned change and exits without touching anything.
 Afterwards start `claude` and run `/memory` to see which instruction files loaded.
 
@@ -66,7 +66,7 @@ Afterwards start `claude` and run `/memory` to see which instruction files loade
 |---|---|
 | `~/.claude/AGENTS.md` | link to `claude/AGENTS.md` |
 | `~/.claude/CLAUDE.md` | link to `claude/CLAUDE.md` |
-| `~/.claude/CLAUDE.local.md` | link to `local/CLAUDE.md`, only when that file exists |
+| `~/.claude/CLAUDE.local.md` | link to `local/instructions.md`, only when that file exists |
 | `~/.claude/agents` | link to `agents/` |
 | `~/.claude/hooks` | link to `hooks/` |
 | `~/.tmux.conf` | link to `tmux/tmux.conf` |
@@ -90,7 +90,7 @@ Afterwards start `claude` and run `/memory` to see which instruction files loade
 Everything personal goes into two gitignored files under `local/`:
 
 - `local/settings.json` is merged over the defaults to produce `~/.claude/settings.json`.
-- `local/CLAUDE.md` holds personal instructions.
+- `local/instructions.md` holds personal instructions.
   It is linked to `~/.claude/CLAUDE.local.md`, which `claude/CLAUDE.md` imports after the shared playbook.
   If the file is missing, the import is silently skipped.
 
@@ -168,7 +168,7 @@ claude-config/
 │   └── settings.json          # committed defaults, merged into ~/.claude/settings.json
 ├── local.example/             # copy to local/ (gitignored) for your personal overlay
 │   ├── settings.json
-│   └── CLAUDE.md
+│   └── instructions.md
 ├── hooks/                     # PreToolUse guards, linked to ~/.claude/hooks
 ├── skills/                    # skills maintained in this repo
 ├── tmux/tmux.conf             # linked to ~/.tmux.conf

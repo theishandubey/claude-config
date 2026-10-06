@@ -446,7 +446,7 @@ generate_settings() {
 }
 
 link_personal_instructions() {
-  local src="$LOCAL_DIR/CLAUDE.md" dst="$HOME/.claude/CLAUDE.local.md"
+  local src="$LOCAL_DIR/instructions.md" dst="$HOME/.claude/CLAUDE.local.md"
   if [ -f "$src" ]; then
     link "$src" "$dst"
   elif [ -L "$dst" ] && [ ! -e "$dst" ]; then
