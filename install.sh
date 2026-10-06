@@ -19,7 +19,7 @@ BACKUP_SUFFIX=".bak.$(date +%Y%m%d%H%M%S)"
 LOCAL_DIR="${CLAUDE_CONFIG_LOCAL_DIR:-$REPO_DIR/local}"
 
 USE_COLOR=0
-if [ -t 1 ] && [ -z "${NO_COLOR+x}" ]; then USE_COLOR=1; fi
+if [ -t 1 ] && [ -z "${NO_COLOR:-}" ]; then USE_COLOR=1; fi
 
 info() {
   if [ "$USE_COLOR" = 1 ]; then printf '\033[1;34m==>\033[0m %s\n' "$*"; else printf '==> %s\n' "$*"; fi
