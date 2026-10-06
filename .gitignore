@@ -5,4 +5,4 @@
 .claude/agent-memory-local/
 .claude/settings.local.json
 .claude/worktrees/
-local/
+/local/
