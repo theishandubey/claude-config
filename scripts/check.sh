@@ -26,11 +26,24 @@ done
 forbidden="$(jq -r '[
   (select(.effortLevel != null) | "effortLevel"),
   (select(.modelSettings != null) | "modelSettings"),
-  (select(.env.ANTHROPIC_DEFAULT_HAIKU_MODEL != null) | "env.ANTHROPIC_DEFAULT_HAIKU_MODEL"),
+  (select(.env.ANTHROPIC_SMALL_FAST_MODEL != null) | "env.ANTHROPIC_SMALL_FAST_MODEL"),
+  (select(.env.CLAUDE_CODE_SUBAGENT_MODEL != null) | "env.CLAUDE_CODE_SUBAGENT_MODEL"),
   (select(.env.CLAUDE_CODE_PLUGIN_DIRS != null) | "env.CLAUDE_CODE_PLUGIN_DIRS")
 ] | .[]' claude/settings.json)"
 if [ -n "$forbidden" ]; then
   echo "check: claude/settings.json must not set: $(printf '%s' "$forbidden" | tr '\n' ' ')" >&2
+  exit 1
+fi
+
+unpinned="$(jq -r '
+  ("fable", "opus", "sonnet", "haiku") as $family
+  | ("ANTHROPIC_DEFAULT_" + ($family | ascii_upcase) + "_MODEL") as $key
+  | (.env[$key] // null) as $value
+  | select(($value | type) != "string" or ($value | test("^claude-" + $family + "-5(-[0-9]{1,2})?(-[0-9]{8})?\\z") | not))
+  | "env.\($key)"
+' claude/settings.json)"
+if [ -n "$unpinned" ]; then
+  echo "check: claude/settings.json must pin each model alias to a 5-series model of its own family: $(printf '%s' "$unpinned" | tr '\n' ' ')" >&2
   exit 1
 fi
 

@@ -36,10 +36,13 @@ The full playbook is in `claude/CLAUDE.md`, and the shared coding rules every ag
 
 ## Prerequisites
 
-- Claude Code 2.1.280 or later.
-  Older builds fail the Opus 5.5 model pins instead of falling back.
-- Access to Opus 5.5 and Sonnet 5.5.
+- Claude Code 2.1.293 or later.
+  Builds before 2.1.280 fail the Opus 5.5 model pins instead of falling back, and builds before 2.1.293 do not support Haiku 5.5.
+- Access to Opus 5.5, Sonnet 5.5 and Haiku 5.5 through the Anthropic API.
   Fable 5.1 is optional: only `architect` escalation uses `model: fable`.
+  The model pins in `env` are Anthropic API model IDs.
+  On Amazon Bedrock, Google Vertex AI or Microsoft Foundry, set the four `ANTHROPIC_DEFAULT_*_MODEL` values in `~/.claude/settings.json` to your provider's model IDs; values you set there are kept on every later install.
+  Set them before running `./install.sh`, because install adds any pin that is missing, including `ANTHROPIC_DEFAULT_HAIKU_MODEL` for existing installs that left `haiku` unpinned.
 - macOS or Linux.
 - `bash`, `git` and `jq`.
 - Node.js with `npx`, which `install.sh` uses to run the [skills CLI](https://skills.sh).
@@ -97,7 +100,7 @@ Afterwards start `claude` and run `/memory` to see which instruction files loade
 - Bypass permissions mode, with the dangerous-mode prompt skipped.
 - A broad allow list and a short deny list (see [Permissions](#permissions)).
 - The `opus` model, the dark theme, the fullscreen TUI, the `latest` update channel and notifications turned on.
-- The model alias pins and the agent teams flag in `env`, and `switchModelsOnFlag` set to `false`.
+- The `fable`, `opus`, `sonnet` and `haiku` model alias pins and the agent teams flag in `env`, and `switchModelsOnFlag` set to `false`.
 - Empty commit and pull request attribution, with the session URL off.
 - The worktree and teammate settings the agent roster relies on.
 - `pluginConfigs`, the options for the `auto-handoff` plugin.
