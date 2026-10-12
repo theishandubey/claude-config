@@ -100,7 +100,7 @@ Afterwards start `claude` and run `/memory` to see which instruction files loade
 - Bypass permissions mode, with the dangerous-mode prompt skipped.
 - A broad allow list and a short deny list (see [Permissions](#permissions)).
 - The `opus` model, the dark theme, the fullscreen TUI, the `latest` update channel and notifications turned on.
-- The `fable`, `opus`, `sonnet` and `haiku` model alias pins and the agent teams flag in `env`, and `switchModelsOnFlag` set to `false`.
+- The `fable`, `opus`, `sonnet` and `haiku` model alias pins, the agent teams flag and `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE` set to `50` (auto-compact at half the auto-compact window instead of near the context limit) in `env`, and `switchModelsOnFlag` set to `false`.
 - `plansDirectory` set to `./plans/mode`, so plan mode writes its plan files into `plans/mode/` in each project, apart from the numbered advisor plans in `plans/`.
 - Empty commit and pull request attribution, with the session URL off.
 - The worktree and teammate settings the agent roster relies on.
