@@ -104,8 +104,7 @@ Afterwards start `claude` and run `/memory` to see which instruction files loade
 - `plansDirectory` set to `./plans/mode`, so plan mode writes its plan files into `plans/mode/` in each project, apart from the numbered advisor plans in `plans/`.
 - Empty commit and pull request attribution, with the session URL off.
 - The worktree and teammate settings the agent roster relies on.
-- `pluginConfigs`, the options for the `auto-handoff` plugin.
-- The `claude-mods` marketplace and the `meter`, `agent-graph`, `auto-handoff` and `statusline` plugins, enabled (see [Plugins](#plugins)).
+- The `claude-mods` marketplace and the `meter`, `agent-graph` and `statusline` plugins, enabled (see [Plugins](#plugins)).
 
 Your personal settings live directly in `~/.claude/settings.json`, and you can edit that file, or let Claude Code write to it with `/model`, `/theme`, `/config` and `claude plugin`, as usual.
 
@@ -204,11 +203,10 @@ Installed skills (`npx skills remove -g <name>`) and plugins (`claude plugin uni
 
 ## Plugins
 
-The committed defaults enable four plugins from the public [`claude-mods`](https://github.com/theishandubey/claude-mods) marketplace:
+The committed defaults enable three plugins from the public [`claude-mods`](https://github.com/theishandubey/claude-mods) marketplace:
 
 - `meter` draws a band above the prompt with context, prompt cache, usage limits and cost, and `/meter` opens a detailed metrics pane.
 - `agent-graph` graphs running subagents: a card graph in the desktop app and an indented tree in the terminal, opened with `/agent-graph`.
-- `auto-handoff` writes a handoff and the knowledge it names into `.auto-handoff/` when the context grows large, then clears the context and continues.
 - `statusline` draws a status line under the prompt in the terminal with the model and effort, the working directory and the git state.
 
 `claude/settings.json` declares the marketplace in `extraKnownMarketplaces` and turns the plugins on in `enabledPlugins`, and `install.sh` merges both into your settings.
@@ -218,7 +216,6 @@ The declaration does not fetch anything, so each machine runs these once:
 claude plugin marketplace add https://github.com/theishandubey/claude-mods.git
 claude plugin install meter@claude-mods --scope user
 claude plugin install agent-graph@claude-mods --scope user
-claude plugin install auto-handoff@claude-mods --scope user
 claude plugin install statusline@claude-mods --scope user
 ```
 

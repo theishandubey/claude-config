@@ -62,7 +62,6 @@
   "enabledPlugins": {
     "meter@claude-mods": true,
     "agent-graph@claude-mods": true,
-    "auto-handoff@claude-mods": true,
     "statusline@claude-mods": true
   },
   "extraKnownMarketplaces": {
@@ -78,12 +77,5 @@
   "skipDangerousModePermissionPrompt": true,
   "theme": "dark",
   "inputNeededNotifEnabled": true,
-  "agentPushNotifEnabled": true,
-  "pluginConfigs": {
-    "auto-handoff@inline": {
-      "options": {
-        "largeWindowPercent": 5
-      }
-    }
-  }
+  "agentPushNotifEnabled": true
 }
