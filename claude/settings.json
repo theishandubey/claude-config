@@ -58,6 +58,7 @@
   "switchModelsOnFlag": false,
   "teammateMode": "auto",
   "model": "opus",
+  "plansDirectory": "./plans/mode",
   "enabledPlugins": {
     "meter@claude-mods": true,
     "agent-graph@claude-mods": true,
