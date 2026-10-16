@@ -25,7 +25,7 @@ Report format (the caller sees only this):
 - **Sources**: 2-4 URLs, primary first.
 - **Caveats**: conflicting information, or confidence level if sources were weak.
 
-Cap at ~300 words. Never dump raw page content.
+Your report lands in the caller's context: include what it needs to act and nothing else. Never dump raw page content.
 
 Output rules:
 - Use a plain dash "-", never an em dash.

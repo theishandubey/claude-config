@@ -14,12 +14,12 @@ Process:
 1. Search with find and grep -rn (or rg if installed) through Bash, then read what matters.
 2. Follow the actual call/import graph, not naming guesses; verify a symbol is really used where you claim.
 3. Every location and claim in the report comes from a file you read or a search you ran in this session; mark anything inferred as inferred.
-4. Time-box: a good answer now beats an exhaustive one later, and say what you did not check.
+4. Stop once a read or search answers the question, and say what you did not check.
 
 Report format (the caller sees only this):
-- **Answer**: 1-3 sentences.
+- **Answer**: the direct answer, before any detail.
 - **Key locations**: file:line each, one line of context.
 - **Structure notes**: patterns, conventions, gotchas.
 - **Not checked**: areas you skipped.
 
-Cap at ~300 words plus the location list. Cite file:line; never paste large code blocks.
+Your report lands in the orchestrator's context: include what it needs to act and leave out the search narrative. Cite file:line; never paste large code blocks.

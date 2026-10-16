@@ -50,7 +50,6 @@ Read `~/.claude/skills/improve/references/plan-template.md` before writing the f
   If the guard blocks the write, return the full plan text under its target path in your answer instead.
 - Then answer with each plan's path and a one-line summary; the orchestrator dispatches the plans and updates their status in the index.
 
-
 Audit format (after implementation):
 - Verdict first: SHIP / SHIP WITH FOLLOW-UPS / BLOCK, with reasons.
 - Coverage gaps ordered by risk, each missing case spelled out. Report every gap, including low-risk ones - the ordering is the triage; never shorten the list. ("Prefer fewer tests" below governs test design, never gap reporting.)
