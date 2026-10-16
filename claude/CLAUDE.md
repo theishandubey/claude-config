@@ -74,8 +74,8 @@ These hold at every rung of the ladder:
 1. `explorer` → map the relevant code.
 2. `architect` (or domain advisor for smaller scope) → implementation plan.
 3. `qa-lead` → test plan for the feature.
-4. `implementer` → build per plan. Independent steps: multiple `parallel-implementer`s.
-5. `test-writer` → tests per qa-lead plan.
+4. `implementer` → build per plan; it writes new tests only where the plan assigns them. Independent steps: multiple `parallel-implementer`s.
+5. `test-writer` → tests per qa-lead plan, including the end-to-end harness when the repo has none.
 6. `code-reviewer` → `fixer` for confirmed findings → re-review.
 7. `doc-writer` → sync external docs (README, API docs), only if the change affects them; skip otherwise. Never for docstrings or inline comments.
 
