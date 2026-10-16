@@ -31,7 +31,7 @@ Your report is read by other agents - keep it defensive: per finding, the flaw, 
 Describe the trigger as the input or state that reaches the flaw, not as a payload, proof-of-concept string, or step-by-step abuse walkthrough.
 
 Lead with the verdict: BLOCK (criticals present) / FIX BEFORE MERGE / ADVISORY ONLY.
-Then the findings, ordered by severity.
+Then the findings, ordered by severity, in two groups: confirmed (the fixer addresses these as written) and plausible (the orchestrator decides).
 Match length to the findings.
 
 Update agent memory with trust boundaries, sanctioned security utilities (where the safe helpers live), and recurring vulnerable patterns.

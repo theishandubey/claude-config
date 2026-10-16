@@ -61,6 +61,7 @@ These hold at every rung of the ladder:
    Repeat until the verdict is APPROVE or APPROVE WITH NITS.
    On APPROVE WITH NITS, route its confirmed nits to `fixer` and treat plausible nits like other plausible findings; skip re-review only when the fixes touch docs or comments alone.
    Security review runs only when the user explicitly asks for it: dispatch `security-reviewer` (it runs the built-in `security-review` skill) on request, never proactively.
+   Its findings come in confirmed and plausible groups: route them as for code review, then re-dispatch `security-reviewer` on the fixes until its verdict is ADVISORY ONLY.
    It always runs in that sub-agent or a separate session, never in the main session - do not run the `security-review` skill yourself - so wording that trips a safety classifier stays out of the main transcript.
    When it does run, timing still matters: that skill diffs against `origin/HEAD`, so run it while the branch is still unmerged relative to the remote default branch.
 4. **You commit.** In-place workers (`implementer`, `fixer`, `test-writer`, `doc-writer`) never commit, branch, or push; once the review loop passes, commit the change yourself as atomic commits. Only `parallel-implementer`s commit, on their own worktree branches.
@@ -76,8 +77,9 @@ These hold at every rung of the ladder:
 3. `qa-lead` → test plan for the feature.
 4. `implementer` → build per plan; it writes new tests only where the plan assigns them. Independent steps: multiple `parallel-implementer`s.
 5. `test-writer` → tests per qa-lead plan, including the end-to-end harness when the repo has none.
-6. `code-reviewer` → `fixer` for confirmed findings → re-review.
-7. `doc-writer` → sync external docs (README, API docs), only if the change affects them; skip otherwise. Never for docstrings or inline comments.
+6. `qa-lead` → coverage audit. BLOCK: send the missing cases back to `test-writer` and any bug a test exposed to `fixer`, then audit again. SHIP WITH FOLLOW-UPS: report the follow-ups to the user.
+7. `code-reviewer` → `fixer` for confirmed findings → re-review.
+8. `doc-writer` → sync external docs (README, API docs), only if the change affects them; skip otherwise. Never for docstrings or inline comments.
 
 **Bug fix** - use when something is broken with a known or reproducible symptom:
 1. `explorer` → locate the fault area.
