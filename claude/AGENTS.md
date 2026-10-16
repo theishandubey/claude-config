@@ -20,6 +20,6 @@ These are common instructions for coding agents, in every project and scenario.
 
 ## Commits
 
-- Make atomic commits: one logically complete, self-contained change per commit, each building and passing on its own.
+- When you commit, make atomic commits: one logically complete, self-contained change per commit, each building and passing on its own.
 - Commit messages describe the change only; do not put milestone labels, task numbers, or step references in them.
 - Do not add any agent/Claude co-author trailer to commits.

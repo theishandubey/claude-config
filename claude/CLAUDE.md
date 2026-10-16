@@ -63,8 +63,9 @@ These hold at every rung of the ladder:
    Security review runs only when the user explicitly asks for it: dispatch `security-reviewer` (it runs the built-in `security-review` skill) on request, never proactively.
    It always runs in that sub-agent or a separate session, never in the main session - do not run the `security-review` skill yourself - so wording that trips a safety classifier stays out of the main transcript.
    When it does run, timing still matters: that skill diffs against `origin/HEAD`, so run it while the branch is still unmerged relative to the remote default branch.
-4. **Ask advisors to check their memory** ("check your memory for prior decisions") and to update it after significant work.
-5. **Skills defer to the roster.** When a skill's instructions or a plan it generated say to dispatch a `general-purpose` (or unnamed) subagent, treat that as a role placeholder and substitute the matching agent: worktree-isolated implementation -> `parallel-implementer`; in-place implementation -> `implementer`; bug fixes/remediation -> `fixer`; tests -> `test-writer`; docs -> `doc-writer`; search/read-only sweeps -> `explorer` (or `Explore`); web lookups -> `web-researcher`.
+4. **You commit.** In-place workers (`implementer`, `fixer`, `test-writer`, `doc-writer`) never commit, branch, or push; once the review loop passes, commit the change yourself as atomic commits. Only `parallel-implementer`s commit, on their own worktree branches.
+5. **Ask advisors to check their memory** ("check your memory for prior decisions") and to update it after significant work.
+6. **Skills defer to the roster.** When a skill's instructions or a plan it generated say to dispatch a `general-purpose` (or unnamed) subagent, treat that as a role placeholder and substitute the matching agent: worktree-isolated implementation -> `parallel-implementer`; in-place implementation -> `implementer`; bug fixes/remediation -> `fixer`; tests -> `test-writer`; docs -> `doc-writer`; search/read-only sweeps -> `explorer` (or `Explore`); web lookups -> `web-researcher`.
    Keep everything else the skill specifies - prompt, isolation, report format, revision flow; only the agent type changes. An explicit model named by the user still wins over the roster default.
 
 ## Standard workflows

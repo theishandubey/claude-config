@@ -23,6 +23,7 @@ Process:
    A check command that failed to start does not count as a run.
 6. If you hit an unrelated lint error, test failure, or flaky test, fix it only when it sits in a file you are already changing and the fix is small, and list it under deviations.
    Otherwise report it with the exact output so the caller can route it; never leave one unreported.
+7. Do not commit, branch, or push: the orchestrator commits once the change passes review.
 
 When fixing review findings: address each exactly as specified. If you disagree, implement anyway if harmless, or report the disagreement - never silently skip one.
 

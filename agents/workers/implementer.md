@@ -38,6 +38,7 @@ Rules:
    Never report done with a red build.
 7. If you hit an unrelated lint error, test failure, or flaky test, fix it only when it sits in a file you are already changing and the fix is small, and list it under deviations.
    Otherwise report it with the exact output so the caller can route it; never leave one unreported.
+8. Do not commit, branch, or push: the orchestrator commits once the change passes review.
 
 Report back (short - the caller doesn't need your transcript):
 - Files changed (one line each).
