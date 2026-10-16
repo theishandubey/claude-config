@@ -13,6 +13,12 @@ PROJ="$TMP/proj"
 mkdir -p "$PROJ/plans" "$PROJ/advisor-plans" "$PROJ/src/plans" "$TMP/plain/plans"
 git init -q "$PROJ"
 
+LINKED="$TMP/linked"
+mkdir -p "$LINKED/advisor-plans" "$TMP/elsewhere"
+git init -q "$LINKED"
+ln -s "$TMP/elsewhere" "$LINKED/plans"
+ln -s "$TMP/elsewhere/real.md" "$PROJ/plans/003-link.md"
+
 NOJQ="$TMP/nojq-bin"
 mkdir -p "$NOJQ"
 ln -s "$(command -v cat)" "$NOJQ/cat"
@@ -76,6 +82,19 @@ run "--allow-plans" "$PROJ/advisor-plans/002-y.md"                    "$PROJ" 0
 run "--allow-plans" "$PROJ/plans/notes.md"                            "$PROJ" 2
 run "--allow-plans" "$PROJ/src/plans/001-x.md"                        "$PROJ" 2
 run "--allow-plans" "$TMP/plain/plans/001-x.md"                       "$TMP/plain" 2
+run ""              "$PROJ/plans/README.md"                           "$PROJ" 2
+run ""              "$PROJ/advisor-plans/001-x.md"                    "$PROJ" 2
+run ""              "$PROJ/advisor-plans/README.md"                   "$PROJ" 2
+run "--allow-plans" "$PROJ/advisor-plans/README.md"                   "$PROJ" 0
+run "--allow-plans" "$PROJ/advisor-plans/001-x.md"                    "$PROJ" 0
+run "--allow-plans" "$PROJ/plans/1-x.md"                              "$PROJ" 2
+run "--allow-plans" "$PROJ/plans/12-x.md"                             "$PROJ" 2
+run "--allow-plans" "$PROJ/plans/123-x.md"                            "$PROJ" 0
+run "--allow-plans" "$LINKED/plans/001-x.md"                          "$LINKED" 2
+run "--allow-plans" "$LINKED/plans/README.md"                         "$LINKED" 2
+run "--allow-plans" "$PROJ/plans/003-link.md"                         "$PROJ" 2
+run "--allow-plans" "$LINKED/advisor-plans/001-x.md"                  "$LINKED" 0
+run "--allow-plans" "$PROJ/.claude/agent-memory-local/a/x.md"         "$PROJ" 0
 run_raw "empty object payload" '{}' 2
 run_raw "non-JSON payload" 'not json' 2
 run_raw "empty payload" '' 2

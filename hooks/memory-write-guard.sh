@@ -14,9 +14,12 @@
 # Planning advisors pass `--allow-plans`, which also lets through markdown files
 # directly inside `plans/` or `advisor-plans/` at the root of the git repository
 # the session runs in - the handoff-plan location of the `improve` skill. Only
-# `NNN-*.md` and `README.md` pass, which keeps most user docs out of reach; an
-# unrelated `plans/README.md` is protected by the prompt only. Nested
-# `plans/` directories elsewhere in the tree are project code and stay blocked.
+# `README.md` and `<digits>-*.md` with three or more digits (`NNN-*.md`, so
+# `001-x.md` and `1000-x.md` pass, `12-x.md` does not) pass, which keeps most
+# user docs out of reach; an unrelated `plans/README.md` is protected by the
+# prompt only. A symlinked `plans/` directory or plan file stays blocked, and
+# nested `plans/` directories elsewhere in the tree are project code and stay
+# blocked.
 #
 # Contract: reads the PreToolUse JSON payload on stdin. Exit 0 allows the call;
 # exit 2 blocks it and returns stderr to the agent.
