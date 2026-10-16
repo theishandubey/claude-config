@@ -1,6 +1,6 @@
 # claude-config
 
-A complete, installable Claude Code setup: a two-tier agent roster (advisors plan and review, workers implement), the orchestration playbook that drives it, the owner's personal Claude Code settings, two guard hooks, a tmux config and a curated list of third-party skills.
+A complete, installable Claude Code setup: a three-tier agent roster (advisors plan and review, workers implement, explorers search), the orchestration playbook that drives it, the owner's personal Claude Code settings, two guard hooks, a tmux config and a curated list of third-party skills.
 `install.sh` links the config into `~/.claude` and merges the committed settings defaults into your own `~/.claude/settings.json`.
 The installer never overwrites a value you already set, but it adds every default you do not have, and those defaults run Claude Code in bypass permissions mode (see the warning under [Install](#install)).
 
@@ -14,13 +14,13 @@ Fourteen subagents, defined in `agents/`:
 | `backend-engineer` | advisor | opus | medium | APIs, services, databases, queues, auth, data modeling |
 | `frontend-engineer` | advisor | opus | medium | Component architecture, state, rendering performance, accessibility |
 | `sre` | advisor | opus | medium | Infrastructure, CI/CD, observability, deployment safety |
-| `qa-lead` | advisor | opus | medium | End-to-end test strategy and coverage planning |
+| `qa-lead` | advisor | opus | medium | End-to-end test strategy, coverage planning and the coverage audit after `test-writer` |
 | `code-reviewer` | advisor | opus | medium | Reviews every code change before it lands |
-| `security-reviewer` | advisor | opus | medium | Security review, only when you ask for one |
-| `implementer` | worker | sonnet | high | Builds from a plan |
+| `security-reviewer` | advisor | opus | medium | Security review, only when you ask for one; fixes are re-reviewed until its verdict is ADVISORY ONLY |
+| `implementer` | worker | sonnet | high | Builds from a plan; writes new tests only where the plan assigns them |
 | `parallel-implementer` | worker | sonnet | high | Builds in its own git worktree, for parallel streams |
 | `fixer` | worker | sonnet | high | Fixes bugs, failing tests and review findings |
-| `test-writer` | worker | sonnet | high | Writes end-to-end tests from a test plan |
+| `test-writer` | worker | sonnet | high | Owns new end-to-end tests, written from a test plan |
 | `doc-writer` | worker | sonnet | high | Writes and updates standalone docs |
 | `explorer` | explorer | sonnet | medium | Read-only codebase search |
 | `web-researcher` | explorer | sonnet | medium | Read-only web research |
@@ -28,12 +28,16 @@ Fourteen subagents, defined in `agents/`:
 The main session acts as an orchestrator that routes work instead of doing it.
 A triage ladder sends questions to explorers, bounded changes straight to a worker, and ambiguous work to an advisor for a plan first.
 Advisors never edit project files: they hold `Write` and `Edit` only to keep their own memory and, for the planning advisors, to write plan files, and a hook blocks every other path.
+Advisors and explorers are read-only by instruction: the hook and the tool lists cover `Write` and `Edit`, not `Bash` (see [Security notes](#security-notes)).
 Every code change goes through `code-reviewer`, and confirmed findings go to `fixer` until the review approves.
+The orchestrator commits once the review passes: in-place workers never commit, and only `parallel-implementer` commits, on its own worktree branch.
 Independent parallel work runs through `parallel-implementer` worktrees, and agent teams are reserved for work whose contracts change mid-build.
 No agent runs on Fable unless you ask for it.
 Security review runs only when you ask for one, and always in its own sub-agent so the main session's transcript stays clear of it.
+Its findings come in confirmed and plausible groups, and fixes are re-reviewed until its verdict is ADVISORY ONLY.
 
-The full playbook, together with the shared coding rules every agent follows, is in `claude/CLAUDE.md`.
+The full playbook, together with the shared coding rules the agents follow, is in `claude/CLAUDE.md`.
+The two explorers skip `CLAUDE.md` (`omitClaudeMd: true`) and restate the one rule they need.
 
 ## Prerequisites
 
@@ -46,9 +50,12 @@ The full playbook, together with the shared coding rules every agent follows, is
   Set them before running `./install.sh`, because install adds any pin that is missing, including `ANTHROPIC_DEFAULT_HAIKU_MODEL` for existing installs that left `haiku` unpinned.
 - macOS or Linux.
 - `bash`, `git` and `jq`.
+- `python3`, which `scripts/check.sh` requires and `hooks/bash-guard.sh` needs.
+  Without it the Bash guard fails open and checks nothing.
 - Node.js with `npx`, which `install.sh` uses to run the [skills CLI](https://skills.sh).
 - `tmux` is optional.
-  `tmux/tmux.conf` turns on `allow-passthrough`, so desktop notifications and the progress bar leave tmux, `extended-keys`, so Shift+Enter inserts a newline instead of submitting, and mouse mode, so wheel scrolling reaches Claude Code's fullscreen renderer instead of tmux.
+  `tmux/tmux.conf` needs tmux 3.3 or later: `allow-passthrough` is new in 3.3, and `extended-keys` and `terminal-features` need 3.2.
+  It turns on `allow-passthrough`, so desktop notifications and the progress bar leave tmux, `extended-keys`, so Shift+Enter inserts a newline instead of submitting, and mouse mode, so wheel scrolling reaches Claude Code's fullscreen renderer instead of tmux.
 
 ## Install
 
@@ -279,6 +286,7 @@ To run without a plugin, set its `enabledPlugins` entry to `false` in `~/.claude
   It fails open without `python3` and on commands it cannot parse, and it does not inspect `eval`, variables, encoded strings, scripts written to disk, commands piped into a shell, `env -S` or heredoc bodies of commands other than a shell, so it is an accident guard and not a security boundary.
 - `hooks/memory-write-guard.sh` blocks `Write` and `Edit` outside agent memory and plan files for advisor agents.
   Those agents also hold `Bash`, so the guard enforces a workflow convention and is not a security boundary.
+  `explorer` holds `Bash` too, with `Write` and `Edit` disabled, so it is read-only by instruction as well; `web-researcher` has no `Bash`.
 - Third-party skills are installed unpinned from the upstream repositories recorded in `skills-lock.json` when you run `install.sh`, and they run with the agent's full permissions.
   Review `~/.claude/skills/<name>/SKILL.md` and drop any you do not trust from the manifest.
 - Nothing in `install.sh` runs with elevated privileges.
