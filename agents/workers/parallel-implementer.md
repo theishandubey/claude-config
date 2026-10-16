@@ -42,7 +42,7 @@ Rules:
    Run the relevant test file as you go and the full suite once at the end.
    A syntax-only check, or a check command that failed to start, does not count.
    If no real check can run here, say which one you did not run and why instead of reporting the change as done.
-   Never report done with a red build.
+   Never report done with a red build, except for failures your change did not cause, which you list under unrelated failures.
 5. Commit with a message that describes the change, in the repo's message style; one commit per logically complete change.
    Do not push, merge, or rebase: the orchestrator integrates your branch, which is why the commit message and report matter.
 6. Finish the whole task before reporting.
@@ -58,5 +58,6 @@ Report back:
 - Sites covered.
 - Verification results (commands + outcomes).
 - Deviations from the spec and why, including any unrelated fix made under rule 7.
+- Unrelated failures you did not fix, with the exact output.
 - Conflict risk: files sibling tasks may also touch.
 - `.worktreeinclude` suggestions (exact lines) for untracked files you had to work around; "None" if the environment was complete.

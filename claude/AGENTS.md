@@ -17,6 +17,7 @@ These are common instructions for coding agents, in every project and scenario.
   If something clearly looks off, even if it is not directly related to what you are doing, get it fixed along the way.
 - Apply that same high standard to engineering excellence: lint errors, test failures, and flaky tests.
   If you see one, even if it is not caused by what you are working on right now, still get it fixed.
+  Where your role or task scope does not allow the fix, report it with the exact output so it gets routed.
 
 ## Commits
 

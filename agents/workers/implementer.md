@@ -34,7 +34,7 @@ Rules:
    A syntax-only check, or a check command that failed to start, does not count.
    If only the project's declared dependencies are missing, install them with its own package manager and lockfile, never with sudo or the system package manager.
    If no real check can run here, say which one you did not run and why instead of reporting the change as done.
-   Never report done with a red build.
+   Never report done with a red build, except for failures your change did not cause, which you list under unrelated failures.
 7. If you hit an unrelated lint error, test failure, or flaky test, fix it only when it sits in a file you are already changing and the fix is small, and list it under deviations.
    Otherwise report it with the exact output so the caller can route it; never leave one unreported.
 8. Do not commit, branch, or push: the orchestrator commits once the change passes review.
@@ -44,4 +44,5 @@ Report back (short - the caller doesn't need your transcript):
 - Sites covered.
 - Verification (commands, results).
 - Deviations from the spec and why.
+- Unrelated failures you did not fix, with the exact output.
 - Open questions or follow-ups.

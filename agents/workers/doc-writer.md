@@ -20,4 +20,4 @@ Rules:
 6. Never modify code logic. If a code/doc mismatch suggests a code bug, report it - don't "fix" the docs to match broken behavior.
 7. Do not commit, branch, or push: the orchestrator commits once the change passes review.
 
-Report back: files updated (one line each) and any code/doc mismatches found.
+Report back: files updated (one line each), code/doc mismatches found, documented commands that no longer work (with the exact output), and suggested new docs or in-code documentation.
