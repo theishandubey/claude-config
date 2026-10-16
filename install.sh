@@ -56,8 +56,9 @@ usage() {
 
 Links this repo's Claude Code config into ~/.claude (and tmux.conf into ~),
 merges the defaults in claude/settings.json into ~/.claude/settings.json (your values
-always win, missing keys and array elements are added), and installs the skills listed
-in skills/ and skills-lock.json.
+always win, missing keys and array elements are added; a settings.json that is a foreign
+symlink or a directory is backed up and replaced by the defaults), and installs the skills
+listed in skills/ and skills-lock.json.
 
 The committed defaults enable bypass permissions mode and a broad allow list.
 Review claude/settings.json before installing.
@@ -69,6 +70,7 @@ Review claude/settings.json before installing.
   --no-skills  skip the skills CLI (no network)
   --clean      also remove ~/.claude/skills entries this repo does not provide
   --uninstall  remove the links, restoring the newest backups; ~/.claude/settings.json is kept
+               as a regular file
   --help, -h   show this help
 
 Environment:
@@ -390,29 +392,33 @@ install_skills() {
 # repo - or installed by other means - linger in ~/.claude/skills forever).
 clean_skills() {
   local lock_names removed installed name
-  if [ "$MODE" = plan ]; then
-    plan_add "clean stale skills under $HOME/.claude/skills"
-    return 0
-  fi
-  if [ "$FAILED" = 1 ]; then
+  if [ "$MODE" = apply ] && [ "$FAILED" = 1 ]; then
     warn "skipping --clean: some skills failed to install"
     return 0
   fi
-  lock_names="$(read_lock_names)" || { warn "skills-lock.json unreadable; skipping --clean"; exit 1; }
-  info "Removing skills not provided by this repo from $HOME/.claude/skills"
+  if ! lock_names="$(read_lock_names)"; then
+    if [ "$MODE" = plan ]; then return 0; fi
+    warn "skills-lock.json unreadable; skipping --clean"
+    exit 1
+  fi
+  if [ "$MODE" = apply ]; then info "Removing skills not provided by this repo from $HOME/.claude/skills"; fi
   removed=0
   for installed in "$HOME/.claude/skills"/*; do
     [ -d "$installed" ] || [ -L "$installed" ] || continue
     name="$(basename "$installed")"
-    # Claude Code owns ~/.claude/skills/synced (claude.ai skill sync) and .trash.
-    case "$name" in synced|.*|*..*|*/*) continue ;; esac
+    # Claude Code owns ~/.claude/skills/synced (claude.ai skill sync); the glob skips dot-entries such as .trash.
+    if [ "$name" = synced ]; then continue; fi
     if [ ! -f "$REPO_DIR/skills/$name/SKILL.md" ] && ! printf '%s\n' "$lock_names" | grep -qxF -- "$name"; then
+      if [ "$MODE" = plan ]; then
+        plan_add "clean stale skills under $HOME/.claude/skills"
+        return 0
+      fi
       warn "removing stale skill: $name"
       if [ -L "$installed" ]; then rm "$installed"; else rm -rf "$installed"; fi
       removed=1
     fi
   done
-  if [ "$removed" = 0 ]; then info "ok: no stale skills"; fi
+  if [ "$MODE" = apply ] && [ "$removed" = 0 ]; then info "ok: no stale skills"; fi
 }
 
 install_all() {

@@ -265,7 +265,7 @@ lifecycle() {
     | "$BASH" "$guard" >/dev/null 2>&1
   assert_eq "linked guard allows a memory write" 0 "$?"
 
-  scenario "lifecycle: install applies the committed defaults"
+  scenario "lifecycle: install applies the committed permission mode"
   assert_eq "install applied the committed permission mode" "$(jq -r .permissions.defaultMode "$SB_REPO/claude/settings.json")" "$(jq -r .permissions.defaultMode "$SB_HOME/.claude/settings.json")"
 
   scenario "lifecycle: second run is quiet and unattended"
@@ -380,7 +380,7 @@ retired_agents_link() {
 }
 
 foreign_link() {
-  scenario "links: a foreign link outside the repo is backed up only after confirmation and survives uninstall"
+  scenario "links: a foreign link outside the repo is backed up only after confirmation and restored by uninstall"
   new_sandbox
   mkdir -p "$SB/dotfiles"
   printf 'set -g mouse on\n' > "$SB/dotfiles/tmux.conf"
@@ -392,6 +392,15 @@ foreign_link() {
   capture --uninstall --yes
   assert_eq "foreign link uninstall exit status" 0 "$RC"
   assert_eq "foreign link survives uninstall" "$SB/dotfiles/tmux.conf" "$(link_target "$SB_HOME/.tmux.conf")"
+  capture --yes --no-skills
+  assert_eq "confirmed install exit status" 0 "$RC"
+  assert_eq "confirmed install links the repo config" "$SB_REPO/tmux/tmux.conf" "$(link_target "$SB_HOME/.tmux.conf")"
+  assert_eq "confirmed install keeps one backup" 1 "$(count_entries "$SB_HOME" '.tmux.conf.bak.*')"
+  assert_eq "backup is the foreign link" "$SB/dotfiles/tmux.conf" "$(link_target "$(find "$SB_HOME" -maxdepth 1 -name '.tmux.conf.bak.*')")"
+  capture --uninstall --yes
+  assert_eq "uninstall after a confirmed install exit status" 0 "$RC"
+  assert_eq "uninstall restores the foreign link" "$SB/dotfiles/tmux.conf" "$(link_target "$SB_HOME/.tmux.conf")"
+  assert_eq "uninstall consumes the backup" 0 "$(count_entries "$SB_HOME" '.tmux.conf.bak.*')"
 }
 
 uninstall_without_backup() {
@@ -677,6 +686,7 @@ clean_skills() {
   capture --no-skills --clean --yes
   assert_eq "--clean exit status" 0 "$RC"
   assert_false "stale skill removed" test -e "$SB_HOME/.claude/skills/stale-skill"
+  assert_false "stale skill with nested content removed" test -e "$SB_HOME/.claude/skills/spare"
   assert_false "symlinked skill link removed" test -L "$SB_HOME/.claude/skills/linked-skill"
   assert_true "symlink target untouched" test -f "$SB/outside/sentinel"
   assert_eq "symlink target content intact" precious "$(cat "$SB/outside/sentinel")"
@@ -684,6 +694,14 @@ clean_skills() {
   assert_true "locked skill kept" test -d "$SB_HOME/.claude/skills/$LOCK_SKILL"
   assert_true "synced directory kept" test -d "$SB_HOME/.claude/skills/synced"
   assert_true ".trash kept" test -d "$SB_HOME/.claude/skills/.trash"
+
+  scenario "clean: --clean needs no confirmation when nothing is stale"
+  capture --no-skills --clean
+  assert_eq "nothing-stale --clean exit status" 0 "$RC"
+  assert_nomatch "nothing-stale --clean plans no removal" '^clean stale skills ' "$OUT"
+  assert_match "nothing-stale --clean reports ok" 'ok: no stale skills' "$OUT"
+  assert_true "nothing-stale --clean keeps the synced directory" test -d "$SB_HOME/.claude/skills/synced"
+  assert_true "nothing-stale --clean keeps .trash" test -d "$SB_HOME/.claude/skills/.trash"
 
   scenario "clean: an unreadable lock deletes nothing and exits 1"
   new_sandbox
