@@ -40,6 +40,7 @@ Implement the plan's cases across every site the plan's pattern matches, and not
 Suggest additional cases in the report instead of writing them.
 Do not create new fixture or helper files unless the plan names them or the suite's conventions require one for the planned cases.
 If the intended scope is genuinely unclear, ask in your report rather than picking the narrow reading.
+Do not commit, branch, or push: the orchestrator commits once the change passes review.
 
 Report back:
 - Cases implemented (mapped to the plan, if given) and plan cases not implemented, with reasons.

@@ -250,7 +250,7 @@ lifecycle() {
   assert_eq "user scalars are kept" "solarized sonnet" "$(jq -r '.theme + " " + .model' "$SB_HOME/.claude/settings.json")"
   assert_eq "defaults are merged in" "$(jq -S -s '.[0] * .[1]' "$SB_REPO/claude/settings.json" <(printf '{"theme":"solarized","model":"sonnet"}'))" "$(live_json)"
   assert_eq "agents link" "$SB_REPO/agents" "$(link_target "$SB_HOME/.claude/agents")"
-  assert_eq "AGENTS.md link" "$SB_REPO/claude/AGENTS.md" "$(link_target "$SB_HOME/.claude/AGENTS.md")"
+  assert_false "no AGENTS.md is linked" test -e "$SB_HOME/.claude/AGENTS.md" -o -L "$SB_HOME/.claude/AGENTS.md"
   assert_eq "CLAUDE.md link" "$SB_REPO/claude/CLAUDE.md" "$(link_target "$SB_HOME/.claude/CLAUDE.md")"
   assert_eq "hooks link" "$SB_REPO/hooks" "$(link_target "$SB_HOME/.claude/hooks")"
   assert_eq "tmux link" "$SB_REPO/tmux/tmux.conf" "$(link_target "$SB_HOME/.tmux.conf")"
@@ -265,7 +265,7 @@ lifecycle() {
     | "$BASH" "$guard" >/dev/null 2>&1
   assert_eq "linked guard allows a memory write" 0 "$?"
 
-  scenario "lifecycle: install applies the committed defaults"
+  scenario "lifecycle: install applies the committed permission mode"
   assert_eq "install applied the committed permission mode" "$(jq -r .permissions.defaultMode "$SB_REPO/claude/settings.json")" "$(jq -r .permissions.defaultMode "$SB_HOME/.claude/settings.json")"
 
   scenario "lifecycle: second run is quiet and unattended"
@@ -325,8 +325,117 @@ stale_link() {
   assert_eq "stale link leaves no backup" 0 "$(find "$SB_HOME" -name '*.bak.*' | wc -l | tr -d ' ')"
 }
 
+retired_agents_link() {
+  scenario "retired: a pre-existing AGENTS.md link into the repo is removed by install"
+  new_sandbox
+  mkdir -p "$SB_HOME/.claude"
+  ln -s "$SB_REPO/claude/AGENTS.md" "$SB_HOME/.claude/AGENTS.md"
+  capture --dry-run --no-skills
+  assert_eq "retire dry-run exit status" 0 "$RC"
+  assert_match "dry-run plans removing the retired link" "^remove retired link $SB_HOME/\\.claude/AGENTS\\.md" "$OUT"
+  assert_eq "dry-run keeps the retired link" "$SB_REPO/claude/AGENTS.md" "$(link_target "$SB_HOME/.claude/AGENTS.md")"
+  capture --no-skills
+  assert_eq "retire exit status" 0 "$RC"
+  assert_match "retire is reported" "removing retired link: $SB_HOME/\\.claude/AGENTS\\.md" "$OUT"
+  assert_false "retired link is gone" test -L "$SB_HOME/.claude/AGENTS.md"
+  assert_false "retired link left no file" test -e "$SB_HOME/.claude/AGENTS.md"
+  assert_eq "retired link leaves no backup" 0 "$(find "$SB_HOME" -name '*.bak.*' | wc -l | tr -d ' ')"
+  assert_eq "CLAUDE.md link is created" "$SB_REPO/claude/CLAUDE.md" "$(link_target "$SB_HOME/.claude/CLAUDE.md")"
+  capture --no-skills
+  assert_nomatch "second run retires nothing" 'retired' "$OUT"
+
+  scenario "retired: an upgrade restores the file an old install backed up, for every retired link"
+  new_sandbox
+  mkdir -p "$SB_HOME/.claude"
+  printf 'my own rules\n' > "$SB_HOME/.claude/AGENTS.md.bak.20240101000000"
+  printf 'my own status\n' > "$SB_HOME/.claude/statusline.bak.20240101000000"
+  ln -s "$SB_REPO/claude/AGENTS.md" "$SB_HOME/.claude/AGENTS.md"
+  ln -s "$SB_REPO/claude/statusline" "$SB_HOME/.claude/statusline"
+  ln -s "$SB_REPO/claude/commands" "$SB_HOME/.claude/commands"
+  capture --dry-run --no-skills
+  assert_eq "restore dry-run exit status" 0 "$RC"
+  assert_match "dry-run plans restoring AGENTS.md" "^restore $SB_HOME/\\.claude/AGENTS\\.md\\.bak\\.20240101000000 -> $SB_HOME/\\.claude/AGENTS\\.md" "$OUT"
+  assert_match "dry-run plans restoring statusline" "^restore $SB_HOME/\\.claude/statusline\\.bak\\.20240101000000 -> $SB_HOME/\\.claude/statusline" "$OUT"
+  assert_nomatch "dry-run plans no restore for a link without a backup" '^restore .*/commands' "$OUT"
+  assert_true "dry-run keeps the retired link" test -L "$SB_HOME/.claude/AGENTS.md"
+  capture --no-skills
+  assert_eq "unconfirmed restore exit status" 1 "$RC"
+  assert_match "unconfirmed restore refuses" 'Refusing to change files without --yes' "$OUT"
+  assert_true "unconfirmed restore keeps the retired link" test -L "$SB_HOME/.claude/AGENTS.md"
+  capture --yes --no-skills
+  assert_eq "restore exit status" 0 "$RC"
+  assert_eq "AGENTS.md is the user's file again" "my own rules" "$(cat "$SB_HOME/.claude/AGENTS.md")"
+  assert_eq "statusline is the user's file again" "my own status" "$(cat "$SB_HOME/.claude/statusline")"
+  assert_false "AGENTS.md is no longer a link" test -L "$SB_HOME/.claude/AGENTS.md"
+  assert_false "commands link without a backup is gone" test -e "$SB_HOME/.claude/commands"
+  assert_eq "restore consumes the backups" 0 "$(find "$SB_HOME" -name '*.bak.2024*' | wc -l | tr -d ' ')"
+  capture --no-skills
+  assert_eq "second run exit status" 0 "$RC"
+  assert_nomatch "second run restores nothing" 'restore' "$OUT"
+  assert_eq "second run keeps the restored file" "my own rules" "$(cat "$SB_HOME/.claude/AGENTS.md")"
+
+  scenario "retired: uninstall restores the backup behind a retired link"
+  new_sandbox
+  mkdir -p "$SB_HOME/.claude"
+  printf 'my own rules\n' > "$SB_HOME/.claude/AGENTS.md.bak.20240101000000"
+  ln -s "$SB_REPO/claude/AGENTS.md" "$SB_HOME/.claude/AGENTS.md"
+  ln -s "$SB_REPO/claude/mods" "$SB_HOME/.claude/mods"
+  capture --uninstall --yes
+  assert_eq "uninstall restore exit status" 0 "$RC"
+  assert_eq "uninstall restores AGENTS.md" "my own rules" "$(cat "$SB_HOME/.claude/AGENTS.md")"
+  assert_false "uninstall removes the retired mods link" test -L "$SB_HOME/.claude/mods"
+
+  scenario "retired: uninstall does not mention the user's own data at a retired path"
+  new_sandbox
+  mkdir -p "$SB_HOME/.claude/commands"
+  printf 'mine\n' > "$SB_HOME/.claude/commands/mine.md"
+  printf 'my own rules\n' > "$SB_HOME/.claude/AGENTS.md"
+  ln -s "$SB_REPO/claude/CLAUDE.md" "$SB_HOME/.claude/CLAUDE.md"
+  capture --uninstall --dry-run
+  assert_eq "own-data dry-run exit status" 0 "$RC"
+  assert_nomatch "no keep note for a retired path" '^keep .*/\.claude/(commands|AGENTS\.md|statusline|mods)' "$OUT"
+  assert_match "keep notes remain for other paths" '^keep .*/\.tmux\.conf|^unlink .*CLAUDE\.md' "$OUT"
+  capture --uninstall --yes
+  assert_eq "own data survives uninstall" mine "$(cat "$SB_HOME/.claude/commands/mine.md")"
+  assert_eq "own AGENTS.md survives uninstall" "my own rules" "$(cat "$SB_HOME/.claude/AGENTS.md")"
+
+  scenario "retired: an AGENTS.md link into the repo is also removed by uninstall"
+  new_sandbox
+  mkdir -p "$SB_HOME/.claude"
+  ln -s "$SB_REPO/claude/AGENTS.md" "$SB_HOME/.claude/AGENTS.md"
+  capture --uninstall --yes
+  assert_eq "uninstall exit status" 0 "$RC"
+  assert_false "uninstall removes the retired link" test -L "$SB_HOME/.claude/AGENTS.md"
+
+  scenario "retired: a real AGENTS.md file is left untouched"
+  new_sandbox
+  mkdir -p "$SB_HOME/.claude"
+  printf 'my own rules\n' > "$SB_HOME/.claude/AGENTS.md"
+  capture --no-skills
+  assert_eq "real file exit status" 0 "$RC"
+  assert_nomatch "real file is not reported as retired" 'retired' "$OUT"
+  assert_eq "real file keeps its content" "my own rules" "$(cat "$SB_HOME/.claude/AGENTS.md")"
+  assert_eq "real file is not a link" "" "$(link_target "$SB_HOME/.claude/AGENTS.md")"
+  assert_eq "real file leaves no backup" 0 "$(find "$SB_HOME" -name '*.bak.*' | wc -l | tr -d ' ')"
+  capture --uninstall --yes
+  assert_eq "real file survives uninstall" "my own rules" "$(cat "$SB_HOME/.claude/AGENTS.md")"
+
+  scenario "retired: a foreign AGENTS.md link is left untouched"
+  new_sandbox
+  mkdir -p "$SB_HOME/.claude" "$SB/dotfiles"
+  printf 'my own rules\n' > "$SB/dotfiles/AGENTS.md"
+  ln -s "$SB/dotfiles/AGENTS.md" "$SB_HOME/.claude/AGENTS.md"
+  capture --no-skills
+  assert_eq "foreign link exit status" 0 "$RC"
+  assert_nomatch "foreign link is not reported as retired" 'retired' "$OUT"
+  assert_eq "foreign link stays in place" "$SB/dotfiles/AGENTS.md" "$(link_target "$SB_HOME/.claude/AGENTS.md")"
+  assert_eq "foreign link leaves no backup" 0 "$(find "$SB_HOME" -name '*.bak.*' | wc -l | tr -d ' ')"
+  capture --uninstall --yes
+  assert_eq "foreign link survives uninstall" "$SB/dotfiles/AGENTS.md" "$(link_target "$SB_HOME/.claude/AGENTS.md")"
+}
+
 foreign_link() {
-  scenario "links: a foreign link outside the repo is backed up only after confirmation and survives uninstall"
+  scenario "links: a foreign link outside the repo is backed up only after confirmation and restored by uninstall"
   new_sandbox
   mkdir -p "$SB/dotfiles"
   printf 'set -g mouse on\n' > "$SB/dotfiles/tmux.conf"
@@ -338,6 +447,15 @@ foreign_link() {
   capture --uninstall --yes
   assert_eq "foreign link uninstall exit status" 0 "$RC"
   assert_eq "foreign link survives uninstall" "$SB/dotfiles/tmux.conf" "$(link_target "$SB_HOME/.tmux.conf")"
+  capture --yes --no-skills
+  assert_eq "confirmed install exit status" 0 "$RC"
+  assert_eq "confirmed install links the repo config" "$SB_REPO/tmux/tmux.conf" "$(link_target "$SB_HOME/.tmux.conf")"
+  assert_eq "confirmed install keeps one backup" 1 "$(count_entries "$SB_HOME" '.tmux.conf.bak.*')"
+  assert_eq "backup is the foreign link" "$SB/dotfiles/tmux.conf" "$(link_target "$(find "$SB_HOME" -maxdepth 1 -name '.tmux.conf.bak.*')")"
+  capture --uninstall --yes
+  assert_eq "uninstall after a confirmed install exit status" 0 "$RC"
+  assert_eq "uninstall restores the foreign link" "$SB/dotfiles/tmux.conf" "$(link_target "$SB_HOME/.tmux.conf")"
+  assert_eq "uninstall consumes the backup" 0 "$(count_entries "$SB_HOME" '.tmux.conf.bak.*')"
 }
 
 uninstall_without_backup() {
@@ -435,6 +553,29 @@ settings_merge() {
   assert_match "dry-run plans the update" '^update: .*/\.claude/settings\.json \(added: env\.B\)' "$OUT"
   assert_eq "dry-run leaves state untouched" "$before" "$(state_sum)"
   assert_untouched "settings dry run"
+}
+
+settings_hooks() {
+  local GUARD_COMMAND='f="$HOME/.claude/hooks/bash-guard.sh"; [ -x "$f" ] || exit 0; exec "$f"'
+  scenario "settings: the Bash guard hook is added to a live file without hooks, once"
+  new_sandbox
+  write_live '{"theme":"t"}'
+  capture --no-skills
+  assert_eq "hooks merge exit status" 0 "$RC"
+  assert_eq "guard hook is added" 1 "$(jq '[.hooks.PreToolUse[] | select(.matcher == "Bash") | .hooks[] | select(.command == $c)] | length' --arg c "$GUARD_COMMAND" "$SB_HOME/.claude/settings.json")"
+  assert_match "added hooks are reported" 'hooks' "$OUT"
+  capture --no-skills
+  assert_eq "second hooks run exit status" 0 "$RC"
+  assert_match "second run reports ok" 'ok: .*/\.claude/settings\.json' "$OUT"
+  assert_eq "guard hook is not duplicated" 1 "$(jq '[.hooks.PreToolUse[].hooks[] | select(.command == $c)] | length' --arg c "$GUARD_COMMAND" "$SB_HOME/.claude/settings.json")"
+
+  scenario "settings: the Bash guard hook is appended next to the user's own PreToolUse hooks"
+  new_sandbox
+  write_live '{"hooks":{"PreToolUse":[{"matcher":"Write","hooks":[{"type":"command","command":"/mine.sh"}]}],"Stop":[{"hooks":[{"type":"command","command":"/stop.sh"}]}]}}'
+  capture --no-skills
+  assert_eq "own hooks merge exit status" 0 "$RC"
+  assert_eq "user hooks come first, then the guard" "/mine.sh|$GUARD_COMMAND" "$(jq -r '[.hooks.PreToolUse[].hooks[].command] | join("|")' "$SB_HOME/.claude/settings.json")"
+  assert_eq "user's other events are kept" "/stop.sh" "$(jq -r '.hooks.Stop[0].hooks[0].command' "$SB_HOME/.claude/settings.json")"
 }
 
 settings_invalid() {
@@ -587,6 +728,16 @@ stale_skills_fixture() {
   ln -s "$SB/outside" "$SB_HOME/.claude/skills/linked-skill"
 }
 
+mid_run_stub() {
+  cat > "$SB_STUB/npx" <<'STUB'
+#!/usr/bin/env bash
+printf '%s\n' "$*" >> "$NPX_LOG"
+mkdir -p "$HOME/.claude/skills/user-made-mid-run"
+exit 0
+STUB
+  chmod +x "$SB_STUB/npx"
+}
+
 clean_skills() {
   LOCK_SKILL="$(jq -r '.skills | keys[0]' "$REPO/skills-lock.json")"
 
@@ -595,11 +746,12 @@ clean_skills() {
   stale_skills_fixture
   capture --no-skills --clean
   assert_eq "unconfirmed --clean exit status" 1 "$RC"
-  assert_match "unconfirmed --clean is planned" '^clean stale skills ' "$OUT"
+  assert_match "unconfirmed --clean is planned" '^clean stale skill ' "$OUT"
   assert_true "unconfirmed --clean deletes nothing" test -d "$SB_HOME/.claude/skills/stale-skill"
   capture --no-skills --clean --yes
   assert_eq "--clean exit status" 0 "$RC"
   assert_false "stale skill removed" test -e "$SB_HOME/.claude/skills/stale-skill"
+  assert_false "stale skill with nested content removed" test -e "$SB_HOME/.claude/skills/spare"
   assert_false "symlinked skill link removed" test -L "$SB_HOME/.claude/skills/linked-skill"
   assert_true "symlink target untouched" test -f "$SB/outside/sentinel"
   assert_eq "symlink target content intact" precious "$(cat "$SB/outside/sentinel")"
@@ -607,6 +759,72 @@ clean_skills() {
   assert_true "locked skill kept" test -d "$SB_HOME/.claude/skills/$LOCK_SKILL"
   assert_true "synced directory kept" test -d "$SB_HOME/.claude/skills/synced"
   assert_true ".trash kept" test -d "$SB_HOME/.claude/skills/.trash"
+
+  scenario "clean: --clean needs no confirmation when nothing is stale"
+  capture --no-skills --clean
+  assert_eq "nothing-stale --clean exit status" 0 "$RC"
+  assert_nomatch "nothing-stale --clean plans no removal" '^clean stale skill ' "$OUT"
+  assert_match "nothing-stale --clean reports ok" 'ok: no stale skills' "$OUT"
+  assert_true "nothing-stale --clean keeps the synced directory" test -d "$SB_HOME/.claude/skills/synced"
+  assert_true "nothing-stale --clean keeps .trash" test -d "$SB_HOME/.claude/skills/.trash"
+
+  scenario "clean: a dry run lists each stale skill on its own line and changes nothing"
+  new_sandbox
+  stale_skills_fixture
+  mkdir -p "$SB_HOME/.claude/skills/foo..bar"
+  local before
+  before="$(state_sum)"
+  mark_time
+  capture --no-skills --clean --dry-run
+  assert_eq "stale dry-run exit status" 0 "$RC"
+  assert_match "dry-run lists stale-skill" "^clean stale skill $SB_HOME/\\.claude/skills/stale-skill\$" "$OUT"
+  assert_match "dry-run lists spare" "^clean stale skill $SB_HOME/\\.claude/skills/spare\$" "$OUT"
+  assert_match "dry-run lists linked-skill" "^clean stale skill $SB_HOME/\\.claude/skills/linked-skill\$" "$OUT"
+  assert_match "dry-run lists foo..bar" "^clean stale skill $SB_HOME/\\.claude/skills/foo\\.\\.bar\$" "$OUT"
+  assert_eq "dry-run lists exactly the four stale skills" 4 "$(printf '%s\n' "$OUT" | grep -c '^clean stale skill ')"
+  assert_nomatch "dry-run does not list the repo skill" 'clean stale skill .*parallel-build' "$OUT"
+  assert_nomatch "dry-run does not list synced" 'clean stale skill .*/synced' "$OUT"
+  assert_nomatch "dry-run does not list .trash" 'clean stale skill .*\.trash' "$OUT"
+  assert_eq "stale dry-run leaves state untouched" "$before" "$(state_sum)"
+  assert_untouched "stale --clean dry-run"
+
+  scenario "clean: --clean removes a foo..bar entry and keeps dot-entries"
+  capture --no-skills --clean --yes
+  assert_eq "foo..bar --clean exit status" 0 "$RC"
+  assert_false "foo..bar removed" test -e "$SB_HOME/.claude/skills/foo..bar"
+  assert_true "foo..bar run keeps .trash" test -d "$SB_HOME/.claude/skills/.trash"
+
+  scenario "clean: a dry run with nothing stale reports ok and changes nothing"
+  before="$(state_sum)"
+  mark_time
+  capture --no-skills --clean --dry-run
+  assert_eq "nothing-stale dry-run exit status" 0 "$RC"
+  assert_match "nothing-stale dry-run reports ok" '^ok: no stale skills$' "$OUT"
+  assert_nomatch "nothing-stale dry-run lists no removal" '^clean stale skill ' "$OUT"
+  assert_eq "nothing-stale dry-run leaves state untouched" "$before" "$(state_sum)"
+  assert_untouched "nothing-stale --clean dry-run"
+
+  scenario "clean: an entry that becomes stale during the run is not deleted without confirmation"
+  new_sandbox
+  mid_run_stub
+  capture --clean
+  assert_eq "mid-run entry, nothing stale at plan time, exit status" 0 "$RC"
+  assert_true "mid-run entry is kept" test -d "$SB_HOME/.claude/skills/user-made-mid-run"
+  assert_nomatch "mid-run entry run does not claim nothing is stale" 'ok: no stale skills' "$OUT"
+  assert_match "mid-run entry is reported" 'skill became stale during this run: user-made-mid-run; rerun with --clean to remove it' "$OUT"
+  assert_match "npx was called" 'skills add' "$(cat "$SB_NPX_LOG")"
+  rm -rf "$SB_HOME/.claude/skills/user-made-mid-run"
+  stale_skills_fixture
+  capture --clean --yes
+  assert_eq "mid-run entry with a confirmed plan exit status" 0 "$RC"
+  assert_false "planned stale skill is removed" test -e "$SB_HOME/.claude/skills/stale-skill"
+  assert_false "planned symlinked skill is removed" test -L "$SB_HOME/.claude/skills/linked-skill"
+  assert_true "entry that became stale mid-run is kept" test -d "$SB_HOME/.claude/skills/user-made-mid-run"
+  assert_nomatch "mid-run warning and removals do not print the ok line" 'ok: no stale skills' "$OUT"
+  assert_match "mid-run entry is warned about" 'skill became stale during this run: user-made-mid-run' "$OUT"
+  assert_nomatch "mid-run entry is not reported as removed" 'removing stale skill: user-made-mid-run' "$OUT"
+  capture --no-skills --clean --yes
+  assert_false "a rerun with --clean removes it" test -e "$SB_HOME/.claude/skills/user-made-mid-run"
 
   scenario "clean: an unreadable lock deletes nothing and exits 1"
   new_sandbox
@@ -622,6 +840,25 @@ clean_skills() {
   capture --no-skills --clean --yes
   assert_eq "lock without a skills object exit status" 1 "$RC"
   assert_true "lock without a skills object keeps the stale skill" test -d "$SB_HOME/.claude/skills/stale-skill"
+
+  scenario "clean: an unreadable lock stops a dry run and a real run before anything is applied"
+  new_sandbox
+  stale_skills_fixture
+  printf 'not json' > "$SB_REPO/skills-lock.json"
+  before="$(state_sum)"
+  mark_time
+  capture --clean --dry-run
+  assert_eq "unreadable lock dry-run exit status" 1 "$RC"
+  assert_match "unreadable lock dry-run warns" 'skills-lock\.json unreadable' "$OUT"
+  assert_eq "unreadable lock dry-run leaves state untouched" "$before" "$(state_sum)"
+  capture --clean --yes
+  assert_eq "unreadable lock real run exit status" 1 "$RC"
+  assert_match "unreadable lock real run warns" 'skills-lock\.json unreadable' "$OUT"
+  assert_false "unreadable lock real run writes no settings" test -e "$SB_HOME/.claude/settings.json"
+  assert_false "unreadable lock real run links nothing" test -e "$SB_HOME/.tmux.conf"
+  assert_eq "unreadable lock real run made no npx call" "" "$(cat "$SB_NPX_LOG")"
+  assert_eq "unreadable lock real run leaves state untouched" "$before" "$(state_sum)"
+  assert_untouched "unreadable-lock dry-run and real run"
 }
 
 write_fixture_lock() {
@@ -670,7 +907,14 @@ skills_install() {
   capture
   assert_eq "unreadable lock exit status" 1 "$RC"
   assert_match "unreadable lock message" 'skills-lock\.json unreadable' "$OUT"
-  assert_nomatch "nothing was fetched from upstream" 'owner/' "$(cat "$SB_NPX_LOG")"
+  assert_eq "nothing was fetched" "" "$(cat "$SB_NPX_LOG")"
+  assert_false "no settings were written" test -e "$SB_HOME/.claude/settings.json"
+  assert_false "nothing was linked" test -e "$SB_HOME/.tmux.conf"
+  capture --dry-run
+  assert_eq "unreadable lock dry-run exit status" 1 "$RC"
+  assert_match "unreadable lock dry-run message" 'skills-lock\.json unreadable' "$OUT"
+  capture --no-skills --yes
+  assert_eq "unreadable lock with --no-skills still installs the config" 0 "$RC"
 }
 
 exit_trap() {
@@ -714,9 +958,11 @@ arguments() {
 lifecycle
 uninstall_without_backup
 stale_link
+retired_agents_link
 foreign_link
 settings_create
 settings_merge
+settings_hooks
 settings_invalid
 settings_empty
 settings_symlinks

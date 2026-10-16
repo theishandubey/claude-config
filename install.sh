@@ -56,8 +56,9 @@ usage() {
 
 Links this repo's Claude Code config into ~/.claude (and tmux.conf into ~),
 merges the defaults in claude/settings.json into ~/.claude/settings.json (your values
-always win, missing keys and array elements are added), and installs the skills listed
-in skills/ and skills-lock.json.
+always win, missing keys and array elements are added; a settings.json that is a foreign
+symlink or a directory is backed up and replaced by the defaults), and installs the skills
+listed in skills/ and skills-lock.json.
 
 The committed defaults enable bypass permissions mode and a broad allow list.
 Review claude/settings.json before installing.
@@ -68,7 +69,8 @@ Review claude/settings.json before installing.
                --uninstall)
   --no-skills  skip the skills CLI (no network)
   --clean      also remove ~/.claude/skills entries this repo does not provide
-  --uninstall  remove the links, restoring the newest backups; ~/.claude/settings.json is kept
+  --uninstall  remove the links, restoring the newest backups; ~/.claude/settings.json is never
+               deleted
   --help, -h   show this help
 
 Environment:
@@ -321,28 +323,26 @@ read_lock_names() {
     && jq -r '.skills | keys[]' "$REPO_DIR/skills-lock.json"
 }
 
+# Links this script no longer creates - removed if they still point into this repo.
+RETIRED_LINKS=("$HOME/.claude/commands" "$HOME/.claude/statusline" "$HOME/.claude/mods" "$HOME/.claude/AGENTS.md")
+
 retire_links() {
   local retired target
-  # Links this script no longer creates - remove them if they still point into this repo.
-  for retired in "$HOME/.claude/commands" "$HOME/.claude/statusline" "$HOME/.claude/mods"; do
+  for retired in "${RETIRED_LINKS[@]}"; do
     target="$(readlink "$retired" 2>/dev/null || true)"
-    if [ -L "$retired" ] && [ "${target#"$REPO_DIR"/}" != "$target" ]; then
+    if [ -L "$retired" ] && points_into_repo "$target"; then
       if [ "$MODE" = plan ]; then
         plan_sync "remove retired link $retired"
       else
         warn "removing retired link: $retired"
         rm "$retired"
       fi
+      restore_backup "$retired"
     fi
   done
 }
 
-# Claude shared instructions: AGENTS.md is symlinked next to CLAUDE.md, which
-# imports it via "@~/.claude/AGENTS.md" (home-anchored: a relative import
-# would resolve against CLAUDE.md's realpath and break).
 install_config() {
-  step "Linking shared instructions for Claude Code"
-  link "$REPO_DIR/claude/AGENTS.md" "$HOME/.claude/AGENTS.md"
   step "Linking Claude Code config"
   retire_links
   generate_settings
@@ -364,6 +364,7 @@ install_skills() {
     return 0
   fi
   if [ "$MODE" = plan ]; then
+    read_lock_names > /dev/null || { warn "skills-lock.json unreadable; nothing was changed"; exit 1; }
     plan_sync "install skills from ./skills and skills-lock.json"
     return 0
   fi
@@ -393,31 +394,59 @@ install_skills() {
 # --clean: remove installed skills that this repo does not provide
 # (the skills CLI copies rather than symlinks, so skills deleted from the
 # repo - or installed by other means - linger in ~/.claude/skills forever).
-clean_skills() {
-  local lock_names removed installed name
-  if [ "$MODE" = plan ]; then
-    plan_add "clean stale skills under $HOME/.claude/skills"
-    return 0
-  fi
-  if [ "$FAILED" = 1 ]; then
-    warn "skipping --clean: some skills failed to install"
-    return 0
-  fi
-  lock_names="$(read_lock_names)" || { warn "skills-lock.json unreadable; skipping --clean"; exit 1; }
-  info "Removing skills not provided by this repo from $HOME/.claude/skills"
-  removed=0
+STALE_SKILLS=()
+PLANNED_STALE=()
+
+find_stale_skills() {
+  local lock_names installed name
+  STALE_SKILLS=()
+  lock_names="$(read_lock_names)" || return 1
   for installed in "$HOME/.claude/skills"/*; do
     [ -d "$installed" ] || [ -L "$installed" ] || continue
     name="$(basename "$installed")"
-    # Claude Code owns ~/.claude/skills/synced (claude.ai skill sync) and .trash.
-    case "$name" in synced|.*|*..*|*/*) continue ;; esac
+    # Claude Code owns ~/.claude/skills/synced (claude.ai skill sync); the .* pattern keeps dot-entries such as .trash out whatever the glob matches.
+    case "$name" in synced|.*) continue ;; esac
     if [ ! -f "$REPO_DIR/skills/$name/SKILL.md" ] && ! printf '%s\n' "$lock_names" | grep -qxF -- "$name"; then
-      warn "removing stale skill: $name"
-      if [ -L "$installed" ]; then rm "$installed"; else rm -rf "$installed"; fi
-      removed=1
+      STALE_SKILLS+=("$name")
     fi
   done
-  if [ "$removed" = 0 ]; then info "ok: no stale skills"; fi
+}
+
+clean_skills() {
+  local name planned stale removed=0 warned=0
+  if [ "$MODE" = apply ] && [ "$FAILED" = 1 ]; then
+    warn "skipping --clean: some skills failed to install"
+    return 0
+  fi
+  if ! find_stale_skills; then
+    warn "skills-lock.json unreadable; skipping --clean"
+    exit 1
+  fi
+  if [ "$MODE" = plan ]; then
+    PLANNED_STALE=("${STALE_SKILLS[@]+"${STALE_SKILLS[@]}"}")
+    if [ "${#STALE_SKILLS[@]}" = 0 ]; then
+      plan_ok "no stale skills"
+    else
+      for name in "${STALE_SKILLS[@]}"; do plan_add "clean stale skill $HOME/.claude/skills/$name"; done
+    fi
+    return 0
+  fi
+  info "Removing skills not provided by this repo from $HOME/.claude/skills"
+  for name in "${STALE_SKILLS[@]+"${STALE_SKILLS[@]}"}"; do
+    planned=0
+    for stale in "${PLANNED_STALE[@]+"${PLANNED_STALE[@]}"}"; do
+      if [ "$stale" = "$name" ]; then planned=1; fi
+    done
+    if [ "$planned" = 0 ]; then
+      warn "skill became stale during this run: $name; rerun with --clean to remove it"
+      warned=1
+      continue
+    fi
+    warn "removing stale skill: $name"
+    if [ -L "$HOME/.claude/skills/$name" ]; then rm "$HOME/.claude/skills/$name"; else rm -rf "${HOME:?}/.claude/skills/$name"; fi
+    removed=1
+  done
+  if [ "$removed$warned" = 00 ]; then info "ok: no stale skills"; fi
 }
 
 install_all() {
@@ -456,7 +485,7 @@ restore_backup() {
 }
 
 uninstall_link() {
-  local path="$1" free=0
+  local path="$1" quiet="${2:-0}" free=0
   if [ -L "$path" ] && points_into_repo "$(readlink "$path" 2>/dev/null || true)"; then
     free=1
     if [ "$MODE" = plan ]; then
@@ -466,7 +495,7 @@ uninstall_link() {
       info "unlinked: $path"
     fi
   elif [ -e "$path" ] || [ -L "$path" ]; then
-    if [ "$MODE" = plan ]; then plan_note "keep $path (not a link into this repo; not removed)"; fi
+    if [ "$MODE" = plan ] && [ "$quiet" = 0 ]; then plan_note "keep $path (not a link into this repo; not removed)"; fi
   else
     free=1
   fi
@@ -503,8 +532,9 @@ uninstall_settings() {
 }
 
 uninstall_all() {
+  local retired
   step "Removing links"
-  uninstall_link "$HOME/.claude/AGENTS.md"
+  for retired in "${RETIRED_LINKS[@]}"; do uninstall_link "$retired" 1; done
   uninstall_link "$HOME/.claude/CLAUDE.md"
   uninstall_link "$HOME/.claude/agents"
   uninstall_link "$HOME/.claude/hooks"

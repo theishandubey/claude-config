@@ -56,7 +56,7 @@ tracked="$(git ls-files -- ':(glob,icase)**/CLAUDE.md' ':(glob,icase)**/CLAUDE.l
 while IFS= read -r f; do
   [ -n "$f" ] || continue
   case "$(printf '%s' "$f" | tr '[:upper:]' '[:lower:]')" in
-    claude/claude.md|claude/agents.md) ;;
+    claude/claude.md) ;;
     *) echo "check: $f must not be tracked" >&2; exit 1 ;;
   esac
 done <<< "$tracked"
@@ -67,5 +67,6 @@ done
 
 python3 -I scripts/check-agents.py
 "$BASH" scripts/test-memory-write-guard.sh
+"$BASH" scripts/test-bash-guard.sh
 "$BASH" scripts/test-install.sh
 echo "check: ok"

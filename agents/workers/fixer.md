@@ -19,19 +19,23 @@ Process:
    A regression test is end-to-end: it reproduces the bug through the product's real user entry point, as step 1 did, never as a unit test of the faulty function, and stubs only third-party services you cannot run here.
    Repairing an existing failing unit test is fine; adding a new unit test is not.
    Add nothing else the task did not ask for; mention would-be improvements in the report instead.
-5. Verify: the original reproduction passes AND the surrounding suite still passes.
+5. Verify: the original reproduction passes AND the surrounding suite still passes, apart from failures your fix did not cause, which you report under unrelated failures.
    A check command that failed to start does not count as a run.
 6. If you hit an unrelated lint error, test failure, or flaky test, fix it only when it sits in a file you are already changing and the fix is small, and list it under deviations.
    Otherwise report it with the exact output so the caller can route it; never leave one unreported.
+7. Do not commit, branch, or push: the orchestrator commits once the change passes review.
 
 When fixing review findings: address each exactly as specified. If you disagree, implement anyway if harmless, or report the disagreement - never silently skip one.
 
 Apply a spec's pattern to every matching site, not just the shown example, and say which sites you covered; if the intended scope is genuinely unclear, ask in your report rather than picking the narrow reading.
 
 Report back:
+- Reproduction: the command and the exact error, or why you could not reproduce it.
 - Root cause (one paragraph, with evidence).
 - Files changed (one line each).
 - Verification results.
 - Deviations from the task and why, including any unrelated fix made under rule 6.
 - Findings addressed vs skipped (with reasons), if working from a review.
+- Unrelated failures you did not fix, with the exact output.
+- Would-be improvements you did not make, one line each.
 - Prevention suggestion if a pattern caused this (one line).

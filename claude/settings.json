@@ -19,10 +19,6 @@
       "Edit(plans/*.md)",
       "Edit(advisor-plans/*.md)",
       "Read(*)",
-      "Bash(ls:*)",
-      "Bash(cat:*)",
-      "Bash(grep:*)",
-      "Bash(find:*)",
       "Bash(mkdir:*)",
       "Bash(node:*)",
       "Bash(npm run:*)",
@@ -36,9 +32,6 @@
       "Bash(cargo:*)",
       "Bash(go:*)",
       "Bash(make:*)",
-      "Bash(git status:*)",
-      "Bash(git diff:*)",
-      "Bash(git log:*)",
       "Bash(git branch:*)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
@@ -52,6 +45,19 @@
       "Bash(rm -rf:*)"
     ],
     "defaultMode": "bypassPermissions"
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "f=\"$HOME/.claude/hooks/bash-guard.sh\"; [ -x \"$f\" ] || exit 0; exec \"$f\""
+          }
+        ]
+      }
+    ]
   },
   "worktree": {
     "baseRef": "head"
