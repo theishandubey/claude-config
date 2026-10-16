@@ -67,5 +67,6 @@ done
 
 python3 -I scripts/check-agents.py
 "$BASH" scripts/test-memory-write-guard.sh
+"$BASH" scripts/test-bash-guard.sh
 "$BASH" scripts/test-install.sh
 echo "check: ok"

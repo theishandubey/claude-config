@@ -437,6 +437,29 @@ settings_merge() {
   assert_untouched "settings dry run"
 }
 
+settings_hooks() {
+  local GUARD_COMMAND='f="$HOME/.claude/hooks/bash-guard.sh"; [ -x "$f" ] || exit 0; exec "$f"'
+  scenario "settings: the Bash guard hook is added to a live file without hooks, once"
+  new_sandbox
+  write_live '{"theme":"t"}'
+  capture --no-skills
+  assert_eq "hooks merge exit status" 0 "$RC"
+  assert_eq "guard hook is added" 1 "$(jq '[.hooks.PreToolUse[] | select(.matcher == "Bash") | .hooks[] | select(.command == $c)] | length' --arg c "$GUARD_COMMAND" "$SB_HOME/.claude/settings.json")"
+  assert_match "added hooks are reported" 'hooks' "$OUT"
+  capture --no-skills
+  assert_eq "second hooks run exit status" 0 "$RC"
+  assert_match "second run reports ok" 'ok: .*/\.claude/settings\.json' "$OUT"
+  assert_eq "guard hook is not duplicated" 1 "$(jq '[.hooks.PreToolUse[].hooks[] | select(.command == $c)] | length' --arg c "$GUARD_COMMAND" "$SB_HOME/.claude/settings.json")"
+
+  scenario "settings: the Bash guard hook is appended next to the user's own PreToolUse hooks"
+  new_sandbox
+  write_live '{"hooks":{"PreToolUse":[{"matcher":"Write","hooks":[{"type":"command","command":"/mine.sh"}]}],"Stop":[{"hooks":[{"type":"command","command":"/stop.sh"}]}]}}'
+  capture --no-skills
+  assert_eq "own hooks merge exit status" 0 "$RC"
+  assert_eq "user hooks come first, then the guard" "/mine.sh|$GUARD_COMMAND" "$(jq -r '[.hooks.PreToolUse[].hooks[].command] | join("|")' "$SB_HOME/.claude/settings.json")"
+  assert_eq "user's other events are kept" "/stop.sh" "$(jq -r '.hooks.Stop[0].hooks[0].command' "$SB_HOME/.claude/settings.json")"
+}
+
 settings_invalid() {
   scenario "settings: invalid user JSON exits 1 and leaves the file byte-identical"
   new_sandbox
@@ -717,6 +740,7 @@ stale_link
 foreign_link
 settings_create
 settings_merge
+settings_hooks
 settings_invalid
 settings_empty
 settings_symlinks

@@ -46,6 +46,19 @@
     ],
     "defaultMode": "bypassPermissions"
   },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "f=\"$HOME/.claude/hooks/bash-guard.sh\"; [ -x \"$f\" ] || exit 0; exec \"$f\""
+          }
+        ]
+      }
+    ]
+  },
   "worktree": {
     "baseRef": "head"
   },

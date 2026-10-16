@@ -1,6 +1,6 @@
 # claude-config
 
-A complete, installable Claude Code setup: a two-tier agent roster (advisors plan and review, workers implement), the orchestration playbook that drives it, the owner's personal Claude Code settings, a write-guard hook, a tmux config and a curated list of third-party skills.
+A complete, installable Claude Code setup: a two-tier agent roster (advisors plan and review, workers implement), the orchestration playbook that drives it, the owner's personal Claude Code settings, two guard hooks, a tmux config and a curated list of third-party skills.
 `install.sh` links the config into `~/.claude` and merges the committed settings defaults into your own `~/.claude/settings.json`.
 The installer never overwrites a value you already set, but it adds every default you do not have, and those defaults run Claude Code in bypass permissions mode (see the warning under [Install](#install)).
 
@@ -125,6 +125,7 @@ After the first setup, have a cloud session make a commit and check `git log -1 
 
 - Bypass permissions mode, with the dangerous-mode prompt skipped.
 - A broad allow list and a short deny list (see [Permissions](#permissions)).
+- A `PreToolUse` hook on `Bash` that blocks destructive commands (see [Permissions](#permissions)).
 - The `opus` model, the dark theme, the fullscreen TUI, the `latest` update channel and notifications turned on.
 - The `fable`, `opus`, `sonnet` and `haiku` model alias pins, the agent teams flag and `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE` set to `50` (auto-compact at half the auto-compact window instead of near the context limit) in `env`, and `switchModelsOnFlag` set to `false`.
 - `plansDirectory` set to `./plans/mode`, so plan mode writes its plan files into `plans/mode/` in each project, apart from the numbered advisor plans in `plans/`.
@@ -170,6 +171,23 @@ The committed allow list approves:
 Read-only commands such as `ls`, `cat`, `grep`, `find`, `git status`, `git diff` and `git log` are left off on purpose: Claude Code approves their read-only invocations itself, while a prefix rule like `Bash(find:*)` would also approve `find -delete`.
 
 The committed deny list blocks force pushes, `git reset --hard` and `rm -rf`.
+A `PreToolUse` hook on `Bash`, `hooks/bash-guard.sh`, backs it up as a second layer.
+It blocks the following wherever the flags appear, including inside compound commands such as `cd x && rm -rf y`:
+
+- `rm` with both a recursive and a force flag, in any order and spelling (`-rf`, `-fr`, `-r -f`, `/bin/rm -Rf`).
+- `git push` with `--force`, `-f`, `--force-with-lease`, `--force-if-includes`, `--mirror` or a `+refspec`, unless `-n` or `--dry-run` is also given.
+- `git reset --hard`.
+- `git clean -f`, unless `-n` or `--dry-run` is also given.
+- `git checkout` with `.`, with paths after `--`, with `--pathspec-from-file` or with `-f`/`--force`, `git switch` with `-f`, `--force` or `--discard-changes`, and `git restore` that is not staged-only.
+- `find` with `-delete`, or with `-exec`, `-execdir`, `-ok` or `-okdir` running any command above (`rm`, `bash -c "..."` and so on).
+
+It unwraps `sudo`, `doas`, `env`, `xargs`, `timeout`, `nice`, `ionice`, `time`, `nohup`, `exec` and `command`, and it looks inside `bash -c "..."` (also `sh`, `zsh` and `dash`, with options such as `-o pipefail` or `-ec`), here-strings and heredocs fed to a shell, `$(...)` and backticks.
+It does not inspect `eval`, variables, scripts written to disk, commands piped into a shell (`... | bash`), `env -S` or heredocs for commands other than a shell, including substitutions inside their bodies.
+`-h` and `--help` on a git subcommand are allowed when given as flags.
+The hook needs `python3` and allows every command without it, so the deny rules are then the only guard.
+`install.sh` re-adds the committed hook entry on every run, because arrays merge by exact match.
+To drop it for good, fork the repo and remove it from `claude/settings.json`, the same as for allow entries.
+It is an accident guard, not a security boundary.
 In bypass mode the allow list adds nothing for tool calls, so it matters when you switch to a mode that prompts.
 Allow and deny rules are prefix matches, and deny rules still apply in bypass mode; see [Security notes](#security-notes).
 
@@ -190,7 +208,7 @@ claude-config/
 │   ├── AGENTS.md               # shared coding rules, linked to ~/.claude/AGENTS.md
 │   ├── CLAUDE.md               # orchestration playbook, linked to ~/.claude/CLAUDE.md
 │   └── settings.json           # committed defaults, merged into your ~/.claude/settings.json
-├── hooks/                      # PreToolUse guards, linked to ~/.claude/hooks
+├── hooks/                      # PreToolUse guards (memory-write-guard.sh, bash-guard.sh), linked to ~/.claude/hooks
 ├── skills/                     # skills maintained in this repo
 ├── tmux/tmux.conf              # linked to ~/.tmux.conf
 └── scripts/                    # check.sh and the tests it runs
@@ -203,7 +221,7 @@ claude-config/
   Claude Code snapshots agent definitions when a session starts, so restart it to pick up a change.
 - **Skills**: put your own in `skills/<name>/`.
   Third-party skills are listed in `skills-lock.json` and installed from their upstream repositories; their licenses are upstream's.
-- **Hooks**: `hooks/memory-write-guard.sh` is wired per agent through its `hooks:` frontmatter.
+- **Hooks**: `hooks/memory-write-guard.sh` is wired per agent through its `hooks:` frontmatter, and `hooks/bash-guard.sh` is wired session-wide through the `hooks` key in `claude/settings.json`.
 - **Settings**: fork the repo to change the committed defaults, and edit `~/.claude/settings.json` for values that win over them on your machine.
 - **tmux**: edit `tmux/tmux.conf`; it is linked live.
 
@@ -226,6 +244,7 @@ Updating an existing install merges in bypass mode and the allow list unless you
 
 This removes the links and restores the newest `.bak.<timestamp>` backup at each path.
 `~/.claude/settings.json` is your file and is kept as it is.
+The kept `hooks` entry for the Bash guard becomes a no-op once the `~/.claude/hooks` link is gone.
 A legacy symlink into this repo is the exception: it is replaced by the newest backup if there is one, otherwise by a copy of the file it points to, and a dangling one is removed.
 Installed skills (`npx skills remove -g <name>`) and plugins (`claude plugin uninstall`) are left alone.
 
@@ -258,6 +277,8 @@ To run without a plugin, set its `enabledPlugins` entry to `false` in `~/.claude
 - `permissions.deny` rules are prefix matches, where `:*` means "starts with".
   `Bash(rm -rf:*)` does not match `rm -fr`, and `Bash(git push --force:*)` does not match `git push origin main --force` (flag after the refspec), `git push --force-with-lease` or a `+refspec` push.
   They guard against accidents, not against a hostile model or prompt injection.
+- `hooks/bash-guard.sh` is a session-wide `PreToolUse` hook on `Bash` that closes those gaps: it checks every segment of a compound command and blocks destructive `rm`, `git push`, `git reset`, `git clean`, `git checkout`, `git switch`, `git restore` and `find` invocations whatever the order of their flags.
+  It fails open without `python3` and on commands it cannot parse, and it does not inspect `eval`, variables, encoded strings, scripts written to disk, commands piped into a shell, `env -S` or heredoc bodies of commands other than a shell, so it is an accident guard and not a security boundary.
 - `hooks/memory-write-guard.sh` blocks `Write` and `Edit` outside agent memory and plan files for advisor agents.
   Those agents also hold `Bash`, so the guard enforces a workflow convention and is not a security boundary.
 - Third-party skills are installed unpinned from the upstream repositories recorded in `skills-lock.json` when you run `install.sh`, and they run with the agent's full permissions.
@@ -271,7 +292,7 @@ To run without a plugin, set its `enabledPlugins` entry to `false` in `~/.claude
 There is no `CONTRIBUTING.md`; this section is the contributor guide.
 
 - Run `scripts/check.sh` before opening a pull request.
-  It validates the JSON files, lints the shell scripts when `shellcheck` is installed, validates agent frontmatter, tests the memory-write guard, and runs `install.sh` end to end in a throwaway home directory.
+  It validates the JSON files, lints the shell scripts when `shellcheck` is installed, validates agent frontmatter, tests the memory-write and Bash guards, and runs `install.sh` end to end in a throwaway home directory.
   It ends with `check: ok`.
   CI runs the same check on Linux and on macOS under `/bin/bash` 3.2, so keep shell scripts compatible with bash 3.2.
 - Test `install.sh` only with a throwaway `HOME`, never against your real home directory:
