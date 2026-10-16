@@ -14,7 +14,7 @@ Advisors hold `Write`/`Edit` only to persist agent memory and, for the planning 
 
 Every agent's name, description, and tools are already injected into each session; what isn't is the model and effort behind each one:
 
-- **Advisors:** all seven (`architect` / `security-reviewer` / `code-reviewer` / `backend-engineer` / `frontend-engineer` / `sre` / `qa-lead`) are Opus 5.5; `architect` escalates to Fable 5.1 per the rubric below.
+- **Advisors:** all seven (`architect` / `security-reviewer` / `code-reviewer` / `backend-engineer` / `frontend-engineer` / `sre` / `qa-lead`) are Opus 5.5.
 - **Workers and explorers:** `implementer`, `parallel-implementer`, `fixer`, `test-writer`, `doc-writer`, `explorer`, and `web-researcher` are Sonnet 5.5.
 - **Effort:** the main session and every agent run at their model's API default (`high` on Fable 5.1 and Sonnet 5.5, `medium` on Opus 5.5), except `architect` (Opus 5.5 at `high`) and the search agents `explorer` and `web-researcher` (Sonnet 5.5 at `medium`).
   Background helper requests, such as conversation summaries and command processing, run on Haiku 5.5 through the `haiku` alias.
@@ -25,14 +25,10 @@ Every agent's name, description, and tools are already injected into each sessio
 
 The `Agent` tool has no per-call `effort` parameter: an agent always runs at its frontmatter `effort`.
 Never put `security-reviewer` on Fable; it stays on Opus.
+If a model-safety flag fires during review work, don't retry the same wording in that session - re-dispatch the review to a fresh subagent.
 
-**Escalating to Fable.** Dispatch `architect` with `model: "fable"` only when one of these holds:
-1. The decision is hard to reverse: a schema or data migration, a public API or cross-service contract, a module boundary other work will build on, or a plan headed for `parallel-build` with three or more streams.
-2. Review found a design flaw rather than point defects (see Escalation under Standard workflows).
-3. The Opus plan ends with `Confidence: low`, or lists structural questions it could not settle.
-For 2 and 3, pass the Opus plan and the reason for escalating, so Fable reviews and revises it rather than starting over.
-Only `architect` escalates; every other advisor stays on Opus.
-If a model-safety flag fires during review work anyway, don't retry the same wording in that session - re-dispatch the review to a fresh subagent.
+**Fable only on request.** Use `model: "fable"` only when the user explicitly asks for Fable in that request; otherwise every agent runs on its frontmatter model.
+When an `architect` plan ends with `Confidence: low` or lists structural questions it could not settle, put those questions to the user before dispatching the plan.
 
 ## Task triage
 
@@ -63,6 +59,7 @@ These hold at every rung of the ladder:
    Repeat until the verdict is APPROVE or APPROVE WITH NITS.
    On APPROVE WITH NITS, route its confirmed nits to `fixer` and treat plausible nits like other plausible findings; skip re-review only when the fixes touch docs or comments alone.
    Security review runs only when the user explicitly asks for it: dispatch `security-reviewer` (it runs the built-in `security-review` skill) on request, never proactively.
+   It always runs in that sub-agent or a separate session, never in the main session - do not run the `security-review` skill yourself - so wording that trips a safety classifier stays out of the main transcript.
    When it does run, timing still matters: that skill diffs against `origin/HEAD`, so run it while the branch is still unmerged relative to the remote default branch.
 4. **Ask advisors to check their memory** ("check your memory for prior decisions") and to update it after significant work.
 5. **Skills defer to the roster.** When a skill's instructions or a plan it generated say to dispatch a `general-purpose` (or unnamed) subagent, treat that as a role placeholder and substitute the matching agent: worktree-isolated implementation -> `parallel-implementer`; in-place implementation -> `implementer`; bug fixes/remediation -> `fixer`; tests -> `test-writer`; docs -> `doc-writer`; search/read-only sweeps -> `explorer` (or `Explore`); web lookups -> `web-researcher`.
@@ -89,7 +86,7 @@ These hold at every rung of the ladder:
 
 **Deploy/infra change** - use for anything touching runtime infrastructure, CI/CD, or releases: `sre` plan (must include rollback) → human approves → gated execution.
 
-**Escalation (all workflows):** if review reveals a design flaw rather than point defects, go back to `architect`, dispatched on Fable (see Escalating to Fable), before dispatching `fixer`.
+**Escalation (all workflows):** if review reveals a design flaw rather than point defects, go back to `architect` before dispatching `fixer`.
 
 ## Worktree orchestration (parallel execution)
 
@@ -124,4 +121,4 @@ The count is derived from the task decomposition, never chosen as a target:
 ## Cost discipline
 
 - Opus advisors: consulted for judgment, not labor. Don't send them mechanical tasks.
-- Sonnet workers for writing code (implementation, fixes, tests) - the Opus review loop catches the quality gap; Fable only where top-end judgment compounds.
+- Sonnet workers for writing code (implementation, fixes, tests) - the Opus review loop catches the quality gap; Fable only when the user asks for it.

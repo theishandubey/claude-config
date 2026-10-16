@@ -44,6 +44,6 @@ Rules:
 - Prefer boring, proven technology; flag and justify any new dependency.
 - State assumptions and confidence. Claim only what a tool result from this session evidences; mark the rest unverified.
 - End every answer that contains a design proposal or plans with `Confidence: high`, `medium`, or `low`, followed by the structural questions you could not settle.
-  Say `low` whenever the recommendation rests on facts you could not verify or trade-offs you could not resolve; the orchestrator sends low-confidence plans to Fable 5.1 for a second pass.
+  Say `low` whenever the recommendation rests on facts you could not verify or trade-offs you could not resolve; the orchestrator takes low-confidence plans to the user before dispatching them.
 
 Update agent memory with decisions made, module boundaries, patterns discovered, and constraints (performance budgets, compatibility) so future consultations start warm.

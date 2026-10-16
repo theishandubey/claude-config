@@ -10,7 +10,7 @@ Fourteen subagents, defined in `agents/`:
 
 | Agent | Tier | Model | Effort | Role |
 |---|---|---|---|---|
-| `architect` | advisor | opus (fable on escalation) | high | Designs, ADRs, trade-offs and implementation plans |
+| `architect` | advisor | opus | high | Designs, ADRs, trade-offs and implementation plans |
 | `backend-engineer` | advisor | opus | medium | APIs, services, databases, queues, auth, data modeling |
 | `frontend-engineer` | advisor | opus | medium | Component architecture, state, rendering performance, accessibility |
 | `sre` | advisor | opus | medium | Infrastructure, CI/CD, observability, deployment safety |
@@ -30,7 +30,8 @@ A triage ladder sends questions to explorers, bounded changes straight to a work
 Advisors never edit project files: they hold `Write` and `Edit` only to keep their own memory and, for the planning advisors, to write plan files, and a hook blocks every other path.
 Every code change goes through `code-reviewer`, and confirmed findings go to `fixer` until the review approves.
 Independent parallel work runs through `parallel-implementer` worktrees, and agent teams are reserved for work whose contracts change mid-build.
-`architect` escalates to Fable only for decisions that are hard to reverse.
+No agent runs on Fable unless you ask for it.
+Security review runs only when you ask for one, and always in its own sub-agent so the main session's transcript stays clear of it.
 
 The full playbook is in `claude/CLAUDE.md`, and the shared coding rules every agent follows are in `claude/AGENTS.md`.
 
@@ -39,7 +40,7 @@ The full playbook is in `claude/CLAUDE.md`, and the shared coding rules every ag
 - Claude Code 2.1.293 or later.
   Builds before 2.1.280 fail the Opus 5.5 model pins instead of falling back, and builds before 2.1.293 do not support Haiku 5.5.
 - Access to Opus 5.5, Sonnet 5.5 and Haiku 5.5 through the Anthropic API.
-  Fable 5.1 is optional: only `architect` escalation uses `model: fable`.
+  Fable 5.1 is optional: an agent uses `model: fable` only when you ask for it.
   The model pins in `env` are Anthropic API model IDs.
   On Amazon Bedrock, Google Vertex AI or Microsoft Foundry, set the four `ANTHROPIC_DEFAULT_*_MODEL` values in `~/.claude/settings.json` to your provider's model IDs; values you set there are kept on every later install.
   Set them before running `./install.sh`, because install adds any pin that is missing, including `ANTHROPIC_DEFAULT_HAIKU_MODEL` for existing installs that left `haiku` unpinned.
