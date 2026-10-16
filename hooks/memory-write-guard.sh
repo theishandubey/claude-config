@@ -11,15 +11,16 @@
 # advisor that declares it: writes inside an agent-memory directory pass, everything
 # else is blocked.
 #
-# Planning advisors pass `--allow-plans`, which also lets through markdown files
-# directly inside `plans/` or `advisor-plans/` at the root of the git repository
-# the session runs in - the handoff-plan location of the `improve` skill. Only
-# `README.md` and `<digits>-*.md` with three or more digits (`NNN-*.md`, so
-# `001-x.md` and `1000-x.md` pass, `12-x.md` does not) pass, which keeps most
-# user docs out of reach; an unrelated `plans/README.md` is protected by the
-# prompt only. A symlinked `plans/` directory or plan file stays blocked, and
-# nested `plans/` directories elsewhere in the tree are project code and stay
-# blocked.
+# Planning advisors pass `--allow-plans`, which also lets through plan files in
+# `plans/` and `advisor-plans/` directly under the root of the git repository the
+# session runs in - the handoff-plan location of the `improve` skill.
+# A plan file is `README.md` or `<digits>-*.md` with three or more digits, so
+# `001-x.md` and `1000-x.md` pass and `12-x.md` does not; other markdown files
+# in those directories are blocked, but an unrelated `plans/README.md` is
+# protected by the prompt only.
+# The `plans/` directory and the plan file themselves must not be symlinks;
+# hard links and symlinks above the repository root are not detected.
+# Nested `plans/` directories elsewhere in the tree are project code and stay blocked.
 #
 # Contract: reads the PreToolUse JSON payload on stdin. Exit 0 allows the call;
 # exit 2 blocks it and returns stderr to the agent.

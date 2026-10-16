@@ -90,6 +90,7 @@ run "--allow-plans" "$PROJ/advisor-plans/001-x.md"                    "$PROJ" 0
 run "--allow-plans" "$PROJ/plans/1-x.md"                              "$PROJ" 2
 run "--allow-plans" "$PROJ/plans/12-x.md"                             "$PROJ" 2
 run "--allow-plans" "$PROJ/plans/123-x.md"                            "$PROJ" 0
+run "--allow-plans" "$PROJ/plans/1000-x.md"                           "$PROJ" 0
 run "--allow-plans" "$LINKED/plans/001-x.md"                          "$LINKED" 2
 run "--allow-plans" "$LINKED/plans/README.md"                         "$LINKED" 2
 run "--allow-plans" "$PROJ/plans/003-link.md"                         "$PROJ" 2
