@@ -118,9 +118,9 @@ if [ "$allow_plans" -eq 1 ]; then
       fi
       ;;
   esac
-  allowed="<project>/.claude/agent-memory/<agent-name>/**, <repo root>/plans/{NNN-*.md,README.md}, <repo root>/advisor-plans/{NNN-*.md,README.md}"
+  allowed="<project>/.claude/agent-memory{,-local}/<agent-name>/**, <repo root>/plans/{NNN-*.md,README.md}, <repo root>/advisor-plans/{NNN-*.md,README.md}"
 else
-  allowed="<project>/.claude/agent-memory/<agent-name>/**"
+  allowed="<project>/.claude/agent-memory{,-local}/<agent-name>/**"
 fi
 
 cat >&2 <<EOF

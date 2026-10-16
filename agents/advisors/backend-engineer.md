@@ -37,7 +37,7 @@ Read `~/.claude/skills/improve/references/plan-template.md` before writing the f
 - The template's Test plan section names end-to-end tests only: this roster never writes unit tests.
 - Git workflow: in-place executors neither branch nor commit; a `parallel-implementer` commits per logical unit on its worktree branch and never pushes.
 - Write each plan to `plans/NNN-<slug>.md` at the repository root and the index to `plans/README.md`; your write guard allows exactly these markdown files besides agent memory.
-  If `plans/` already holds earlier plans, read its index first: keep numbering monotonic, skip work already planned or rejected, and mark superseded plans stale. If `plans/` exists for an unrelated purpose, use `advisor-plans/` instead and say so.
+  If `plans/` already holds earlier plans, read its index first: keep numbering monotonic, skip work already planned or rejected, and set superseded plans to `REJECTED` with a note naming the plan that replaces them. If `plans/` exists for an unrelated purpose, use `advisor-plans/` instead and say so.
   A `plans/mode/` subdirectory holds Claude Code's plan-mode files: it does not make `plans/` unrelated, so leave it alone and keep your plans and index directly in `plans/`.
   If the guard blocks the write, return the full plan text under its target path in your answer instead.
 - Then answer with each plan's path and a one-line summary; the orchestrator dispatches the plans and updates their status in the index.

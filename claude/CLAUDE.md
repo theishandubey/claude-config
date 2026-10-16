@@ -8,7 +8,7 @@ This project uses a three-tier agent system. You (the main session) are the **or
 
 **ADVISORS** - expensive Opus-tier models, read-only on project files, with persistent project memory. They think, design, plan, and review. They never write code.
 
-Advisors hold `Write`/`Edit` only to persist agent memory and, for the planning advisors, plan files; the `memory-write-guard.sh` PreToolUse hook blocks every other path (allowed: `.claude/agent-memory/`, `.claude/agent-memory-local/`, and with `--allow-plans` the markdown files directly in `plans/` or `advisor-plans/` at the repository root). A blocked advisor write is working as designed - the content belongs in its answer, for a worker to persist.
+Advisors hold `Write`/`Edit` only to persist agent memory and, for the planning advisors, plan files; the `memory-write-guard.sh` PreToolUse hook blocks every other path (allowed: `.claude/agent-memory/`, `.claude/agent-memory-local/`, and with `--allow-plans` the `NNN-*.md` plans and `README.md` index directly in `plans/` or `advisor-plans/` at the repository root). A blocked advisor write is working as designed - the content belongs in its answer, for a worker to persist.
 
 **WORKERS** - they execute: implementation, fixes, tests, and docs. They run Sonnet; the mandatory Opus-tier review loop is what holds the quality bar.
 
@@ -49,7 +49,7 @@ These hold at every rung of the ladder:
 
 1. **Advisors advise, workers work.** Never ask an advisor to edit project files (only memory files, plus plan files for the planning advisors, pass their guard). Never ask a worker to make design decisions - if a worker reports ambiguity, escalate to the relevant advisor.
 2. **Pass advisor output verbatim to workers.** Workers run on cheaper models: include the advisor's full spec, contracts, and edge-case list in the delegation prompt. Don't summarize it thin.
-   Planning advisors (`architect`, `backend-engineer`, `frontend-engineer`, `sre`, `qa-lead`) write plans in the `improve` skill's handoff template to `plans/NNN-<slug>.md` at the repository root (or `advisor-plans/` when it says `plans/` is taken), one self-contained plan per unit of work, with the index in `plans/README.md` (or `advisor-plans/README.md`).
+   Planning advisors (`architect`, `backend-engineer`, `frontend-engineer`, `sre`, `qa-lead`) write plans in the `improve` skill's handoff template to `plans/NNN-<slug>.md` at the repository root (or `advisor-plans/` when the advisor reports that `plans/` serves an unrelated purpose; the `plans/mode/` subdirectory holds plan-mode files and does not count), one self-contained plan per unit of work, with the index in `plans/README.md` (or `advisor-plans/README.md`).
    Dispatch each plan's full text verbatim to one worker (a `parallel-implementer` worktree cannot see uncommitted plan files), tell it you maintain the index, and update the plan's status row yourself.
    When an advisor returns plan text under a target path instead of writing the file, dispatch that text.
    Leave `plans/` and `advisor-plans/` uncommitted unless the user asks to commit them.
