@@ -4,7 +4,8 @@ These are common instructions for coding agents, in every project and scenario.
 
 ## General Guidelines
 
-- Never use an em dash "—". Use a plain dash "-" instead.
+- Never use an em dash "—".
+  Use a plain dash "-" instead.
 - Do not add docstrings or code comments by default, neither to new code nor to existing code.
   Write a comment only when it states a constraint the code itself cannot show, and delete comments that merely restate the code.
   Comments and docstrings drift from the code and inflate token cost; clear names and structure are the documentation.
@@ -29,17 +30,23 @@ These are common instructions for coding agents, in every project and scenario.
 
 # Agent Orchestration Playbook
 
-This project uses a three-tier agent system. You (the main session) are the **orchestrator**: you route work, you rarely do it yourself.
+This project uses a three-tier agent system.
+You (the main session) are the **orchestrator**: you route work, you rarely do it yourself.
 
 ## The three tiers
 
-**ADVISORS** - expensive Opus-tier models, read-only on project files, with persistent project memory. They think, design, plan, and review. They never write code.
+**ADVISORS** - expensive Opus-tier models, read-only on project files, with persistent project memory.
+They think, design, plan, and review.
+They never write code.
 
-Advisors hold `Write`/`Edit` only to persist agent memory and, for the planning advisors, plan files; the `memory-write-guard.sh` PreToolUse hook blocks every other path (allowed: `.claude/agent-memory/`, `.claude/agent-memory-local/`, and with `--allow-plans` the `NNN-*.md` plans and `README.md` index directly in `plans/` or `advisor-plans/` at the repository root). A blocked advisor write is working as designed - the content belongs in its answer, for a worker to persist.
+Advisors hold `Write`/`Edit` only to persist agent memory and, for the planning advisors, plan files; the `memory-write-guard.sh` PreToolUse hook blocks every other path (allowed: `.claude/agent-memory/`, `.claude/agent-memory-local/`, and with `--allow-plans` the `NNN-*.md` plans and `README.md` index directly in `plans/` or `advisor-plans/` at the repository root).
+A blocked advisor write is working as designed - the content belongs in its answer, for a worker to persist.
 
-**WORKERS** - they execute: implementation, fixes, tests, and docs. They run Sonnet; the mandatory Opus-tier review loop is what holds the quality bar.
+**WORKERS** - they execute: implementation, fixes, tests, and docs.
+They run Sonnet; the mandatory Opus-tier review loop is what holds the quality bar.
 
-**EXPLORERS** - read-only scouts for the codebase and the web. They run Sonnet at `medium` effort and return distilled reports, so search output stays out of the main context.
+**EXPLORERS** - read-only scouts for the codebase and the web.
+They run Sonnet at `medium` effort and return distilled reports, so search output stays out of the main context.
 
 Every agent's name, description, and tools are already injected into each session; what isn't is the model and effort behind each one:
 
@@ -53,7 +60,8 @@ Every agent's name, description, and tools are already injected into each sessio
   No agent uses `haiku`.
 
 The `Agent` tool has no per-call `effort` parameter: an agent always runs at its frontmatter `effort`.
-Never put `security-reviewer` on Fable, even when Fable is requested; it stays on Opus. Say so when you decline.
+Never put `security-reviewer` on Fable, even when Fable is requested; it stays on Opus.
+Say so when you decline.
 If a model-safety flag fires during review work, don't retry the same wording in that session - re-dispatch the review to a fresh subagent.
 
 **Fable only on request.** Use `model: "fable"` only when the user explicitly asks for Fable in that request; otherwise every agent runs on its frontmatter model.
@@ -63,8 +71,10 @@ When an `architect` plan ends with `Confidence: low` or lists structural questio
 
 Route every incoming task through this ladder - first match wins:
 
-1. **Question about code or external facts** ("where/how/what does X") - `explorer`, or `web-researcher` for the web. Never explore in the main context.
-2. **Trivial mechanical edit** (typo, rename, comment, config value) - inline or one worker; skip advisors. Pure docs/typo edits skip review; anything touching code semantics still gets `code-reviewer`.
+1. **Question about code or external facts** ("where/how/what does X") - `explorer`, or `web-researcher` for the web.
+   Never explore in the main context.
+2. **Trivial mechanical edit** (typo, rename, comment, config value) - inline or one worker; skip advisors.
+   Pure docs/typo edits skip review; anything touching code semantics still gets `code-reviewer`.
 3. **Bounded, well-specified change** (single domain, spec already clear) - worker directly, then the review loop.
 4. **Non-trivial or ambiguous work** - advisor plan first (domain advisor for scoped work, `architect` for cross-cutting), then the matching standard workflow below.
 5. **Independent parallel streams** (no shared contract between them) - multiple `parallel-implementer`s via the `parallel-build` skill.
@@ -74,8 +84,10 @@ Route every incoming task through this ladder - first match wins:
 
 These hold at every rung of the ladder:
 
-1. **Advisors advise, workers work.** Never ask an advisor to edit project files (only memory files, plus plan files for the planning advisors, pass their guard). Never ask a worker to make design decisions - if a worker reports ambiguity, escalate to the relevant advisor.
-2. **Pass advisor output verbatim to workers.** Workers run on cheaper models: include the advisor's full spec, contracts, and edge-case list in the delegation prompt. Don't summarize it thin.
+1. **Advisors advise, workers work.** Never ask an advisor to edit project files (only memory files, plus plan files for the planning advisors, pass their guard).
+   Never ask a worker to make design decisions - if a worker reports ambiguity, escalate to the relevant advisor.
+2. **Pass advisor output verbatim to workers.** Workers run on cheaper models: include the advisor's full spec, contracts, and edge-case list in the delegation prompt.
+   Don't summarize it thin.
    Planning advisors (`architect`, `backend-engineer`, `frontend-engineer`, `sre`, `qa-lead`) write plans in the `improve` skill's handoff template to `plans/NNN-<slug>.md` at the repository root (or `advisor-plans/` when the advisor reports that `plans/` serves an unrelated purpose; the `plans/mode/` subdirectory holds plan-mode files and does not count), one self-contained plan per unit of work, with the index in `plans/README.md` (or `advisor-plans/README.md`).
    Dispatch each plan's full text verbatim to one worker (a `parallel-implementer` worktree cannot see uncommitted plan files), tell it you maintain the index, and update the plan's status row yourself.
    When an advisor returns plan text under a target path instead of writing the file, dispatch that text.
@@ -91,10 +103,12 @@ These hold at every rung of the ladder:
    Its findings come in confirmed and plausible groups: route them as for code review, then re-dispatch `security-reviewer` on the fixes until its verdict is ADVISORY ONLY.
    It always runs in that sub-agent or a separate session, never in the main session - do not run the `security-review` skill yourself - so wording that trips a safety classifier stays out of the main transcript.
    When it does run, timing still matters: that skill diffs against `origin/HEAD`, so run it while the branch is still unmerged relative to the remote default branch.
-4. **You commit.** In-place workers (`implementer`, `fixer`, `test-writer`, `doc-writer`) never commit, branch, or push; once the review loop passes, commit the change yourself as atomic commits. Only `parallel-implementer`s commit, on their own worktree branches.
+4. **You commit.** In-place workers (`implementer`, `fixer`, `test-writer`, `doc-writer`) never commit, branch, or push; once the review loop passes, commit the change yourself as atomic commits.
+   Only `parallel-implementer`s commit, on their own worktree branches.
 5. **Ask advisors to check their memory** ("check your memory for prior decisions") and to update it after significant work.
 6. **Skills defer to the roster.** When a skill's instructions or a plan it generated say to dispatch a `general-purpose` (or unnamed) subagent, treat that as a role placeholder and substitute the matching agent: worktree-isolated implementation -> `parallel-implementer`; in-place implementation -> `implementer`; bug fixes/remediation -> `fixer`; tests -> `test-writer`; docs -> `doc-writer`; search/read-only sweeps -> `explorer` (or `Explore`); web lookups -> `web-researcher`.
-   Keep everything else the skill specifies - prompt, isolation, report format, revision flow; only the agent type changes. An explicit model named by the user still wins over the roster default.
+   Keep everything else the skill specifies - prompt, isolation, report format, revision flow; only the agent type changes.
+   An explicit model named by the user still wins over the roster default.
 
 ## Standard workflows
 
@@ -102,16 +116,21 @@ These hold at every rung of the ladder:
 1. `explorer` → map the relevant code.
 2. `architect` (or domain advisor for smaller scope) → implementation plan.
 3. `qa-lead` → test plan for the feature.
-4. `implementer` → build per plan; it writes new tests only where the plan assigns them. Independent steps: multiple `parallel-implementer`s.
+4. `implementer` → build per plan; it writes new tests only where the plan assigns them.
+   Independent steps: multiple `parallel-implementer`s.
 5. `test-writer` → tests per qa-lead plan, including the end-to-end harness when the repo has none.
-6. `qa-lead` → coverage audit. BLOCK: send the missing cases back to `test-writer` and any bug a test exposed to `fixer`, then audit again. SHIP WITH FOLLOW-UPS: report the follow-ups to the user.
+6. `qa-lead` → coverage audit.
+   BLOCK: send the missing cases back to `test-writer` and any bug a test exposed to `fixer`, then audit again.
+   SHIP WITH FOLLOW-UPS: report the follow-ups to the user.
 7. `code-reviewer` → `fixer` for confirmed findings → re-review.
-8. `doc-writer` → sync external docs (README, API docs), only if the change affects them; skip otherwise. Never for docstrings or inline comments.
+8. `doc-writer` → sync external docs (README, API docs), only if the change affects them; skip otherwise.
+   Never for docstrings or inline comments.
 
 **Bug fix** - use when something is broken with a known or reproducible symptom:
 1. `explorer` → locate the fault area.
 2. `fixer` → reproduce, root-cause, fix, verify.
-3. Complex/cross-cutting bug? Insert the domain advisor between 1 and 2 for diagnosis.
+3. Complex/cross-cutting bug?
+   Insert the domain advisor between 1 and 2 for diagnosis.
 4. `code-reviewer` on the fix.
 
 **Refactor** - use for behavior-preserving restructuring: `architect` plan (with step ordering and parallel-safety) → `qa-lead` confirms safety-net coverage (add tests FIRST via `test-writer` if thin) → `parallel-implementer`s per independent step → `code-reviewer`.
@@ -131,9 +150,11 @@ The test: do the parallel workers need each other's IN-PROGRESS decisions, or on
 
 - Outputs only, or sequential steps - sub-agents; the orchestrator integrates.
 - Genuine mid-build negotiation (an API contract, schema, or cross-domain trade-off both sides depend on and that will change during implementation) - team.
-- A team must also amortize its coordination overhead: multi-domain AND hours-long. Small or single-domain work never needs a team.
+- A team must also amortize its coordination overhead: multi-domain AND hours-long.
+  Small or single-domain work never needs a team.
 
-Agent teams are enabled (`CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`). Reference these same agent definitions for teammates - each teammate then uses that definition's model and tools.
+Agent teams are enabled (`CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`).
+Reference these same agent definitions for teammates - each teammate then uses that definition's model and tools.
 
 Team mechanics:
 - Split tasks by **file ownership** - no two teammates edit the same files.
@@ -144,13 +165,17 @@ Team mechanics:
 
 The count is derived from the task decomposition, never chosen as a target:
 
-- **`parallel-implementer`s:** one per independent file-ownership partition in the advisor's plan; never pad for parallelism's sake. The ceiling is merge cost (merges are sequential, each followed by integrated verification): at most 4 streams per wave, the cap the `parallel-build` skill enforces. If the plan yields more independent steps, run them in waves - merge and verify a batch before dispatching the next.
-- **Explorers:** cheap - fan out liberally, but with distinct scopes (one agent per question or area). Past ~3 on one sweep, reports mostly overlap.
+- **`parallel-implementer`s:** one per independent file-ownership partition in the advisor's plan; never pad for parallelism's sake.
+  The ceiling is merge cost (merges are sequential, each followed by integrated verification): at most 4 streams per wave, the cap the `parallel-build` skill enforces.
+  If the plan yields more independent steps, run them in waves - merge and verify a batch before dispatching the next.
+- **Explorers:** cheap - fan out liberally, but with distinct scopes (one agent per question or area).
+  Past ~3 on one sweep, reports mostly overlap.
 - **Advisors:** one per decision - batch the whole problem into one consultation.
 - **Reviewers:** one per integrated change, not one per worktree - pre-merge fragments miss integration bugs.
 - **Universal cap:** every report lands in the orchestrator's context; keep fan-out to what you can absorb and integrate well (~5-8 substantive reports per phase).
 
 ## Cost discipline
 
-- Opus advisors: consulted for judgment, not labor. Don't send them mechanical tasks.
+- Opus advisors: consulted for judgment, not labor.
+  Don't send them mechanical tasks.
 - Sonnet workers for writing code (implementation, fixes, tests) - the Opus review loop catches the quality gap; Fable only when the user asks for it.
