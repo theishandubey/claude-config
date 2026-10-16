@@ -56,7 +56,7 @@ tracked="$(git ls-files -- ':(glob,icase)**/CLAUDE.md' ':(glob,icase)**/CLAUDE.l
 while IFS= read -r f; do
   [ -n "$f" ] || continue
   case "$(printf '%s' "$f" | tr '[:upper:]' '[:lower:]')" in
-    claude/claude.md|claude/agents.md) ;;
+    claude/claude.md) ;;
     *) echo "check: $f must not be tracked" >&2; exit 1 ;;
   esac
 done <<< "$tracked"

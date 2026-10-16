@@ -250,7 +250,7 @@ lifecycle() {
   assert_eq "user scalars are kept" "solarized sonnet" "$(jq -r '.theme + " " + .model' "$SB_HOME/.claude/settings.json")"
   assert_eq "defaults are merged in" "$(jq -S -s '.[0] * .[1]' "$SB_REPO/claude/settings.json" <(printf '{"theme":"solarized","model":"sonnet"}'))" "$(live_json)"
   assert_eq "agents link" "$SB_REPO/agents" "$(link_target "$SB_HOME/.claude/agents")"
-  assert_eq "AGENTS.md link" "$SB_REPO/claude/AGENTS.md" "$(link_target "$SB_HOME/.claude/AGENTS.md")"
+  assert_false "no AGENTS.md is linked" test -e "$SB_HOME/.claude/AGENTS.md" -o -L "$SB_HOME/.claude/AGENTS.md"
   assert_eq "CLAUDE.md link" "$SB_REPO/claude/CLAUDE.md" "$(link_target "$SB_HOME/.claude/CLAUDE.md")"
   assert_eq "hooks link" "$SB_REPO/hooks" "$(link_target "$SB_HOME/.claude/hooks")"
   assert_eq "tmux link" "$SB_REPO/tmux/tmux.conf" "$(link_target "$SB_HOME/.tmux.conf")"
@@ -323,6 +323,60 @@ stale_link() {
   assert_eq "stale link exit status" 0 "$RC"
   assert_eq "stale link is repointed" "$SB_REPO/tmux/tmux.conf" "$(link_target "$SB_HOME/.tmux.conf")"
   assert_eq "stale link leaves no backup" 0 "$(find "$SB_HOME" -name '*.bak.*' | wc -l | tr -d ' ')"
+}
+
+retired_agents_link() {
+  scenario "retired: a pre-existing AGENTS.md link into the repo is removed by install"
+  new_sandbox
+  mkdir -p "$SB_HOME/.claude"
+  ln -s "$SB_REPO/claude/AGENTS.md" "$SB_HOME/.claude/AGENTS.md"
+  capture --dry-run --no-skills
+  assert_eq "retire dry-run exit status" 0 "$RC"
+  assert_match "dry-run plans removing the retired link" "^remove retired link $SB_HOME/\\.claude/AGENTS\\.md" "$OUT"
+  assert_eq "dry-run keeps the retired link" "$SB_REPO/claude/AGENTS.md" "$(link_target "$SB_HOME/.claude/AGENTS.md")"
+  capture --no-skills
+  assert_eq "retire exit status" 0 "$RC"
+  assert_match "retire is reported" "removing retired link: $SB_HOME/\\.claude/AGENTS\\.md" "$OUT"
+  assert_false "retired link is gone" test -L "$SB_HOME/.claude/AGENTS.md"
+  assert_false "retired link left no file" test -e "$SB_HOME/.claude/AGENTS.md"
+  assert_eq "retired link leaves no backup" 0 "$(find "$SB_HOME" -name '*.bak.*' | wc -l | tr -d ' ')"
+  assert_eq "CLAUDE.md link is created" "$SB_REPO/claude/CLAUDE.md" "$(link_target "$SB_HOME/.claude/CLAUDE.md")"
+  capture --no-skills
+  assert_nomatch "second run retires nothing" 'retired' "$OUT"
+
+  scenario "retired: an AGENTS.md link into the repo is also removed by uninstall"
+  new_sandbox
+  mkdir -p "$SB_HOME/.claude"
+  ln -s "$SB_REPO/claude/AGENTS.md" "$SB_HOME/.claude/AGENTS.md"
+  capture --uninstall --yes
+  assert_eq "uninstall exit status" 0 "$RC"
+  assert_false "uninstall removes the retired link" test -L "$SB_HOME/.claude/AGENTS.md"
+
+  scenario "retired: a real AGENTS.md file is left untouched"
+  new_sandbox
+  mkdir -p "$SB_HOME/.claude"
+  printf 'my own rules\n' > "$SB_HOME/.claude/AGENTS.md"
+  capture --no-skills
+  assert_eq "real file exit status" 0 "$RC"
+  assert_nomatch "real file is not reported as retired" 'retired' "$OUT"
+  assert_eq "real file keeps its content" "my own rules" "$(cat "$SB_HOME/.claude/AGENTS.md")"
+  assert_eq "real file is not a link" "" "$(link_target "$SB_HOME/.claude/AGENTS.md")"
+  assert_eq "real file leaves no backup" 0 "$(find "$SB_HOME" -name '*.bak.*' | wc -l | tr -d ' ')"
+  capture --uninstall --yes
+  assert_eq "real file survives uninstall" "my own rules" "$(cat "$SB_HOME/.claude/AGENTS.md")"
+
+  scenario "retired: a foreign AGENTS.md link is left untouched"
+  new_sandbox
+  mkdir -p "$SB_HOME/.claude" "$SB/dotfiles"
+  printf 'my own rules\n' > "$SB/dotfiles/AGENTS.md"
+  ln -s "$SB/dotfiles/AGENTS.md" "$SB_HOME/.claude/AGENTS.md"
+  capture --no-skills
+  assert_eq "foreign link exit status" 0 "$RC"
+  assert_nomatch "foreign link is not reported as retired" 'retired' "$OUT"
+  assert_eq "foreign link stays in place" "$SB/dotfiles/AGENTS.md" "$(link_target "$SB_HOME/.claude/AGENTS.md")"
+  assert_eq "foreign link leaves no backup" 0 "$(find "$SB_HOME" -name '*.bak.*' | wc -l | tr -d ' ')"
+  capture --uninstall --yes
+  assert_eq "foreign link survives uninstall" "$SB/dotfiles/AGENTS.md" "$(link_target "$SB_HOME/.claude/AGENTS.md")"
 }
 
 foreign_link() {
@@ -737,6 +791,7 @@ arguments() {
 lifecycle
 uninstall_without_backup
 stale_link
+retired_agents_link
 foreign_link
 settings_create
 settings_merge

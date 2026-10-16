@@ -324,7 +324,7 @@ read_lock_names() {
 retire_links() {
   local retired target
   # Links this script no longer creates - remove them if they still point into this repo.
-  for retired in "$HOME/.claude/commands" "$HOME/.claude/statusline" "$HOME/.claude/mods"; do
+  for retired in "$HOME/.claude/commands" "$HOME/.claude/statusline" "$HOME/.claude/mods" "$HOME/.claude/AGENTS.md"; do
     target="$(readlink "$retired" 2>/dev/null || true)"
     if [ -L "$retired" ] && [ "${target#"$REPO_DIR"/}" != "$target" ]; then
       if [ "$MODE" = plan ]; then
@@ -337,12 +337,7 @@ retire_links() {
   done
 }
 
-# Claude shared instructions: AGENTS.md is symlinked next to CLAUDE.md, which
-# imports it via "@~/.claude/AGENTS.md" (home-anchored: a relative import
-# would resolve against CLAUDE.md's realpath and break).
 install_config() {
-  step "Linking shared instructions for Claude Code"
-  link "$REPO_DIR/claude/AGENTS.md" "$HOME/.claude/AGENTS.md"
   step "Linking Claude Code config"
   retire_links
   generate_settings

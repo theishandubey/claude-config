@@ -33,7 +33,7 @@ Independent parallel work runs through `parallel-implementer` worktrees, and age
 No agent runs on Fable unless you ask for it.
 Security review runs only when you ask for one, and always in its own sub-agent so the main session's transcript stays clear of it.
 
-The full playbook is in `claude/CLAUDE.md`, and the shared coding rules every agent follows are in `claude/AGENTS.md`.
+The full playbook, together with the shared coding rules every agent follows, is in `claude/CLAUDE.md`.
 
 ## Prerequisites
 
@@ -100,7 +100,6 @@ After the first setup, have a cloud session make a commit and check `git log -1 
 
 | Target | Source |
 |---|---|
-| `~/.claude/AGENTS.md` | link to `claude/AGENTS.md` |
 | `~/.claude/CLAUDE.md` | link to `claude/CLAUDE.md` |
 | `~/.claude/agents` | link to `agents/` |
 | `~/.claude/hooks` | link to `hooks/` |
@@ -205,8 +204,7 @@ claude-config/
 │   ├── workers/
 │   └── explorers/
 ├── claude/                     # global Claude Code config
-│   ├── AGENTS.md               # shared coding rules, linked to ~/.claude/AGENTS.md
-│   ├── CLAUDE.md               # orchestration playbook, linked to ~/.claude/CLAUDE.md
+│   ├── CLAUDE.md               # shared coding rules and orchestration playbook, linked to ~/.claude/CLAUDE.md
 │   └── settings.json           # committed defaults, merged into your ~/.claude/settings.json
 ├── hooks/                      # PreToolUse guards (memory-write-guard.sh, bash-guard.sh), linked to ~/.claude/hooks
 ├── skills/                     # skills maintained in this repo
