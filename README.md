@@ -116,7 +116,8 @@ After the first setup, have a cloud session make a commit and check `git log -1 
 
 - A file, directory or foreign symlink already at a target is moved to `<path>.bak.<timestamp>` first and never overwritten.
   Links that already point into this repo are replaced without a backup.
-- `install.sh` asks for confirmation only before changes to things it does not own: creating backups, replacing links that point outside the repo (including a `settings.json` symlink that points elsewhere), `--clean` and `--uninstall`.
+- `install.sh` asks for confirmation only before changes to things it does not own: creating backups, replacing links that point outside the repo (including a `settings.json` symlink that points elsewhere), restoring a backup, removing stale skills under `--clean`, and `--uninstall`.
+  It removes links into the repo that it no longer creates (`commands`, `statusline`, `mods` and `AGENTS.md` under `~/.claude`) and restores their newest backup (the restore needs confirmation).
   Declining exits with status 1.
   A routine re-run needs no confirmation, prints `ok:` for everything that is already in place, writes nothing except reinstalling skills (skip with `--no-skills`) and exits 0.
 - Without a terminal, pass `--yes` (or `-y`) for a run that needs confirmation; otherwise it refuses and exits 1.
@@ -248,7 +249,7 @@ Updating an existing install merges in bypass mode and the allow list unless you
 ```
 
 This removes the links and restores the newest `.bak.<timestamp>` backup at each path.
-`~/.claude/settings.json` is your file and is kept as it is.
+`~/.claude/settings.json` is never deleted, and a regular file there is kept as it is.
 The kept `hooks` entry for the Bash guard becomes a no-op once the `~/.claude/hooks` link is gone.
 A legacy symlink into this repo is the exception: it is replaced by the newest backup if there is one, otherwise by a copy of the file it points to, and a dangling one is removed.
 Installed skills (`npx skills remove -g <name>`) and plugins (`claude plugin uninstall`) are left alone.
