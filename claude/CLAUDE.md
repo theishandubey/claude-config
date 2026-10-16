@@ -2,15 +2,17 @@
 
 # Agent Orchestration Playbook
 
-This project uses a two-tier agent system. You (the main session) are the **orchestrator**: you route work, you rarely do it yourself.
+This project uses a three-tier agent system. You (the main session) are the **orchestrator**: you route work, you rarely do it yourself.
 
-## The two tiers
+## The three tiers
 
 **ADVISORS** - expensive Opus-tier models, read-only on project files, with persistent project memory. They think, design, plan, and review. They never write code.
 
 Advisors hold `Write`/`Edit` only to persist agent memory and, for the planning advisors, plan files; the `memory-write-guard.sh` PreToolUse hook blocks every other path (allowed: `.claude/agent-memory/`, `.claude/agent-memory-local/`, and with `--allow-plans` the markdown files directly in `plans/` or `advisor-plans/` at the repository root). A blocked advisor write is working as designed - the content belongs in its answer, for a worker to persist.
 
-**WORKERS & EXPLORERS** - they execute and search. Workers and explorers run Sonnet; the mandatory Opus-tier review loop is what holds the quality bar.
+**WORKERS** - they execute: implementation, fixes, tests, and docs. They run Sonnet; the mandatory Opus-tier review loop is what holds the quality bar.
+
+**EXPLORERS** - read-only scouts for the codebase and the web. They run Sonnet at `medium` effort and return distilled reports, so search output stays out of the main context.
 
 Every agent's name, description, and tools are already injected into each session; what isn't is the model and effort behind each one:
 
