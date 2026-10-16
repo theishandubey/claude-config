@@ -18,7 +18,7 @@ Every agent's name, description, and tools are already injected into each sessio
 
 - **Advisors:** all seven (`architect` / `security-reviewer` / `code-reviewer` / `backend-engineer` / `frontend-engineer` / `sre` / `qa-lead`) are Opus 5.5.
 - **Workers and explorers:** `implementer`, `parallel-implementer`, `fixer`, `test-writer`, `doc-writer`, `explorer`, and `web-researcher` are Sonnet 5.5.
-- **Effort:** the main session and every agent run at their model's API default (`high` on Fable 5.1 and Sonnet 5.5, `medium` on Opus 5.5), except `architect` (Opus 5.5 at `high`) and the search agents `explorer` and `web-researcher` (Sonnet 5.5 at `medium`).
+- **Effort:** the main session runs at its model's API default, and every agent's frontmatter pins its model's API default (`high` on Fable 5.1 and Sonnet 5.5, `medium` on Opus 5.5), except `architect` (Opus 5.5 at `high`) and the search agents `explorer` and `web-researcher` (Sonnet 5.5 at `medium`).
   Background helper requests, such as conversation summaries and command processing, run on Haiku 5.5 through the `haiku` alias.
 - **Every model alias resolves to a 5-series model.**
   User settings pin what the `fable`, `opus`, `sonnet`, and `haiku` aliases resolve to, each to a model of its own family, so `haiku` is never mapped to Sonnet.
@@ -26,7 +26,7 @@ Every agent's name, description, and tools are already injected into each sessio
   No agent uses `haiku`.
 
 The `Agent` tool has no per-call `effort` parameter: an agent always runs at its frontmatter `effort`.
-Never put `security-reviewer` on Fable; it stays on Opus.
+Never put `security-reviewer` on Fable, even when Fable is requested; it stays on Opus. Say so when you decline.
 If a model-safety flag fires during review work, don't retry the same wording in that session - re-dispatch the review to a fresh subagent.
 
 **Fable only on request.** Use `model: "fable"` only when the user explicitly asks for Fable in that request; otherwise every agent runs on its frontmatter model.
@@ -54,7 +54,7 @@ These hold at every rung of the ladder:
    When an advisor returns plan text under a target path instead of writing the file, dispatch that text.
    Leave `plans/` and `advisor-plans/` uncommitted unless the user asks to commit them.
    When dispatching `web-researcher` for a question about a project dependency, pass the manifest or lockfile path; it cannot search the filesystem.
-3. **Everything code-touching gets reviewed.** After any worker finishes: `code-reviewer` (it runs the built-in `code-review` skill).
+3. **Everything code-touching gets reviewed.** After any worker finishes a code change: `code-reviewer` (it runs the built-in `code-review` skill).
    Route its confirmed findings to `fixer`.
    Decide its plausible findings yourself: dispatch, drop with a stated reason, or escalate to the domain advisor.
    A worker that reports an unrelated failure gets its own `fixer` dispatch for it.
