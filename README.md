@@ -138,9 +138,11 @@ The committed allow list approves:
 
 - `Edit` on the agent-memory directories and on `plans/*.md` and `advisor-plans/*.md`, so planning advisors can write plan files.
 - `Read(*)`.
-- `Bash` prefixes for `ls`, `cat`, `grep`, `find` and `mkdir`.
+- `Bash(mkdir:*)`.
 - `Bash` prefixes for common toolchains: `node`, `npm run`, `npm test`, `npx`, `pnpm`, `yarn`, `python`, `pytest`, `pip install`, `cargo`, `go` and `make`.
-- `Bash` prefixes for `git status`, `git diff`, `git log`, `git branch`, `git add`, `git commit`, `git checkout` and `git worktree`.
+- `Bash` prefixes for `git branch`, `git add`, `git commit`, `git checkout` and `git worktree`.
+
+Read-only commands such as `ls`, `cat`, `grep`, `find`, `git status`, `git diff` and `git log` are left off on purpose: Claude Code approves their read-only invocations itself, while a prefix rule like `Bash(find:*)` would also approve `find -delete`.
 
 The committed deny list blocks force pushes, `git reset --hard` and `rm -rf`.
 In bypass mode the allow list adds nothing for tool calls, so it matters when you switch to a mode that prompts.
@@ -226,7 +228,7 @@ To run without a plugin, set its `enabledPlugins` entry to `false` in `~/.claude
 
 - The committed defaults enable bypass permissions mode and skip its confirmation prompt, so installing them removes the permission prompts on your machine.
   Review `claude/settings.json` first, and change the values in `~/.claude/settings.json` if you want prompts back.
-- The allow list is broad, and allow rules are prefix matches too: `Bash(find:*)` approves `find -delete`, and `Bash(npx:*)`, `Bash(python:*)` and `Bash(node:*)` approve arbitrary code.
+- The allow list is broad, and allow rules are prefix matches too: `Bash(npx:*)`, `Bash(python:*)` and `Bash(node:*)` approve arbitrary code.
 - Deny rules still apply in bypass mode: Claude Code 2.1.291 describes bypass as auto-approving every tool call except explicit deny rules.
 - `permissions.deny` rules are prefix matches, where `:*` means "starts with".
   `Bash(rm -rf:*)` does not match `rm -fr`, and `Bash(git push --force:*)` does not match `git push origin main --force` (flag after the refspec), `git push --force-with-lease` or a `+refspec` push.
