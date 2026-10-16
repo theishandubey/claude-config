@@ -16,12 +16,12 @@ The main session owns the worktree lifecycle end to end. These hold for ANY work
 
 - **One task, one agent, one worktree.** Never send two agents into the same worktree.
 - **Worktrees check out committed state only.** Uncommitted scaffolding or plan groundwork is invisible to them, so the working tree must be clean (or intentionally so) before dispatch.
-- **No two parallel tasks may touch the same files.** If the plan doesn't specify file ownership per step, get that from the `architect` advisor before dispatching.
+- **No two parallel tasks may touch the same files.** If the plan doesn't specify file ownership per step, get that from the planning advisor (`architect` for cross-cutting work) before dispatching.
 - **Merge sequentially, never in parallel**, and verify the INTEGRATED result - each worktree only verified itself.
 - **Clean up after abandoned runs.** If a run is cancelled or superseded, list leftovers with `git worktree list` and prune the merged/abandoned ones rather than letting them accumulate.
 
 ## Phase 1 - Prepare
-1. If no implementation plan with per-step file ownership exists, get one from the `architect` advisor first. Its plans follow the `improve` handoff template: one plan per task, and each plan's Scope in-scope list is that task's owned files. Every task must list the exact files it owns; reject plans with overlapping ownership or renegotiate the split.
+1. If no implementation plan with per-step file ownership exists, get one from the planning advisor (`architect` for cross-cutting work) first. Its plans follow the `improve` handoff template: one plan per task, and each plan's Scope in-scope list is that task's owned files. Every task must list the exact files it owns; reject plans with overlapping ownership or renegotiate the split.
 2. **Bootstrap `.worktreeinclude`**: check for a `.worktreeinclude` file at the repo root. If missing, create one BEFORE dispatching:
    a. Detect untracked-but-required files: `git status --ignored --short` cross-checked against what the build/test setup references - env files (`.env.local`, `.env.development`), local certs, tool configs (`.npmrc`, `docker-compose.override.yml`).
    b. Write the detected paths to `.worktreeinclude` (one per line, comments with `#`). If nothing is detected, still create it with a commented header explaining its purpose, so future runs and teammates find it.
@@ -29,10 +29,10 @@ The main session owns the worktree lifecycle end to end. These hold for ANY work
    d. Commit it with the base (it's team-shareable config).
    If the file exists, skim it for obvious gaps against the same detection and append if needed.
 3. Ensure the working tree is committed: `git status` clean, base work committed. An untracked `plans/` or `advisor-plans/` holding advisor plans is intentional: it stays uncommitted and does not block dispatch (pass each plan's full text in the delegation prompt). Record the base branch and SHA.
-4. Confirm task count ≤ 4 (more rarely helps; merge cost grows).
+4. Confirm task count ≤ 4 (more rarely helps; merge cost grows). If the plan has more independent tasks, run them in waves of at most 4: finish Phases 2-4 for one wave before dispatching the next.
 
 ## Phase 2 - Dispatch
-5. Spawn one `parallel-implementer` per task, in parallel. Each delegation prompt MUST include: the full task spec verbatim, the owned-file list, the repo's install/build/test commands, and the instruction to commit but never push/merge.
+5. Spawn one `parallel-implementer` per task, in parallel. Each delegation prompt MUST include: the full task spec verbatim, the owned-file list, the repo's install/build/test commands, and the instruction to commit but never push/merge, and that you maintain the plans index.
 6. While they run, do not edit the repo yourself in the main checkout.
 
 ## Phase 3 - Integrate (sequential, never parallel)

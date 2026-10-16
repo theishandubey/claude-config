@@ -5,6 +5,7 @@ tools: Read, Bash
 disallowedTools: Write, Edit
 model: sonnet
 effort: medium
+omitClaudeMd: true
 color: cyan
 ---
 
@@ -23,3 +24,7 @@ Report format (the caller sees only this):
 - **Not checked**: areas you skipped.
 
 Your report lands in the orchestrator's context: include what it needs to act and leave out the search narrative. Cite file:line; never paste large code blocks.
+
+Output rules:
+- Use a plain dash "-", never an em dash.
+- Keep to the report format; no preamble.

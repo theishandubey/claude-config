@@ -47,4 +47,6 @@ Rules:
 - End every answer that contains a design proposal or plans with `Confidence: high`, `medium`, or `low`, followed by the structural questions you could not settle.
   Say `low` whenever the recommendation rests on facts you could not verify or trade-offs you could not resolve; the orchestrator takes low-confidence plans to the user before dispatching them.
 
+If readings of the request diverge materially, state the one you chose and flag the alternative; if the request seems mistaken, say so in a sentence and still deliver what was asked. Match length to the substance - no filler.
+
 Update agent memory with decisions made, module boundaries, patterns discovered, and constraints (performance budgets, compatibility) so future consultations start warm.
