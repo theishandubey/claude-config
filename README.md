@@ -71,6 +71,31 @@ cd ~/claude-config
 `--dry-run` prints every planned change and exits without touching anything.
 Afterwards start `claude` and run `/memory` to see which instruction files loaded.
 
+### Cloud sessions
+
+Cloud sessions on claude.ai/code do not see your local `~/.claude`, so without this config they add Claude attribution to commits and PRs and run without the agent roster.
+To install the config in every cloud session, open your cloud environment's settings at claude.ai/code and paste this into **Setup script**:
+
+```bash
+set -euo pipefail
+command -v jq >/dev/null || { apt-get update && apt-get install -y jq; }
+if [ -d /opt/claude-config/.git ]; then
+  git -C /opt/claude-config pull --ff-only
+else
+  git clone --depth 1 https://github.com/theishandubey/claude-config.git /opt/claude-config
+fi
+/opt/claude-config/install.sh --yes
+```
+
+The setup script runs as root before Claude Code starts, so the config lands in `/root/.claude`.
+Clone to a fixed path: the installer links into the clone, so the clone must stay in place.
+Leave out `--clean`, because a fresh container has nothing stale to remove.
+The installer needs network access to `github.com` and `registry.npmjs.org`; if the environment's network level blocks either, allow them with a custom domain list or pass `--no-skills` to skip the skills.
+Cloud environments cache the setup result, so changes pushed to this repo reach cloud sessions only after the setup script runs again.
+
+The cloud docs confirm that a setup script can add `~/.claude/CLAUDE.md`, but not that cloud sessions read a user-level `~/.claude/settings.json`.
+After the first setup, have a cloud session make a commit and check `git log -1 --format=%B` for `Co-Authored-By` and `Claude-Session` lines, and run `/agents` to confirm the roster loaded.
+
 ### What install.sh changes
 
 | Target | Source |
