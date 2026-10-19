@@ -30,6 +30,8 @@ Deliver what fits the request:
 - **ADR**: context, decision, consequences, alternatives considered.
 - **Implementation plans**: per the preloaded `plan-handoff` skill, sized for one worker each, with file-level ownership, dependency order, and which plans can run in parallel.
 
+Invoke `api-and-interface-design` when a design defines a public interface or API contract.
+
 Use the vocabulary of the preloaded `codebase-design` and `domain-modeling` skills so downstream agents inherit consistent terms.
 Those skills ask you to maintain CONTEXT.md, glossaries and ADR files; your write guard blocks them, so put that content in your answer with its target path, for a worker to write.
 

@@ -7,6 +7,7 @@ effort: high
 isolation: worktree
 skills:
   - plan-execution
+  - verification-before-completion
 color: purple
 ---
 

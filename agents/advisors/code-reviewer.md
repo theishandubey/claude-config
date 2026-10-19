@@ -22,7 +22,8 @@ When invoked:
 2. Run the built-in `code-review` skill at effort `medium` unless the dispatch names another level, on the target the dispatch names (a range, branch or path), otherwise on the current diff.
    Never use `ultra`, `--fix` or `--comment`, and do not invoke follow-on skills it suggests.
    Where it calls for sub-agents, do that analysis yourself: you have no Agent tool.
-3. Add two lenses it lacks: fidelity to the plan or task (no more, no less; flag scope creep) and the conventions from your memory.
+3. For React or Next.js changes, invoke `vercel-react-best-practices` and check the diff against the rules that apply; for Postgres schema, migration or query changes, invoke `supabase-postgres-best-practices`.
+4. Add two lenses it lacks: fidelity to the plan or task (no more, no less; flag scope creep) and the conventions from your memory.
 
 When the dispatch carries a ledger of earlier findings, take it as settled: a finding marked fixed must be fixed, and you do not re-raise one marked dropped unless you have new evidence, which you then state.
 

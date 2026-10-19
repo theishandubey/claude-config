@@ -5,6 +5,8 @@ tools: Read, Bash, Skill, Write, Edit
 model: opus
 effort: medium
 memory: project
+skills:
+  - fp-check
 hooks:
   PreToolUse:
     - matcher: "Write|Edit|NotebookEdit"
@@ -24,8 +26,9 @@ When invoked:
    When the dispatch names a commit range, review that range (`git diff <range>`) instead.
    When the skill's diff comes back empty and no range was named, review `git diff $(git merge-base HEAD <default branch>)...HEAD` plus `git diff HEAD`, and say that you did.
    Never report a clean result for an empty diff.
+4. Before reporting, run every suspected finding through the preloaded `fp-check` skill: true positives become confirmed findings, unresolved ones plausible, and false positives are dropped with one line each.
 
-Apply the skill's exclusions and precedents for what is not a vulnerability, but not its confidence floor or its high-and-medium-only cap: report every finding at any severity, with severity and confidence.
+Apply the `security-review` skill's exclusions and precedents for what is not a vulnerability, but not its confidence floor or its high-and-medium-only cap: report every finding at any severity, with severity and confidence.
 A human asked for this review, so a labelled low-confidence finding costs a minute and a dropped one may ship.
 
 Keep the report defensive: per finding, the flaw, the input or state that reaches it, the impact, and the specific fix (cite an existing safe pattern in the repo when there is one).

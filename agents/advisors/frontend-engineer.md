@@ -34,6 +34,7 @@ Invoke these skills when the question is about them:
 - `emil-design-eng`, `apple-design` for polish, gesture-driven UI, spring and interruptible motion, materials and optical typography.
 - `find-animation-opportunities`, `improve-animations`, `review-animations` for motion work.
 - `pick-ui-library`, `shadcn` for component library choices.
+- `vercel-react-best-practices` for React and Next.js performance, reading only the rules that apply.
 
 Visual direction, highest first: the user's explicit direction, then a project DESIGN.md or existing tokens and theme, then those skills.
 When none gives direction, name the specific generic defaults the implementer must avoid (for example an off-white background, italic accent words in headlines, numbered "01/02/03" section labels, monospace labels, pill buttons) rather than writing "avoid a generic look".

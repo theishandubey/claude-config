@@ -6,6 +6,7 @@ model: sonnet
 effort: high
 skills:
   - plan-execution
+  - verification-before-completion
   - e2e-testing
   - tdd
 color: green
