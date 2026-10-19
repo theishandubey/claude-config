@@ -75,6 +75,9 @@ Pass `model: "fable"` only when the user asks for Fable in that request, and nev
 
 **Escalation:** when review shows a design flaw rather than point defects, go back to the planning advisor before `fixer`.
 
+**Correction:** when the user corrects you, follow the `correct` skill.
+Write anything a person will read (PR bodies, reports, published pages) through the `unslop` skill.
+
 ## Parallel work
 
 Before dispatching `parallel-implementer`s, commit the base and split by file ownership, then follow the `parallel-build` skill.

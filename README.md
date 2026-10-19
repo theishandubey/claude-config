@@ -140,18 +140,23 @@ npx skills update -p -y
 Review the diff before committing an update: vendored skills run with full permissions.
 
 Vendored skills are committed unmodified first, and any adaptation to this setup lands as a separate commit on top, so an update is merged against a visible local diff rather than overwriting it.
-These are adapted locally: `verification-before-completion`, `receiving-code-review`, `diagnosing-bugs`, `fp-check`, `api-and-interface-design`, `observability-and-instrumentation`, `supabase-postgres-best-practices` and `vercel-react-best-practices`.
+These are adapted locally: `verification-before-completion`, `receiving-code-review`, `diagnosing-bugs`, `fp-check`, `api-and-interface-design`, `observability-and-instrumentation`, `supabase-postgres-best-practices`, `vercel-react-best-practices`, and every skill vendored from poteto's pstack (the `principle-*` skills, `benchmark-checklist`, `blast-radius`, `correct`, `create-verification-skill`, `maintain-verification-skill` and `unslop`).
 
 | Agent | Preloaded vendored skills | Invoked on demand |
 |---|---|---|
-| `architect` | `codebase-design`, `domain-modeling` | `api-and-interface-design` |
-| `backend-engineer` | `api-and-interface-design`, `supabase-postgres-best-practices` | `observability-and-instrumentation` |
-| `sre` | `observability-and-instrumentation` | `diagnosing-bugs`, `supabase-postgres-best-practices` |
-| `frontend-engineer` | | design, motion and UI skills, `vercel-react-best-practices` |
-| `code-reviewer` | | `vercel-react-best-practices`, `supabase-postgres-best-practices` |
+| `architect` | `codebase-design`, `domain-modeling`, principles: foundational-thinking, model-the-domain, redesign-from-first-principles, attack-the-premise, subtract-before-you-add, sequence-verifiable-units, migrate-callers-then-delete-legacy-apis, encode-lessons-in-structure | `api-and-interface-design` |
+| `backend-engineer` | `api-and-interface-design`, `supabase-postgres-best-practices`, principles: boundary-discipline, make-operations-idempotent, separate-before-serializing-shared-state, type-system-discipline | `observability-and-instrumentation`, `benchmark-checklist` |
+| `sre` | `observability-and-instrumentation`, principles: make-operations-idempotent, explain-the-number, fix-root-causes | `diagnosing-bugs`, `supabase-postgres-best-practices`, `benchmark-checklist` |
+| `frontend-engineer` | principles: experience-first, type-system-discipline | design, motion and UI skills, `vercel-react-best-practices` |
+| `qa-lead` | principle: test-behavior-not-implementation | `create-verification-skill`, `maintain-verification-skill` |
+| `code-reviewer` | principles: minimize-reader-load, subtract-before-you-add, boundary-discipline, type-system-discipline, test-behavior-not-implementation | `blast-radius`, `vercel-react-best-practices`, `supabase-postgres-best-practices` |
 | `security-reviewer` | `fp-check` | |
-| `fixer` | `verification-before-completion`, `diagnosing-bugs`, `receiving-code-review` | |
-| `implementer`, `parallel-implementer`, `test-writer`, `doc-writer` | `verification-before-completion` (plus `tdd` for `test-writer`) | |
+| `fixer` | `verification-before-completion`, `diagnosing-bugs`, `receiving-code-review`, principle: fix-root-causes | |
+| `implementer`, `parallel-implementer` | `verification-before-completion`, principles: laziness-protocol, outcome-oriented-execution, minimize-reader-load, build-the-lever | |
+| `test-writer` | `verification-before-completion`, `tdd`, principle: test-behavior-not-implementation | `create-verification-skill`, `maintain-verification-skill` |
+| `doc-writer` | `verification-before-completion`, `unslop` | |
+
+The orchestrator follows `correct` when the user corrects it and writes prose for people through `unslop`.
 
 ## Development
 
