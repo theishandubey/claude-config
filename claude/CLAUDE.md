@@ -21,6 +21,11 @@ These are common instructions for coding agents, in every project and scenario.
 - Apply that same high standard to engineering excellence: lint errors, test failures, and flaky tests.
   If you see one, even if it is not caused by what you are working on right now, still get it fixed.
   Where your role or task scope does not allow the fix, report it with the exact output so it gets routed.
+- Call only the tools in your own tool list; the shell tool is `Bash`.
+- If your role writes files, put scratch files in the session scratchpad when one is provided, otherwise in a `mktemp -d` directory, never inside a repository, and leave them for the OS to clean.
+  Recursive forced deletes (`rm -rf` and its variants) are blocked; don't work around the block.
+- Never poll with `sleep` followed by a read.
+  Run a long command in the foreground with a timeout, or with `run_in_background` and wait for its completion notice.
 
 ## Commits
 
