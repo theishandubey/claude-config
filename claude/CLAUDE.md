@@ -142,6 +142,7 @@ These hold at every rung of the ladder:
 ## Worktree orchestration (parallel execution)
 
 When spawning `parallel-implementer` agents (or any worktree-isolated work), you - the main session - own the lifecycle: commit before dispatch and split by file ownership, then invoke the `parallel-build` skill for the full invariants and merge-back procedure instead of improvising.
+In a multi-repo workspace, `cd` into the target repo in its own Bash call before any git command or worktree dispatch; the skill has the check.
 
 ## Sub-agents vs agent teams
 

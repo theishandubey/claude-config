@@ -18,7 +18,9 @@ The main session owns the worktree lifecycle end to end. These hold for ANY work
 - **Worktrees check out committed state only.** Uncommitted scaffolding or plan groundwork is invisible to them, so the working tree must be clean (or intentionally so) before dispatch.
 - **No two parallel tasks may touch the same files.** If the plan doesn't specify file ownership per step, get that from the planning advisor (`architect` for cross-cutting work) before dispatching.
 - **Merge sequentially, never in parallel**, and verify the INTEGRATED result - each worktree only verified itself.
-- **Clean up after abandoned runs.** If a run is cancelled or superseded, list leftovers with `git worktree list` and prune the merged/abandoned ones rather than letting them accumulate.
+- **Dispatch from inside the target repo.** Claude Code creates each agent's worktree from the main session's current shell directory, so a shell left in a non-repo folder (a multi-repo workspace root, or its `plans/`) fails the dispatch with "Cannot create agent worktree: not in a git repository".
+- **Clean up after abandoned runs.** If a run is cancelled or superseded, list leftovers with `git worktree list` and remove only the worktrees this run created, once merged or abandoned; another live session may own the rest, so list them to the user instead.
+  Before any `git worktree remove --force`, inspect `git -C <wt> status` and report what it would discard.
 
 ## Phase 1 - Prepare
 1. If no implementation plan with per-step file ownership exists, get one from the planning advisor (`architect` for cross-cutting work) first. Its plans follow the `improve` handoff template: one plan per task, and each plan's Scope in-scope list is that task's owned files. Every task must list the exact files it owns; reject plans with overlapping ownership or renegotiate the split.
@@ -29,6 +31,7 @@ The main session owns the worktree lifecycle end to end. These hold for ANY work
    d. Commit it with the base (it's team-shareable config).
    If the file exists, skim it for obvious gaps against the same detection and append if needed.
 3. Ensure the working tree is committed: `git status` clean, base work committed. An untracked `plans/` or `advisor-plans/` holding advisor plans is intentional: it stays uncommitted and does not block dispatch (pass each plan's full text in the delegation prompt). Record the base branch and SHA.
+   In its own Bash call immediately before each dispatch (every wave and every re-dispatch, since editing plans or the index elsewhere moves the shell), `cd` to the target repo root and confirm `git rev-parse --show-toplevel` prints it.
 4. Confirm task count ≤ 4 (more rarely helps; merge cost grows). If the plan has more independent tasks, run them in waves of at most 4: finish Phases 2-4 for one wave before dispatching the next.
 
 ## Phase 2 - Dispatch
@@ -38,6 +41,7 @@ The main session owns the worktree lifecycle end to end. These hold for ANY work
 ## Phase 3 - Integrate (sequential, never parallel)
 7. Collect each agent's reported branch, base SHA, and tip SHA. Order the merges: least-risky/most-foundational first (shared types/utils before consumers).
    Check each report's Completion line; hold back partial branches and resolve what remains (re-dispatch, or route to `fixer` or the advisor) before merging them.
+   To resume a partial branch, check out the recorded base in the main checkout (the replacement worktree branches from the main session's HEAD), then dispatch a fresh `parallel-implementer` whose prompt names the partial branch with its base and tip SHAs and tells it to first `git cherry-pick <base>..<tip>` and then finish the remaining work; after the re-dispatch, check the integration branch back out (if one exists) before continuing the merges; once the replacement merges, remove the partial worktree and delete its branch.
 8. Create or check out the integration branch from the recorded base.
 9. For each branch in order:
    a. `git merge --no-ff <branch>` (or `git cherry-pick <base>..<tip>` using the reported base and tip SHAs if the branch history is noisy).
@@ -48,5 +52,5 @@ The main session owns the worktree lifecycle end to end. These hold for ANY work
 ## Phase 4 - Review & clean up
 11. Run `code-reviewer` on the combined diff (`git diff <base-SHA>...HEAD`) - post-merge only. Handle the verdict and its findings per routing invariant 3 in the playbook, including nits and any unrelated failures the workers reported.
 12. **Fold back `.worktreeinclude` suggestions**: collect the `.worktreeinclude` suggestions section from every worker report. Append any legitimate new lines (dedupe; apply the no-secrets rule from Phase 1) and commit - next run's workers start with a complete environment.
-13. Prune the worktree branches that merged cleanly; run `git worktree list` and remove leftovers from this run.
+13. Prune the worktree branches that merged cleanly; run `git worktree list` and remove leftovers this run created, per the cleanup invariant, and list any others to the user.
 14. Report: tasks completed, branches merged (in order), conflicts encountered and how resolved, final verification results, `.worktreeinclude` lines added, unrelated failures reported by workers, and worktrees cleaned.
