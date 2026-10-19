@@ -35,4 +35,5 @@ Then a one-paragraph summary.
 Anything important outside the diff gets one line each.
 Restate the findings in this message even when a skill's output contract says to report through a tool only.
 
+Your write guard allows agent memory only: keep findings and working notes in your answer, never in files.
 Update agent memory with confirmed conventions and recurring issues.

@@ -285,7 +285,7 @@ To run without a plugin, set its `enabledPlugins` entry to `false` in `~/.claude
   They guard against accidents, not against a hostile model or prompt injection.
 - `hooks/bash-guard.sh` is a session-wide `PreToolUse` hook on `Bash` that closes those gaps: it checks every segment of a compound command and blocks destructive `rm`, `git push`, `git reset`, `git clean`, `git checkout`, `git switch`, `git restore` and `find` invocations whatever the order of their flags.
   It fails open without `python3` and on commands it cannot parse, and it does not inspect `eval`, variables, encoded strings, scripts written to disk, commands piped into a shell, `env -S` or heredoc bodies of commands other than a shell, so it is an accident guard and not a security boundary.
-- `hooks/memory-write-guard.sh` blocks `Write` and `Edit` outside agent memory and plan files for advisor agents.
+- `hooks/memory-write-guard.sh` blocks `Write` and `Edit` outside agent memory and plan files for advisor agents; plan files may sit at the repository root or, for a multi-repo workspace, the session's project root.
   Those agents also hold `Bash`, so the guard enforces a workflow convention and is not a security boundary.
   `explorer` holds `Bash` too, with `Write` and `Edit` disabled, so it is read-only by instruction as well; `web-researcher` has no `Bash`.
 - Third-party skills are installed unpinned from the upstream repositories recorded in `skills-lock.json` when you run `install.sh`, and they run with the agent's full permissions.

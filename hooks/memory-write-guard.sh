@@ -12,14 +12,23 @@
 # else is blocked.
 #
 # Planning advisors pass `--allow-plans`, which also lets through plan files in
-# `plans/` and `advisor-plans/` directly under the root of the git repository the
-# session runs in - the handoff-plan location of the `improve` skill.
+# `plans/` and `advisor-plans/`, the handoff-plan location of the `improve` skill.
+# These directories must sit directly under the root of the git repository the
+# session runs in, or directly under the session's project root (`CLAUDE_PROJECT_DIR`)
+# when that root is a multi-repo workspace: a folder that is not inside any
+# repository (no `.git` entry in it or any ancestor, checked without running git)
+# and has a direct child with a `.git` entry (a directory or a file, so
+# submodules and linked worktrees count, and so does a child that is a symlink
+# to a repository).
+# A project root of `/`, a project root that is itself a repository or inside one
+# (including a workspace nested in a repository), and a folder without a child
+# repository are never trusted as the project root.
 # A plan file is `README.md` or `<digits>-*.md` with three or more digits, so
 # `001-x.md` and `1000-x.md` pass and `12-x.md` does not; other markdown files
 # in those directories are blocked, but an unrelated `plans/README.md` is
 # protected by the prompt only.
 # The `plans/` directory and the plan file themselves must not be symlinks;
-# hard links and symlinks above the repository root are not detected.
+# hard links and symlinks above the repository or project root are not detected.
 # Nested `plans/` directories elsewhere in the tree are project code and stay blocked.
 #
 # Contract: reads the PreToolUse JSON payload on stdin. Exit 0 allows the call;
@@ -104,6 +113,10 @@ case "$resolved" in
     ;;
 esac
 
+realdir() {
+  CDPATH='' cd -P -- "$1" 2>/dev/null && pwd -P
+}
+
 if [ "$allow_plans" -eq 1 ]; then
   plans_dir="${resolved%/*}"
   repo_dir="${plans_dir%/*}"
@@ -111,18 +124,37 @@ if [ "$allow_plans" -eq 1 ]; then
   plan_name_re='^[0-9]{3,}-.+\.md$'
   case "${plans_dir##*/}" in
     plans|advisor-plans)
-      if [ "$name" = "README.md" ] || [[ "$name" =~ $plan_name_re ]]; then
-        root="$(git -C "$cwd" rev-parse --show-toplevel 2>/dev/null)"
-        root_real="$(CDPATH='' cd -P -- "$root" 2>/dev/null && pwd -P)"
-        repo_real="$(CDPATH='' cd -P -- "${repo_dir:-/}" 2>/dev/null && pwd -P)"
-        if [ -n "$root" ] && [ -n "$root_real" ] && [ "$repo_real" = "$root_real" ] \
-          && [ ! -L "$plans_dir" ] && [ ! -L "$resolved" ]; then
-          exit 0
+      if { [ "$name" = "README.md" ] || [[ "$name" =~ $plan_name_re ]]; } \
+        && [ ! -L "$plans_dir" ] && [ ! -L "$resolved" ]; then
+        repo_real="$(realdir "${repo_dir:-/}")"
+        if [ -n "$repo_real" ] && [ "$repo_real" != "/" ]; then
+          root="$(git -C "$cwd" rev-parse --show-toplevel 2>/dev/null)"
+          root_real=""
+          [ -z "$root" ] || root_real="$(realdir "$root")"
+          [ "$repo_real" != "$root_real" ] || exit 0
+          project_real=""
+          [ -z "${CLAUDE_PROJECT_DIR:-}" ] || project_real="$(realdir "$CLAUDE_PROJECT_DIR")"
+          if [ "$repo_real" = "$project_real" ]; then
+            ancestor="$project_real"
+            while [ ! -e "$ancestor/.git" ] && [ "$ancestor" != "/" ]; do
+              ancestor="${ancestor%/*}"
+              ancestor="${ancestor:-/}"
+            done
+            if [ ! -e "$ancestor/.git" ]; then
+              set +o noglob
+              for child in "$project_real"/*/; do
+                if [ -e "${child}.git" ]; then
+                  exit 0
+                fi
+              done
+              set -o noglob
+            fi
+          fi
         fi
       fi
       ;;
   esac
-  allowed="<project>/.claude/agent-memory{,-local}/<agent-name>/**, <repo root>/plans/{NNN-*.md,README.md}, <repo root>/advisor-plans/{NNN-*.md,README.md}"
+  allowed="<project>/.claude/agent-memory{,-local}/<agent-name>/**, <repo root or project root>/plans/{NNN-*.md,README.md}, <repo root or project root>/advisor-plans/{NNN-*.md,README.md}"
 else
   allowed="<project>/.claude/agent-memory{,-local}/<agent-name>/**"
 fi

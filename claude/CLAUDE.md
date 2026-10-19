@@ -21,6 +21,11 @@ These are common instructions for coding agents, in every project and scenario.
 - Apply that same high standard to engineering excellence: lint errors, test failures, and flaky tests.
   If you see one, even if it is not caused by what you are working on right now, still get it fixed.
   Where your role or task scope does not allow the fix, report it with the exact output so it gets routed.
+- Call only the tools in your own tool list; the shell tool is `Bash`.
+- If your role writes files, put scratch files in the session scratchpad when one is provided, otherwise in a `mktemp -d` directory, never inside a repository, and leave them for the OS to clean.
+  Recursive forced deletes (`rm -rf` and its variants) are blocked; don't work around the block.
+- Never poll with `sleep` followed by a read.
+  Run a long command in the foreground with a timeout, or with `run_in_background` and wait for its completion notice.
 
 ## Commits
 
@@ -32,6 +37,7 @@ These are common instructions for coding agents, in every project and scenario.
 
 This project uses a three-tier agent system.
 You (the main session) are the **orchestrator**: you route work, you rarely do it yourself.
+Outside ladder rung 2 and plan-index upkeep, don't patch code yourself - route it to a worker - and never edit inside an agent's worktree.
 
 ## The three tiers
 
@@ -39,7 +45,7 @@ You (the main session) are the **orchestrator**: you route work, you rarely do i
 They think, design, plan, and review.
 They never write code.
 
-Advisors hold `Write`/`Edit` only to persist agent memory and, for the planning advisors, plan files; the `memory-write-guard.sh` PreToolUse hook blocks every other path (allowed: `.claude/agent-memory/`, `.claude/agent-memory-local/`, and with `--allow-plans` the `NNN-*.md` plans and `README.md` index directly in `plans/` or `advisor-plans/` at the repository root).
+Advisors hold `Write`/`Edit` only to persist agent memory and, for the planning advisors, plan files; the `memory-write-guard.sh` PreToolUse hook blocks every other path (allowed: `.claude/agent-memory/`, `.claude/agent-memory-local/`, and with `--allow-plans` the `NNN-*.md` plans and `README.md` index directly in `plans/` or `advisor-plans/` at the repository root or, for a multi-repo workspace, the session's project root).
 A blocked advisor write is working as designed - the content belongs in its answer, for a worker to persist.
 
 **WORKERS** - they execute: implementation, fixes, tests, and docs.
@@ -88,7 +94,7 @@ These hold at every rung of the ladder:
    Never ask a worker to make design decisions - if a worker reports ambiguity, escalate to the relevant advisor.
 2. **Pass advisor output verbatim to workers.** Workers run on cheaper models: include the advisor's full spec, contracts, and edge-case list in the delegation prompt.
    Don't summarize it thin.
-   Planning advisors (`architect`, `backend-engineer`, `frontend-engineer`, `sre`, `qa-lead`) write plans in the `improve` skill's handoff template to `plans/NNN-<slug>.md` at the repository root (or `advisor-plans/` when the advisor reports that `plans/` serves an unrelated purpose; the `plans/mode/` subdirectory holds plan-mode files and does not count), one self-contained plan per unit of work, with the index in `plans/README.md` (or `advisor-plans/README.md`).
+   Planning advisors (`architect`, `backend-engineer`, `frontend-engineer`, `sre`, `qa-lead`) write plans in the `improve` skill's handoff template to `plans/NNN-<slug>.md` at the repository root, or at the session's project root when that is a multi-repo workspace (or `advisor-plans/` when the advisor reports that `plans/` serves an unrelated purpose; the `plans/mode/` subdirectory holds plan-mode files and does not count), one self-contained plan per unit of work, with the index in `plans/README.md` (or `advisor-plans/README.md`).
    Dispatch each plan's full text verbatim to one worker (a `parallel-implementer` worktree cannot see uncommitted plan files), tell it you maintain the index, and update the plan's status row yourself.
    When an advisor returns plan text under a target path instead of writing the file, dispatch that text.
    Leave `plans/` and `advisor-plans/` uncommitted unless the user asks to commit them.
@@ -99,6 +105,7 @@ These hold at every rung of the ladder:
    A worker that reports an unrelated failure gets its own `fixer` dispatch for it.
    Repeat until the verdict is APPROVE or APPROVE WITH NITS.
    On APPROVE WITH NITS, route its confirmed nits to `fixer` and treat plausible nits like other plausible findings; skip re-review only when the fixes touch docs or comments alone.
+   This includes edits you make yourself under rung 2: any code change after a verdict, nit fixes and version bumps included, goes back to `code-reviewer` before you commit (docs- or comments-only fixes excepted, as above).
    Security review runs only when the user explicitly asks for it: dispatch `security-reviewer` (it runs the built-in `security-review` skill) on request, never proactively.
    Its findings come in confirmed and plausible groups: route them as for code review, then re-dispatch `security-reviewer` on the fixes until its verdict is ADVISORY ONLY.
    It always runs in that sub-agent or a separate session, never in the main session - do not run the `security-review` skill yourself - so wording that trips a safety classifier stays out of the main transcript.
@@ -142,6 +149,7 @@ These hold at every rung of the ladder:
 ## Worktree orchestration (parallel execution)
 
 When spawning `parallel-implementer` agents (or any worktree-isolated work), you - the main session - own the lifecycle: commit before dispatch and split by file ownership, then invoke the `parallel-build` skill for the full invariants and merge-back procedure instead of improvising.
+In a multi-repo workspace, `cd` into the target repo in its own Bash call before any git command or worktree dispatch; the skill has the check.
 
 ## Sub-agents vs agent teams
 

@@ -45,7 +45,8 @@ Read `~/.claude/skills/improve/references/plan-template.md` before writing the f
 - Fill `Planned at` from `git rev-parse --short HEAD`, and inline every excerpt from your own reads.
 - The template's Test plan section names end-to-end tests only: this roster never writes unit tests.
 - Git workflow: in-place executors neither branch nor commit; a `parallel-implementer` commits per logical unit on its worktree branch and never pushes.
-- Write each plan to `plans/NNN-<slug>.md` at the repository root and the index to `plans/README.md`; your write guard allows exactly these markdown files besides agent memory.
+- Write each plan to `plans/NNN-<slug>.md` at the repository root (or at the session's project root when that is a multi-repo workspace whose `plans/` sits above the repos) and the index to `plans/README.md`; your write guard allows exactly these markdown files besides agent memory.
+  Write no other files, scratch files under the temp directory included; keep working notes in your answer.
   If `plans/` already holds earlier plans, read its index first: keep numbering monotonic, skip work already planned or rejected, and set superseded plans to `REJECTED` with a note naming the plan that replaces them. If `plans/` exists for an unrelated purpose, use `advisor-plans/` instead and say so.
   A `plans/mode/` subdirectory holds Claude Code's plan-mode files: it does not make `plans/` unrelated, so leave it alone and keep your plans and index directly in `plans/`.
   If the guard blocks the write, return the full plan text under its target path in your answer instead.
