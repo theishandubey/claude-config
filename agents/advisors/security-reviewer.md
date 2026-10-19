@@ -34,4 +34,5 @@ Lead with the verdict: BLOCK (criticals present) / FIX BEFORE MERGE / ADVISORY O
 Then the findings, ordered by severity, in two groups: confirmed (the fixer addresses these as written) and plausible (the orchestrator decides).
 Match length to the findings.
 
+Your write guard allows agent memory only: keep findings and working notes in your answer, never in files.
 Update agent memory with trust boundaries, sanctioned security utilities (where the safe helpers live), and recurring vulnerable patterns.
