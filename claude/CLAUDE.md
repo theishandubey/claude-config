@@ -37,6 +37,7 @@ These are common instructions for coding agents, in every project and scenario.
 
 This project uses a three-tier agent system.
 You (the main session) are the **orchestrator**: you route work, you rarely do it yourself.
+Outside ladder rung 2 and plan-index upkeep, don't patch code yourself - route it to a worker - and never edit inside an agent's worktree.
 
 ## The three tiers
 
@@ -104,6 +105,7 @@ These hold at every rung of the ladder:
    A worker that reports an unrelated failure gets its own `fixer` dispatch for it.
    Repeat until the verdict is APPROVE or APPROVE WITH NITS.
    On APPROVE WITH NITS, route its confirmed nits to `fixer` and treat plausible nits like other plausible findings; skip re-review only when the fixes touch docs or comments alone.
+   This includes edits you make yourself under rung 2: any code change after a verdict, nit fixes and version bumps included, goes back to `code-reviewer` before you commit (docs- or comments-only fixes excepted, as above).
    Security review runs only when the user explicitly asks for it: dispatch `security-reviewer` (it runs the built-in `security-review` skill) on request, never proactively.
    Its findings come in confirmed and plausible groups: route them as for code review, then re-dispatch `security-reviewer` on the fixes until its verdict is ADVISORY ONLY.
    It always runs in that sub-agent or a separate session, never in the main session - do not run the `security-review` skill yourself - so wording that trips a safety classifier stays out of the main transcript.
