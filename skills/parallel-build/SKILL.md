@@ -1,56 +1,55 @@
 ---
 name: parallel-build
-description: Orchestrate a parallel implementation run - split a plan into file-disjoint tasks, dispatch parallel-implementer agents in isolated worktrees, then merge branches back sequentially and verify the integrated result. Use for multi-part features or refactors sized for 2+ simultaneous implementers.
-argument-hint: "[plan or task description]"
+description: Orchestrate a parallel implementation run - split plans into file-disjoint tasks, dispatch parallel-implementer agents in isolated worktrees, merge their branches back one at a time and verify the integrated result. Use in the main session for work sized for 2 or more simultaneous implementers.
+argument-hint: "[plans or task description]"
 ---
 
-Orchestrate a parallel build for: $ARGUMENTS
+Run a parallel build for: $ARGUMENTS
 
-Run this procedure in the MAIN conversation (this skill must not fork - you own the merge).
-
-ROLE NOTE: if you are reading this as a preloaded skill inside a `parallel-implementer` agent, this document is context about the pipeline around you - do NOT execute these phases. Only the main orchestrating session runs this procedure.
+Run this in the main session; it owns the worktrees and the merge.
 
 ## Invariants
 
-The main session owns the worktree lifecycle end to end. These hold for ANY worktree-isolated work, whether or not you run the full procedure below:
+- One task, one agent, one worktree.
+- Worktrees check out committed state only: commit the base before dispatch.
+- No two tasks in a wave touch the same file.
+- Merge one branch at a time and verify the integrated result; each worktree only verified itself.
+- Dispatch from inside the target repo: the agent's worktree is created from the main session's shell directory.
+- Remove only worktrees this run created, and inspect `git -C <worktree> status` before any forced removal.
 
-- **One task, one agent, one worktree.** Never send two agents into the same worktree.
-- **Worktrees check out committed state only.** Uncommitted scaffolding or plan groundwork is invisible to them, so the working tree must be clean (or intentionally so) before dispatch.
-- **No two parallel tasks may touch the same files.** If the plan doesn't specify file ownership per step, get that from the planning advisor (`architect` for cross-cutting work) before dispatching.
-- **Merge sequentially, never in parallel**, and verify the INTEGRATED result - each worktree only verified itself.
-- **Dispatch from inside the target repo.** Claude Code creates each agent's worktree from the main session's current shell directory, so a shell left in a non-repo folder (a multi-repo workspace root, or its `plans/`) fails the dispatch with "Cannot create agent worktree: not in a git repository".
-- **Clean up after abandoned runs.** If a run is cancelled or superseded, list leftovers with `git worktree list` and remove only the worktrees this run created, once merged or abandoned; another live session may own the rest, so list them to the user instead.
-  Before any `git worktree remove --force`, inspect `git -C <wt> status` and report what it would discard.
+## 1. Prepare
 
-## Phase 1 - Prepare
-1. If no implementation plan with per-step file ownership exists, get one from the planning advisor (`architect` for cross-cutting work) first. Its plans follow the `improve` handoff template: one plan per task, and each plan's Scope in-scope list is that task's owned files. Every task must list the exact files it owns; reject plans with overlapping ownership or renegotiate the split.
-2. **Bootstrap `.worktreeinclude`**: check for a `.worktreeinclude` file at the repo root. If missing, create one BEFORE dispatching:
-   a. Detect untracked-but-required files: `git status --ignored --short` cross-checked against what the build/test setup references - env files (`.env.local`, `.env.development`), local certs, tool configs (`.npmrc`, `docker-compose.override.yml`).
-   b. Write the detected paths to `.worktreeinclude` (one per line, comments with `#`). If nothing is detected, still create it with a commented header explaining its purpose, so future runs and teammates find it.
-   c. NEVER list secrets that shouldn't propagate (production credentials, personal tokens) - only local dev prerequisites.
-   d. Commit it with the base (it's team-shareable config).
-   If the file exists, skim it for obvious gaps against the same detection and append if needed.
-3. Ensure the working tree is committed: `git status` clean, base work committed. An untracked `plans/` or `advisor-plans/` holding advisor plans is intentional: it stays uncommitted and does not block dispatch (pass each plan's full text in the delegation prompt). Record the base branch and SHA.
-   In its own Bash call immediately before each dispatch (every wave and every re-dispatch, since editing plans or the index elsewhere moves the shell), `cd` to the target repo root and confirm `git rev-parse --show-toplevel` prints it.
-4. Confirm task count ≤ 4 (more rarely helps; merge cost grows). If the plan has more independent tasks, run them in waves of at most 4: finish Phases 2-4 for one wave before dispatching the next.
+1. Every task needs a plan whose in-scope list is the files it owns.
+   Get plans from the planning advisor if they are missing, and send overlapping ownership back to it.
+2. Make sure `.worktreeinclude` exists at the repo root, listing untracked files the build or tests need (local env files, local certs, tool config), never production secrets.
+   Find them with `git status --ignored --short` against what the build references.
+   Create it with a commented header even when nothing is needed, and commit it with the base.
+3. Commit the base and record the branch and SHA.
+   An untracked `plans/` stays uncommitted and does not block dispatch: you pass each plan's full text in the prompt.
+4. In its own `Bash` call right before each dispatch, `cd` to the repo root and confirm `git rev-parse --show-toplevel`.
+5. At most 4 tasks per wave; finish steps 2-4 of this procedure for one wave before the next.
 
-## Phase 2 - Dispatch
-5. Spawn one `parallel-implementer` per task, in parallel. Each delegation prompt MUST include: the full task spec verbatim, the owned-file list, the repo's install/build/test commands, and the instruction to commit but never push/merge, and that you maintain the plans index.
-6. While they run, do not edit the repo yourself in the main checkout.
+## 2. Dispatch
 
-## Phase 3 - Integrate (sequential, never parallel)
-7. Collect each agent's reported branch, base SHA, and tip SHA. Order the merges: least-risky/most-foundational first (shared types/utils before consumers).
-   Check each report's Completion line; hold back partial branches and resolve what remains (re-dispatch, or route to `fixer` or the advisor) before merging them.
-   To resume a partial branch, check out the recorded base in the main checkout (the replacement worktree branches from the main session's HEAD), then dispatch a fresh `parallel-implementer` whose prompt names the partial branch with its base and tip SHAs and tells it to first `git cherry-pick <base>..<tip>` and then finish the remaining work; after the re-dispatch, check the integration branch back out (if one exists) before continuing the merges; once the replacement merges, remove the partial worktree and delete its branch.
-8. Create or check out the integration branch from the recorded base.
-9. For each branch in order:
-   a. `git merge --no-ff <branch>` (or `git cherry-pick <base>..<tip>` using the reported base and tip SHAs if the branch history is noisy).
-   b. On conflict: resolve using the task specs as the source of truth for intent. If a conflict reveals genuinely overlapping ownership, stop and route the overlapping piece to a single `fixer` rather than hand-blending both versions.
-   c. After each merge, run typecheck/build only (fast signal). Full tests wait for step 10.
-10. After ALL merges: run the complete test suite once on the integrated branch. Route failures to `fixer` with the failing output and the list of merged branches (integration bugs usually live at the seams between tasks).
+Spawn one `parallel-implementer` per task, in parallel.
+Each prompt holds the plan verbatim, the owned-file list, the repo's install, build and test commands, and the reminder that it commits but never pushes or merges and that you maintain `plans/README.md`.
+Do not edit the main checkout while they run.
 
-## Phase 4 - Review & clean up
-11. Run `code-reviewer` on the combined diff (`git diff <base-SHA>...HEAD`) - post-merge only. Handle the verdict and its findings per routing invariant 3 in the playbook, including nits and any unrelated failures the workers reported.
-12. **Fold back `.worktreeinclude` suggestions**: collect the `.worktreeinclude` suggestions section from every worker report. Append any legitimate new lines (dedupe; apply the no-secrets rule from Phase 1) and commit - next run's workers start with a complete environment.
-13. Prune the worktree branches that merged cleanly; run `git worktree list` and remove leftovers this run created, per the cleanup invariant, and list any others to the user.
-14. Report: tasks completed, branches merged (in order), conflicts encountered and how resolved, final verification results, `.worktreeinclude` lines added, unrelated failures reported by workers, and worktrees cleaned.
+## 3. Integrate
+
+1. Collect each report's branch, base SHA, tip SHA and completion line.
+   Hold back partial branches: re-dispatch the remaining work to a fresh `parallel-implementer` whose prompt names the partial branch and its SHAs and tells it to `git cherry-pick <base>..<tip>` first.
+2. Create or check out the integration branch from the recorded base.
+3. Merge the branches one at a time, foundational ones first: `git merge --no-ff <branch>`.
+   After each merge run the typecheck or build only.
+4. On a merge conflict, abort the merge (`git merge --abort`) and dispatch `fixer` with both task plans, the conflicting branch and the integration branch, to merge it on the integration branch by the plans' intent.
+   If the conflict shows the plans overlap, stop and send them back to the planning advisor.
+5. After all merges, run the full test suite once.
+   Route failures to `fixer` with the output and the list of merged branches.
+
+## 4. Review and clean up
+
+1. Run `code-reviewer` once on the combined diff (`git diff <base>...HEAD`) and follow the playbook's review loop.
+2. Add legitimate `.worktreeinclude` suggestions from the reports and commit them.
+3. Delete merged branches and remove this run's worktrees; list any others to the user.
+4. Report: tasks completed, merge order, conflicts and how they were resolved, verification results, `.worktreeinclude` lines added, unrelated failures the workers reported, and worktrees removed.

@@ -14,19 +14,14 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-      - name: Install shellcheck
+      - name: Install shellcheck and tmux
         env:
           HOMEBREW_NO_AUTO_UPDATE: 1
         run: |
           if [ "$RUNNER_OS" = "Linux" ]; then
-            sudo apt-get update && sudo apt-get install -y shellcheck
+            sudo apt-get update && sudo apt-get install -y shellcheck tmux
           else
-            brew install shellcheck
+            brew install shellcheck tmux
           fi
       - name: Run checks
-        run: |
-          if [ "$RUNNER_OS" = macOS ]; then
-            /bin/bash scripts/check.sh
-          else
-            scripts/check.sh
-          fi
+        run: scripts/check.sh

@@ -1,515 +1,674 @@
-#
-# Command checker behind hooks/bash-guard.sh; see that file for the full contract.
-#
-# Reads the PreToolUse JSON payload on stdin and exits 2 with a one-line reason on
-# stderr when .tool_input.command contains a destructive command, otherwise 0.
-# Anything it cannot parse (bad JSON, no command, unbalanced quotes) exits 0.
-#
-# An accident guard, not a security boundary: it does not follow `eval`, variables,
-# encoded strings or scripts written to disk.
-
+#!/usr/bin/env python3
 import json
 import os
 import re
-import shlex
+import subprocess
 import sys
 
-MAX_DEPTH = 5
-SEPARATORS = ";&|\n"
-ASSIGNMENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
-RESERVED = {"!", "{", "if", "then", "elif", "else", "while", "until", "do"}
-SHELLS = {"bash", "sh", "zsh", "dash"}
-REDIRECT = re.compile(r"^(\d*|&)(<<<|<>|>>|>\||<|>)(.*)$", re.DOTALL)
-SHELL_VALUE_LONG = {"--rcfile", "--init-file"}
-SUDO_VALUES = "ughpCrtUDRT"
-ENV_VALUES = "uCS"
-SUDO_LONG = {"--user", "--group", "--host", "--prompt", "--chdir", "--close-from", "--role", "--type", "--other-user", "--command-timeout"}
-ENV_LONG = {"--unset", "--chdir", "--split-string"}
-XARGS_VALUES = "nILPdEsa"
-XARGS_LONG = {"--arg-file", "--delimiter", "--max-args", "--max-procs", "--max-lines", "--max-chars", "--process-slot-var"}
-TIMEOUT_LONG = {"--signal", "--kill-after"}
-TIME_LONG = {"--format", "--output"}
-GIT_VALUES = {
-    "clean": ("e", {"--exclude"}),
-    "restore": ("s", {"--source"}),
-    "push": ("o", {"--push-option", "--repo", "--receive-pack", "--exec"}),
+SHELLS = {"sh", "bash", "zsh", "dash", "ksh", "mksh", "fish"}
+DB_CLIENTS = {
+    "psql", "mysql", "mariadb", "sqlite3", "duckdb", "sqlcmd", "cockroach",
+    "clickhouse-client", "clickhouse", "mongosh", "mongo", "redis-cli", "valkey-cli",
 }
-GIT_VALUE_FLAGS = {"-C", "-c", "--git-dir", "--work-tree", "--namespace", "--exec-path", "--config-env", "--super-prefix"}
-FIND_EXEC = {"-exec", "-execdir", "-ok", "-okdir"}
+DB_TEXT = [
+    (re.compile(r"\bdrop\s+(database|schema)\b", re.I), "drops a database or schema"),
+    (re.compile(r"\bflush(all|db)\b", re.I), "flushes a Redis database"),
+    (re.compile(r"\.dropDatabase\s*\("), "drops a MongoDB database"),
+]
+PROTECTED_BRANCHES = {"main", "master"}
+HOME_CHILDREN_DOT = {".ssh", ".gnupg", ".claude", ".config", ".aws", ".kube", ".local"}
+MOUNT_PARENTS = {"/Volumes", "/mnt", "/media"}
+RAW_DISK = re.compile(r"^/dev/(r?disk\d|sd[a-z]|hd[a-z]|vd[a-z]|xvd[a-z]|nvme\d|mmcblk\d)")
+GLOB_ALL = {"*", ".*", "{*,.*}", "{.*,*}"}
+UNKNOWN = "\x00"
 
 
-class ParseError(Exception):
+class Blocked(Exception):
     pass
 
 
-class Words(list):
-    def __init__(self):
-        super().__init__()
-        self.heredocs = []
+def tokenize(text):
+    commands, nested = [], []
+    words, heredocs, pending_heredocs = [], [], []
+    word, in_word = [], False
+    i, n = 0, len(text)
 
+    def end_word():
+        nonlocal word, in_word
+        if in_word:
+            words.append("".join(word))
+        word, in_word = [], False
 
-class Heredoc:
-    def __init__(self, delimiter, strip_tabs):
-        self.delimiter = delimiter
-        self.strip_tabs = strip_tabs
-        self.body = None
+    def end_command():
+        nonlocal words, heredocs
+        end_word()
+        if words or heredocs:
+            commands.append((words, heredocs))
+        words, heredocs = [], []
 
-
-class Scanner:
-    def __init__(self, text):
-        self.text = text
-        self.n = len(text)
-        self.segments = []
-        self.heredocs = []
-
-    def scan(self, i, closer):
-        text, n = self.text, self.n
-        words = Words()
-        word = None
-
-        def end_word():
-            nonlocal word
-            if word is not None:
-                words.append(word)
-                word = None
-
-        def end_segment():
-            nonlocal words
-            end_word()
-            if words:
-                self.segments.append(words)
-            words = Words()
-
-        while i < n:
-            c = text[i]
-            if closer and c == closer:
-                end_segment()
-                return i + 1
-            if c == "\n":
-                end_segment()
-                i = self.skip_heredocs(i + 1)
-                continue
-            if c in " \t":
-                end_word()
-                i += 1
-                continue
-            if c == "#" and word is None:
-                while i < n and text[i] != "\n":
-                    i += 1
-                continue
-            if c == "\\":
-                if i + 1 < n:
-                    if text[i + 1] != "\n":
-                        word = (word or "") + text[i + 1]
-                    i += 2
+    while i < n:
+        c = text[i]
+        if c == "\\" and i + 1 < n:
+            if text[i + 1] != "\n":
+                word.append(text[i + 1])
+                in_word = True
+            i += 2
+            continue
+        if c == "'":
+            j = text.find("'", i + 1)
+            j = n if j < 0 else j
+            word.append(text[i + 1:j])
+            in_word = True
+            i = j + 1
+            continue
+        if c == "$" and i + 1 < n and text[i + 1] == "'":
+            j, buf = i + 2, []
+            while j < n and text[j] != "'":
+                if text[j] == "\\" and j + 1 < n:
+                    buf.append(text[j:j + 2])
+                    j += 2
                 else:
-                    i += 1
-                continue
-            if c == "'":
-                end = text.find("'", i + 1)
-                if end < 0:
-                    raise ParseError("unterminated single quote")
-                word = (word or "") + text[i + 1:end]
-                i = end + 1
-                continue
-            if c == '"':
-                word, i = self.scan_double(i + 1, word or "")
-                continue
-            if c == "`":
-                word = word or ""
-                i = self.scan(i + 1, "`")
-                continue
-            if c == "$" and text.startswith("$((", i):
-                end = self.skip_arith(i + 1)
-                if end >= 0:
-                    word = word or ""
-                    i = end
+                    buf.append(text[j])
+                    j += 1
+            word.append(decode_ansi_c("".join(buf)))
+            in_word = True
+            i = j + 1
+            continue
+        if c == '"' or (c == "$" and i + 1 < n and text[i + 1] == '"'):
+            j = i + (2 if c == "$" else 1)
+            while j < n and text[j] != '"':
+                if text[j] == "\\" and j + 1 < n:
+                    if text[j + 1] in '"\\$`':
+                        word.append(text[j + 1])
+                    else:
+                        word.append(text[j:j + 2])
+                    j += 2
                     continue
-            if c == "$" and text.startswith("$(", i):
-                word = word or ""
-                i = self.scan(i + 2, ")")
-                continue
-            if c == "(" and text.startswith("((", i) and word is None and all(w in RESERVED for w in words):
-                end = self.skip_arith(i)
-                if end >= 0:
-                    i = end
+                if text.startswith("$(", j):
+                    body, j = take_parens(text, j + 2)
+                    nested.append(body)
+                    word.append(UNKNOWN)
                     continue
-            if c == "<" and text.startswith("<<<", i):
-                word = (word or "") + "<<<"
+                if text[j] == "`":
+                    k = text.find("`", j + 1)
+                    k = n if k < 0 else k
+                    nested.append(text[j + 1:k])
+                    word.append(UNKNOWN)
+                    j = k + 1
+                    continue
+                word.append(text[j])
+                j += 1
+            in_word = True
+            i = j + 1
+            continue
+        if text.startswith("$(", i):
+            body, i = take_parens(text, i + 2)
+            nested.append(body)
+            word.append(UNKNOWN)
+            in_word = True
+            continue
+        if c == "`":
+            k = text.find("`", i + 1)
+            k = n if k < 0 else k
+            nested.append(text[i + 1:k])
+            word.append(UNKNOWN)
+            in_word = True
+            i = k + 1
+            continue
+        if c == "#" and not in_word:
+            while i < n and text[i] != "\n":
+                i += 1
+            continue
+        if c == "\n":
+            end_command()
+            i += 1
+            for delim, strip_tabs in pending_heredocs:
+                body, i = take_heredoc(text, i, delim, strip_tabs)
+                (commands[-1][1] if commands else heredocs).append(body)
+            pending_heredocs = []
+            continue
+        if c in " \t":
+            end_word()
+            i += 1
+            continue
+        if c in ";&|()":
+            end_command()
+            i += 1
+            continue
+        if c in "<>":
+            end_word()
+            if text.startswith("<<<", i):
                 i += 3
                 continue
-            if c == "<" and text.startswith("<<", i):
-                i, heredoc = self.read_heredoc_delimiter(i + 2)
-                words.heredocs.append(heredoc)
-                continue
-            if c == "&" and ((i > 0 and text[i - 1] in "<>") or text.startswith("&>", i)):
-                word = (word or "") + c
-                i += 1
-                continue
-            if c in SEPARATORS or c == "(" or c == ")":
-                end_segment()
-                i += 1
-                continue
-            word = (word or "") + c
-            i += 1
-        if closer:
-            raise ParseError("unterminated substitution")
-        end_segment()
-        return i
-
-    def scan_double(self, i, word):
-        text, n = self.text, self.n
-        while i < n:
-            c = text[i]
-            if c == '"':
-                return word, i + 1
-            if c == "\\" and i + 1 < n:
-                nxt = text[i + 1]
-                word += nxt if nxt in '"\\$`' else c + nxt
+            if text.startswith("<<", i):
                 i += 2
+                strip_tabs = i < n and text[i] == "-"
+                if strip_tabs:
+                    i += 1
+                while i < n and text[i] in " \t":
+                    i += 1
+                m = re.match(r"""(['"]?)([^\s;&|<>()'"]+)\1""", text[i:])
+                if m:
+                    pending_heredocs.append((m.group(2), strip_tabs))
+                    i += m.end()
                 continue
-            if c == "`":
-                i = self.scan(i + 1, "`")
-                continue
-            if c == "$" and text.startswith("$((", i):
-                end = self.skip_arith(i + 1)
-                if end >= 0:
-                    i = end
-                    continue
-            if c == "$" and text.startswith("$(", i):
-                i = self.scan(i + 2, ")")
-                continue
-            word += c
+            op = c
             i += 1
-        raise ParseError("unterminated double quote")
-
-    def skip_arith(self, i):
-        text = self.text
-        depth = 0
-        for j in range(i, self.n):
-            if text[j] == "(":
-                depth += 1
-            elif text[j] == ")":
-                depth -= 1
-                if depth == 0:
-                    if text[j - 1] == ")" and j - 1 > i + 1 and "<<" in text[i:j]:
-                        return j + 1
-                    return -1
-        return -1
-
-    def read_heredoc_delimiter(self, i):
-        text, n = self.text, self.n
-        strip_tabs = i < n and text[i] == "-"
-        if strip_tabs:
-            i += 1
-        while i < n and text[i] in " \t":
-            i += 1
-        delimiter = ""
-        while i < n and text[i] not in " \t\n;&|()<>":
-            c = text[i]
-            if c in "'\"":
-                end = text.find(c, i + 1)
-                if end < 0:
-                    raise ParseError("unterminated heredoc delimiter")
-                delimiter += text[i + 1:end]
-                i = end + 1
-            elif c == "\\" and i + 1 < n:
-                delimiter += text[i + 1]
-                i += 2
-            else:
-                delimiter += c
+            while i < n and text[i] in ">&|":
+                op += text[i]
                 i += 1
-        heredoc = Heredoc(delimiter, strip_tabs)
-        self.heredocs.append(heredoc)
-        return i, heredoc
-
-    def skip_heredocs(self, i):
-        text, n = self.text, self.n
-        pending, self.heredocs = self.heredocs, []
-        for heredoc in pending:
-            lines = []
-            while i < n:
-                end = text.find("\n", i)
-                line = text[i:] if end < 0 else text[i:end]
-                i = n if end < 0 else end + 1
-                if (line.lstrip("\t") if heredoc.strip_tabs else line) == heredoc.delimiter:
-                    break
-                lines.append(line)
-            heredoc.body = "\n".join(lines)
-        return i
+            words.append(op)
+            continue
+        word.append(c)
+        in_word = True
+        i += 1
+    end_command()
+    return commands, nested
 
 
-def strip_wrappers(words):
-    while words:
-        word = words[0]
-        name = os.path.basename(word)
-        if ASSIGNMENT.match(word) or word in RESERVED or name == "nohup":
-            words = words[1:]
-        elif name == "time":
-            words = skip_options(words[1:], "fo", TIME_LONG)
-        elif name == "exec":
-            words = skip_options(words[1:], "a")
-        elif name == "command":
-            words = words[1:]
-            while words and words[0] in ("-p", "--"):
-                words = words[1:]
-        elif name == "sudo":
-            words = skip_options(words[1:], SUDO_VALUES, SUDO_LONG)
-        elif name == "doas":
-            words = skip_options(words[1:], "uC")
-        elif name == "env":
-            words = skip_options(words[1:], ENV_VALUES, ENV_LONG, assignments=True)
-        elif name == "xargs":
-            words = skip_options(words[1:], XARGS_VALUES, XARGS_LONG)
-        elif name == "timeout":
-            words = skip_options(words[1:], "sk", TIMEOUT_LONG)[1:]
-        elif name == "nice":
-            words = skip_options(words[1:], "n", {"--adjustment"})
-        elif name == "ionice":
-            words = skip_options(words[1:], "cnp", {"--class", "--classdata", "--pid"})
-        else:
+def decode_ansi_c(s):
+    simple = {"n": "\n", "t": "\t", "r": "\r", "\\": "\\", "'": "'", '"': '"', "a": "\a", "e": "\x1b"}
+
+    def repl(m):
+        e = m.group(1)
+        if e in simple:
+            return simple[e]
+        if e[0] == "x":
+            return chr(int(e[1:], 16))
+        if e[0].isdigit():
+            return chr(int(e, 8))
+        return "\\" + e
+
+    return re.sub(r"\\(x[0-9a-fA-F]{1,2}|[0-7]{1,3}|.)", repl, s)
+
+
+def take_parens(text, i):
+    depth, j = 1, i
+    while j < len(text):
+        ch = text[j]
+        if ch == "\\":
+            j += 2
+            continue
+        if ch == "'":
+            k = text.find("'", j + 1)
+            j = len(text) if k < 0 else k + 1
+            continue
+        if ch == "(":
+            depth += 1
+        elif ch == ")":
+            depth -= 1
+            if depth == 0:
+                return text[i:j], j + 1
+        j += 1
+    return text[i:], len(text)
+
+
+def take_heredoc(text, i, delim, strip_tabs):
+    lines, n = [], len(text)
+    while i < n:
+        j = text.find("\n", i)
+        j = n if j < 0 else j
+        line = text[i:j]
+        i = j + 1
+        if (line.lstrip("\t") if strip_tabs else line) == delim:
             break
+        lines.append(line)
+    return "\n".join(lines), i
+
+
+def unwrap(words):
+    with_values = {
+        "sudo": {"-u", "-g", "-C", "-D", "-h", "-p", "-r", "-t", "-U", "-T"},
+        "doas": {"-u", "-C"},
+        "env": {"-u", "-C", "-S", "--unset", "--chdir", "--split-string"},
+        "nice": {"-n", "--adjustment"},
+        "timeout": {"-s", "-k", "--signal", "--kill-after"},
+        "stdbuf": {"-i", "-o", "-e"},
+        "ionice": {"-c", "-n", "-t", "-p"},
+        "caffeinate": {"-t", "-w"},
+        "xargs": {"-I", "-n", "-P", "-L", "-s", "-d", "-E", "-a", "-i", "-l"},
+        "exec": {"-a"},
+        "time": set(),
+        "nohup": set(),
+        "command": set(),
+        "builtin": set(),
+        "busybox": set(),
+        "unbuffer": set(),
+        "chronic": set(),
+    }
+    words = list(words)
+    while words:
+        if re.match(r"^[A-Za-z_][A-Za-z0-9_]*=", words[0]):
+            words.pop(0)
+            continue
+        name = os.path.basename(words[0])
+        if name not in with_values:
+            break
+        if name == "env":
+            for k, w in enumerate(words):
+                if w in ("-S", "--split-string") and k + 1 < len(words):
+                    return unwrap(words[1:k] + words[k + 1].split() + words[k + 2:])
+        if name == "command" and len(words) > 1 and words[1] in ("-v", "-V"):
+            return []
+        words.pop(0)
+        takes = with_values[name]
+        while words and words[0].startswith("-") and words[0] != "-":
+            opt = words.pop(0)
+            if opt == "--":
+                break
+            if opt in takes and words:
+                words.pop(0)
+        if name == "timeout" and words:
+            words.pop(0)
     return words
 
 
-def skip_options(words, short_values="", long_values=(), assignments=False):
-    i = 0
-    while i < len(words):
-        word = words[i]
-        if word == "--":
-            return words[i + 1:]
-        if assignments and ASSIGNMENT.match(word):
-            i += 1
-        elif word.startswith("--"):
-            i += 2 if word in long_values else 1
-        elif word.startswith("-"):
-            i += 1
-            for pos, ch in enumerate(word[1:], 1):
-                if ch in short_values:
-                    if pos == len(word) - 1:
-                        i += 1
-                    break
-        else:
+def options_and_args(argv):
+    opts, args, k = [], [], 0
+    while k < len(argv):
+        a = argv[k]
+        if a == "--":
+            args.extend(argv[k + 1:])
             break
-    return words[i:]
+        (opts if a.startswith("-") and a != "-" else args).append(a)
+        k += 1
+    return opts, args
 
 
-def split_options(args, short_values, long_values):
-    kept, flags = [], ""
-    i = 0
-    while i < len(args):
-        arg = args[i]
-        i += 1
-        if arg == "--":
-            kept.extend(args[i - 1:])
-            break
-        if arg.startswith("--"):
-            if arg.split("=", 1)[0] in long_values:
-                i += "=" not in arg
-            else:
-                kept.append(arg)
-        elif arg == "-h":
-            kept.append(arg)
-        elif arg.startswith("-") and len(arg) > 1:
-            for pos, ch in enumerate(arg[1:], 1):
-                if ch in short_values:
-                    if pos == len(arg) - 1:
-                        i += 1
-                    break
-                flags += ch
-        else:
-            kept.append(arg)
-    return kept, flags
+def has_short(opts, letters):
+    return any(o.startswith("-") and not o.startswith("--") and set(o[1:]) & set(letters) for o in opts)
 
 
-def check_rm(args):
-    recursive = force = False
-    for arg in args:
-        if arg == "--":
-            break
-        if arg in ("--recursive",):
-            recursive = True
-        elif arg == "--force":
-            force = True
-        elif arg.startswith("-") and not arg.startswith("--"):
-            recursive = recursive or "r" in arg or "R" in arg
-            force = force or "f" in arg
-    if recursive and force:
-        return "rm with recursive and force flags"
-    return None
+def has_long(opts, full, minimum=3):
+    for o in opts:
+        if o.startswith("--"):
+            name = o[2:].split("=", 1)[0]
+            if len(name) >= minimum and full.startswith(name):
+                return True
+    return False
 
 
-def split_git(args):
-    i = 0
-    while i < len(args) and args[i].startswith("-"):
-        flag = args[i]
-        i += 2 if flag in GIT_VALUE_FLAGS else 1
-    if i >= len(args):
-        return None, []
-    return args[i], args[i + 1:]
+class Context:
+    def __init__(self, cwd, home):
+        self.cwd = cwd
+        self.home = home
+        self.repo_root = git_root(cwd)
 
 
-def check_git(args):
-    sub, rest = split_git(args)
-    short_values, long_values = GIT_VALUES.get(sub, ("", ()))
-    rest, flags = split_options(rest, short_values, long_values)
-    head = rest[:rest.index("--")] if "--" in rest else rest
-    if "-h" in head or "--help" in head:
-        return None
-    if sub == "push":
-        if "--dry-run" in head or "n" in flags:
-            return None
-        for arg in rest:
-            if arg in ("--force", "--force-if-includes") or arg.startswith("--force-with-lease"):
-                return "git push with a force flag"
-            if arg == "--mirror":
-                return "git push --mirror"
-            if arg.startswith("+"):
-                return "git push with a + refspec"
-        if "f" in flags:
-            return "git push with a force flag"
-    elif sub == "reset":
-        if "--hard" in head:
-            return "git reset --hard"
-    elif sub == "clean":
-        force = "--force" in rest or "f" in flags
-        dry = "--dry-run" in head or "n" in flags
-        if force and not dry:
-            return "git clean with force"
-    elif sub == "checkout":
-        if "--force" in rest or "f" in flags:
-            return "git checkout with force"
-        if any(arg == "--pathspec-from-file" or arg.startswith("--pathspec-from-file=") for arg in head):
-            return "git checkout that discards working-tree changes"
-        if "." in rest or ("--" in rest and rest.index("--") < len(rest) - 1):
-            return "git checkout that discards working-tree changes"
-    elif sub == "switch":
-        if "--force" in rest or "--discard-changes" in rest or "f" in flags:
-            return "git switch that discards working-tree changes"
-    elif sub == "restore":
-        staged = "--staged" in rest or "S" in flags
-        worktree = "--worktree" in rest or "W" in flags
-        if not staged or worktree:
-            return "git restore that discards working-tree changes"
-    return None
-
-
-def check_find(args, depth):
-    if "-delete" in args:
-        return "find -delete"
-    for i, arg in enumerate(args):
-        if arg not in FIND_EXEC:
-            continue
-        command = Words()
-        for word in args[i + 1:]:
-            if word in (";", "+"):
-                break
-            command.append(word)
-        stripped = strip_wrappers(command)
-        if stripped and os.path.basename(stripped[0]) == "rm":
-            return "find -exec rm"
-        reason = check_segment(command, depth + 1)
-        if reason:
-            return reason
-    return None
-
-
-def shell_scripts(args, heredocs):
-    has_c = has_s = False
-    options = True
-    positional = []
-    here = []
-    i = 0
-    while i < len(args):
-        arg = args[i]
-        if options and arg == "--":
-            options = False
-            i += 1
-        elif options and arg in SHELL_VALUE_LONG:
-            i += 2
-        elif options and arg.startswith("--"):
-            i += 1
-        elif options and len(arg) > 1 and arg[0] in "-+":
-            i += 1
-            for ch in arg[1:]:
-                if ch in "oO":
-                    i += 1
-                elif ch == "c" and arg[0] == "-":
-                    has_c = True
-                elif ch == "s" and arg[0] == "-":
-                    has_s = True
-        elif not has_c and REDIRECT.match(arg):
-            _, op, rest = REDIRECT.match(arg).groups()
-            i += 1
-            if op == "<<<":
-                if rest:
-                    here.append(rest)
-                elif i < len(args):
-                    here.append(args[i])
-                    i += 1
-            elif not rest:
-                i += 1
-        else:
-            positional.append(arg)
-            options = False
-            i += 1
-    if has_c:
-        return positional[:1]
-    if positional and not has_s and positional[0] != "-":
-        return []
-    return here + [h.body for h in heredocs if h.body]
-
-
-def check_segment(words, depth):
-    heredocs = words.heredocs
-    words = strip_wrappers(words)
-    if not words:
-        return None
-    name, args = os.path.basename(words[0]), words[1:]
-    if name == "rm":
-        return check_rm(args)
-    if name == "git":
-        return check_git(args)
-    if name == "find":
-        return check_find(args, depth)
-    if name in SHELLS:
-        for inner in shell_scripts(args, heredocs):
-            reason = check_command(inner, depth + 1)
-            if reason:
-                return reason
-    return None
-
-
-def check_command(command, depth=0):
-    if depth > MAX_DEPTH:
-        return None
-    scanner = Scanner(command)
+def git_root(path, *extra):
     try:
-        scanner.scan(0, None)
-    except ParseError:
+        out = subprocess.run(
+            ["git", *extra, "rev-parse", "--show-toplevel"], cwd=path,
+            capture_output=True, text=True, timeout=5,
+        )
+        return out.stdout.strip() or None if out.returncode == 0 else None
+    except Exception:
+        return None
+
+
+def current_branch(path):
+    try:
+        out = subprocess.run(
+            ["git", "symbolic-ref", "--short", "-q", "HEAD"], cwd=path,
+            capture_output=True, text=True, timeout=5,
+        )
+        return out.stdout.strip()
+    except Exception:
+        return ""
+
+
+def expand(word, ctx, cwd):
+    if word == "~" or word.startswith("~/"):
+        word = ctx.home + word[1:]
+    word = re.sub(r"\$\{HOME\}|\$HOME\b", lambda m: ctx.home, word)
+    word = re.sub(r"\$\{PWD\}|\$PWD\b", lambda m: cwd or UNKNOWN, word)
+    word = re.sub(r"\$\{[^}]*\}|\$[A-Za-z_][A-Za-z0-9_]*|\$[0-9@*#?$!-]", UNKNOWN, word)
+    return word
+
+
+def catastrophic_path(raw, ctx, cwd):
+    word = expand(raw, ctx, cwd)
+    if UNKNOWN in word:
+        rest = word.replace(UNKNOWN, "")
+        if rest.rstrip("/") in ("", "/*", "/.*", "*") or set(rest) <= {"/", "*", "."}:
+            return f"'{raw}' could expand to the filesystem root"
+        if not word.startswith(UNKNOWN):
+            word = word.split(UNKNOWN, 1)[0]
+            if "/" not in word:
+                return None
+            word = word.rsplit("/", 1)[0] or "/"
+        else:
+            return None
+    parts = word.split("/")
+    for k, part in enumerate(parts):
+        if part in GLOB_ALL:
+            word = "/".join(parts[:k]) or ("/" if word.startswith("/") else ".")
+            break
+        if re.search(r"[*?\[]", part):
+            return None
+    if not os.path.isabs(word):
+        if cwd is None:
+            if word in (".", "..", "./", "../") or word.startswith(".."):
+                return f"'{raw}' is relative to an unknown directory"
+            return None
+        word = os.path.join(cwd, word)
+    candidates = {os.path.normpath(word)}
+    try:
+        candidates.add(os.path.realpath(word))
+    except Exception:
         pass
-    for words in scanner.segments:
-        reason = check_segment(words, depth)
+    for t in candidates:
+        reason = protected(t, ctx, cwd)
         if reason:
-            return "%s: %s" % (reason, " ".join(shlex.quote(w) for w in words)) if depth == 0 else reason
+            return f"'{raw}' {reason}"
     return None
+
+
+def is_ancestor_or_self(a, b):
+    a, b = a.rstrip("/") or "/", b.rstrip("/") or "/"
+    return b == a or b.startswith(a if a == "/" else a + "/")
+
+
+def temp_dirs():
+    dirs = {"/tmp", "/private/tmp", "/var/folders", "/private/var/folders"}
+    if os.environ.get("TMPDIR"):
+        dirs.add(os.path.normpath(os.environ["TMPDIR"]))
+    return dirs
+
+
+def protected(t, ctx, cwd):
+    if t == "/":
+        return "is the filesystem root"
+    parent = os.path.dirname(t)
+    if parent == "/":
+        return "is a top-level system directory"
+    if parent in MOUNT_PARENTS:
+        return "is a mounted volume"
+    home = os.path.normpath(ctx.home)
+    for anchor, label in ((home, "your home directory"), (ctx.repo_root, "the project"), (cwd, "the working directory")):
+        if anchor and is_ancestor_or_self(t, os.path.normpath(anchor)):
+            return f"contains {label}"
+    if parent == home:
+        base = os.path.basename(t)
+        if not base.startswith(".") or base in HOME_CHILDREN_DOT:
+            return "is a top-level folder in your home directory"
+    if os.path.basename(t) == ".git" and ctx.repo_root and is_ancestor_or_self(ctx.repo_root, t):
+        return "is the project's git history"
+    if not any(is_ancestor_or_self(d, t) for d in temp_dirs()):
+        if os.path.basename(t) == ".git" or os.path.exists(os.path.join(t, ".git")):
+            return "is a git repository"
+    return None
+
+
+def check_rm(argv, ctx, cwd):
+    opts, args = options_and_args(argv[1:])
+    if has_long(opts, "no-preserve-root"):
+        raise Blocked("rm --no-preserve-root")
+    if not (has_short(opts, "rR") or has_long(opts, "recursive")):
+        return
+    for a in args:
+        reason = catastrophic_path(a, ctx, cwd)
+        if reason:
+            raise Blocked(f"recursive rm of {reason}")
+
+
+def check_find(argv, ctx, cwd):
+    rest = argv[1:]
+    while rest and rest[0] in ("-H", "-L", "-P", "-E", "-X", "-s", "-x", "-d"):
+        rest = rest[1:]
+    starts = []
+    while rest and not rest[0].startswith("-") and rest[0] not in ("(", "!", ","):
+        starts.append(rest.pop(0))
+    filters = {
+        "-name", "-iname", "-path", "-ipath", "-wholename", "-regex", "-iregex", "-newer",
+        "-mtime", "-mmin", "-atime", "-amin", "-ctime", "-cmin", "-size", "-empty", "-user", "-group",
+        "-perm", "-links", "-inum",
+    }
+    for k, w in enumerate(rest):
+        if w in filters and not (w in ("-name", "-iname", "-path") and k + 1 < len(rest) and rest[k + 1] in GLOB_ALL):
+            return
+    deletes = "-delete" in rest
+    for k, w in enumerate(rest):
+        if w in ("-exec", "-execdir", "-ok", "-okdir") and k + 1 < len(rest):
+            if os.path.basename(rest[k + 1]) in ("rm", "shred", "unlink"):
+                deletes = True
+    if not deletes:
+        return
+    for s in starts or ["."]:
+        reason = catastrophic_path(s, ctx, cwd)
+        if reason:
+            raise Blocked(f"find deleting under {reason}")
+
+
+def check_chmod_chown(argv, ctx, cwd):
+    opts, args = options_and_args(argv[1:])
+    if not (has_short(opts, "R") or has_long(opts, "recursive")):
+        return
+    for a in args[1:]:
+        reason = catastrophic_path(a, ctx, cwd)
+        if reason and any(s in reason for s in ("filesystem root", "top-level system", "home directory", "mounted volume")):
+            raise Blocked(f"recursive {os.path.basename(argv[0])} of {reason}")
+
+
+def check_disk(argv):
+    name = os.path.basename(argv[0])
+    if name.startswith("mkfs") or name in ("wipefs", "newfs") or name.startswith("newfs_"):
+        raise Blocked(f"{name} formats a disk")
+    if name == "dd":
+        for a in argv[1:]:
+            if a.startswith("of=") and RAW_DISK.match(a[3:]):
+                raise Blocked("dd writes to a raw disk")
+    if name == "shred" and any(RAW_DISK.match(a) for a in argv[1:]):
+        raise Blocked("shred wipes a raw disk")
+    if name == "diskutil":
+        verbs = {"erasedisk", "erasevolume", "reformat", "partitiondisk", "zerodisk", "randomdisk", "secureerase", "deletecontainer", "deletevolume"}
+        if any(a.lower() in verbs for a in argv[1:]):
+            raise Blocked("diskutil erases a disk or volume")
+        if len(argv) > 2 and argv[1].lower() == "apfs" and argv[2].lower() in verbs:
+            raise Blocked("diskutil erases an APFS container or volume")
+
+
+def check_redirects(words):
+    for k, w in enumerate(words):
+        if w and w[0] == ">" and k + 1 < len(words) and RAW_DISK.match(words[k + 1]):
+            raise Blocked("redirect writes to a raw disk")
+
+
+def positional(argv, value_opts=()):
+    out, k = [], 0
+    while k < len(argv):
+        a = argv[k]
+        if a.startswith("-"):
+            if a in value_opts:
+                k += 1
+        else:
+            out.append(a)
+        k += 1
+    return out
+
+
+def check_db_and_infra(argv):
+    name = os.path.basename(argv[0])
+    pos = [p.lower() for p in positional(argv[1:])]
+    joined = " ".join(pos)
+    if name == "dropdb":
+        raise Blocked("dropdb drops a database")
+    if name in ("mysqladmin", "mariadb-admin") and "drop" in pos:
+        raise Blocked("mysqladmin drop drops a database")
+    if name == "prisma" or (name in ("npx", "pnpx", "bunx") and pos[:1] == ["prisma"]) or (name in ("pnpm", "yarn") and pos[:2] == ["exec", "prisma"]):
+        if "migrate reset" in joined or "--force-reset" in argv:
+            raise Blocked("prisma resets the database")
+    if name in ("rails", "rake") or argv[0].endswith("bin/rails"):
+        if any(p in ("db:drop", "db:reset", "db:purge", "db:drop:all") for p in pos):
+            raise Blocked("rails drops or resets the database")
+    if name in ("python", "python3") and len(pos) >= 2 and pos[0].endswith("manage.py") and pos[1] in ("flush", "reset_db"):
+        raise Blocked("django flushes the database")
+    if name == "supabase" and pos[:2] == ["db", "reset"] and "--linked" in argv:
+        raise Blocked("supabase resets the linked remote database")
+    if name == "heroku" and pos[:1] in (["pg:reset"], ["apps:destroy"]):
+        raise Blocked(f"heroku {pos[0]}")
+    if name in ("terraform", "tofu", "terragrunt"):
+        if pos[:1] == ["destroy"] or (pos[:1] == ["apply"] and "-destroy" in argv):
+            raise Blocked(f"{name} destroys infrastructure")
+    if name == "pulumi" and pos[:1] == ["destroy"]:
+        raise Blocked("pulumi destroys a stack")
+    if name == "kubectl" and pos[:1] == ["delete"] and len(pos) > 1 and pos[1] in ("namespace", "namespaces", "ns"):
+        raise Blocked("kubectl deletes a namespace")
+    if name == "aws":
+        if pos[:2] == ["s3", "rb"] or (pos[:2] == ["s3", "rm"] and "--recursive" in argv):
+            raise Blocked("aws s3 deletes a bucket or its contents")
+        if len(pos) > 1 and pos[0] in ("rds", "dynamodb") and pos[1].startswith("delete-"):
+            raise Blocked(f"aws {pos[0]} {pos[1]}")
+    if name == "gcloud":
+        if pos[:2] == ["projects", "delete"] or pos[:3] == ["sql", "instances", "delete"]:
+            raise Blocked("gcloud deletes a project or database")
+    if name == "gsutil" and (pos[:1] == ["rb"] or (pos[:1] == ["rm"] and has_short(argv[1:], "r"))):
+        raise Blocked("gsutil deletes a bucket or its contents")
+    if name == "az" and pos[:2] == ["group", "delete"]:
+        raise Blocked("az deletes a resource group")
+    if name in ("fly", "flyctl") and (pos[:2] == ["apps", "destroy"] or pos[:1] == ["destroy"]):
+        raise Blocked("fly destroys an app")
+    if name == "gh" and pos[:2] == ["repo", "delete"]:
+        raise Blocked("gh deletes a repository")
+
+
+def check_git(argv, ctx, cwd):
+    k, gitdir = 1, cwd
+    while k < len(argv) and argv[k].startswith("-"):
+        if argv[k] == "-C" and k + 1 < len(argv):
+            target = expand(argv[k + 1], ctx, cwd)
+            gitdir = None if UNKNOWN in target else os.path.join(cwd or "/", target)
+            k += 2
+        elif argv[k] in ("-c", "--git-dir", "--work-tree", "--namespace") and k + 1 < len(argv):
+            k += 2
+        else:
+            k += 1
+    if k >= len(argv) or argv[k] != "push":
+        return
+    opts, args = options_and_args(argv[k + 1:])
+    args = [a for a in args if not a.startswith("--")]
+    force = has_short(opts, "f") or has_long(opts, "force", 4) or has_long(opts, "force-with-lease", 7) or has_long(opts, "mirror")
+    delete = has_short(opts, "d") or has_long(opts, "delete")
+    refspecs = args[1:]
+    if any(r.startswith("+") for r in refspecs):
+        force = True
+    if not (force or delete or any(r.startswith(":") for r in refspecs)):
+        return
+    if has_long(opts, "mirror") or has_long(opts, "all"):
+        raise Blocked("force push of all branches")
+    targets = []
+    for r in refspecs:
+        r = r.lstrip("+")
+        dst = r.split(":", 1)[1] if ":" in r else r
+        if r.startswith(":"):
+            delete = True
+        targets.append(dst.replace("refs/heads/", ""))
+    if not targets:
+        branch = current_branch(gitdir) if gitdir else ""
+        targets = [branch] if branch else ["main"]
+    for t in targets:
+        if t in PROTECTED_BRANCHES or t == "HEAD" and current_branch(gitdir or cwd) in PROTECTED_BRANCHES:
+            raise Blocked(f"{'deleting' if delete and not force else 'force push to'} protected branch {t}")
+
+
+def check_command(words, heredocs, ctx, cwd, depth):
+    check_redirects(words)
+    words = [w for k, w in enumerate(words) if not (w[:1] in "<>" or (k and words[k - 1][:1] in "<>"))]
+    argv = unwrap(words)
+    if not argv:
+        return cwd
+    name = os.path.basename(argv[0])
+    if name == "cd":
+        target = argv[1] if len(argv) > 1 else "~"
+        expanded = expand(target, ctx, cwd)
+        if UNKNOWN in expanded or target == "-":
+            return None
+        return os.path.normpath(os.path.join(cwd or "/", expanded)) if (cwd or os.path.isabs(expanded)) else None
+    if name in SHELLS:
+        script = None
+        for k, a in enumerate(argv[1:], 1):
+            if a.startswith("-") and not a.startswith("--") and "c" in a[1:]:
+                script = argv[k + 1] if k + 1 < len(argv) else ""
+                break
+            if not a.startswith("-"):
+                break
+        if script is not None:
+            check_script(script, ctx, cwd, depth + 1)
+        elif len(argv) == 1 or all(a.startswith("-") for a in argv[1:]):
+            for body in heredocs:
+                check_script(body, ctx, cwd, depth + 1)
+        return cwd
+    if name == "eval":
+        check_script(" ".join(argv[1:]), ctx, cwd, depth + 1)
+        return cwd
+    if name == "watch":
+        rest = argv[1:]
+        while rest and rest[0].startswith("-"):
+            opt = rest.pop(0)
+            if opt in ("-n", "-d", "--interval") and rest:
+                rest.pop(0)
+        check_script(" ".join(rest), ctx, cwd, depth + 1)
+        return cwd
+    if name in DB_CLIENTS:
+        text = " ".join(argv[1:]) + "\n" + "\n".join(heredocs)
+        for pattern, label in DB_TEXT:
+            if pattern.search(text):
+                raise Blocked(f"{name} {label}")
+    if name in ("rm", "unlink"):
+        check_rm(argv, ctx, cwd)
+    elif name == "find":
+        check_find(argv, ctx, cwd)
+    elif name in ("chmod", "chown", "chgrp"):
+        check_chmod_chown(argv, ctx, cwd)
+    elif name == "git":
+        check_git(argv, ctx, cwd)
+    else:
+        check_disk(argv)
+        check_db_and_infra(argv)
+    return cwd
+
+
+def check_db_text(text, commands):
+    names = set()
+    for words, _ in commands:
+        argv = unwrap([w for w in words if w[:1] not in "<>"])
+        if argv:
+            names.add(os.path.basename(argv[0]))
+    if names & DB_CLIENTS:
+        for pattern, label in DB_TEXT:
+            if pattern.search(text):
+                raise Blocked(f"SQL sent to a database client {label}")
+
+
+def check_script(text, ctx, cwd, depth=0):
+    if depth > 8:
+        raise Blocked("command nests shells too deeply to inspect")
+    commands, nested = tokenize(text)
+    check_db_text(text, commands)
+    for body in nested:
+        check_script(body, ctx, cwd, depth + 1)
+    for words, heredocs in commands:
+        cwd = check_command(words, heredocs, ctx, cwd, depth)
 
 
 def main():
     try:
-        payload = json.load(sys.stdin)
-        command = payload["tool_input"]["command"]
-    except (ValueError, KeyError, TypeError):
-        return 0
-    if not isinstance(command, str):
-        return 0
-    try:
-        reason = check_command(command)
+        data = json.load(sys.stdin)
     except Exception:
         return 0
-    if reason:
-        message = " ".join(("bash-guard blocked " + reason).split())
-        print(message[:300], file=sys.stderr)
+    if data.get("tool_name") != "Bash":
+        return 0
+    command = (data.get("tool_input") or {}).get("command") or ""
+    cwd = data.get("cwd") or os.getcwd()
+    ctx = Context(cwd, os.environ.get("HOME") or os.path.expanduser("~"))
+    try:
+        check_script(command, ctx, cwd)
+    except Blocked as e:
+        print(
+            f"bash-guard blocked this command: {e}. "
+            "It is irreversible. If it is really intended, ask the user to run it themselves.",
+            file=sys.stderr,
+        )
         return 2
     return 0
 
