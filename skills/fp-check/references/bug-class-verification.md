@@ -4,21 +4,21 @@ Different bug classes require different verification approaches. After classifyi
 
 Jump to the relevant class:
 
-- [Memory Corruption](#memory-corruption) — overflows, UAF, double-free, type confusion
-- [Logic Bugs](#logic-bugs) — auth bypass, access control, state transitions, privilege escalation
-- [Race Conditions](#race-conditions) — TOCTOU, data races, signal handling
-- [Integer Issues](#integer-issues) — overflow, underflow, truncation, signedness
-- [Crypto Weaknesses](#crypto-weaknesses) — weak algorithms, nonce reuse, timing channels
-- [Injection](#injection) — SQL, XSS, command, template, path traversal
-- [Information Disclosure](#information-disclosure) — uninitialized memory, leaks, side channels
-- [Denial of Service](#denial-of-service) — algorithmic complexity, resource exhaustion, crashes
-- [Deserialization](#deserialization) — object injection, gadget chains
+- [Memory Corruption](#memory-corruption) - overflows, UAF, double-free, type confusion
+- [Logic Bugs](#logic-bugs) - auth bypass, access control, state transitions, privilege escalation
+- [Race Conditions](#race-conditions) - TOCTOU, data races, signal handling
+- [Integer Issues](#integer-issues) - overflow, underflow, truncation, signedness
+- [Crypto Weaknesses](#crypto-weaknesses) - weak algorithms, nonce reuse, timing channels
+- [Injection](#injection) - SQL, XSS, command, template, path traversal
+- [Information Disclosure](#information-disclosure) - uninitialized memory, leaks, side channels
+- [Denial of Service](#denial-of-service) - algorithmic complexity, resource exhaustion, crashes
+- [Deserialization](#deserialization) - object injection, gadget chains
 
 ## Memory Corruption
 
 Buffer overflow, heap overflow, stack overflow, out-of-bounds read/write, use-after-free, double-free, type confusion.
 
-**Language safety check first:** Memory corruption in safe Rust, Go (without `unsafe.Pointer`/cgo), or managed languages (Java, C#, Python) is almost always a false positive — the type system or runtime prevents it. Verify whether the code is in an `unsafe` block (Rust), uses cgo/`unsafe.Pointer` (Go), or calls native code via JNI/P/Invoke. If the code is entirely in the safe subset, reject the memory corruption claim unless it involves a compiler bug or soundness hole.
+**Language safety check first:** Memory corruption in safe Rust, Go (without `unsafe.Pointer`/cgo), or managed languages (Java, C#, Python) is almost always a false positive - the type system or runtime prevents it. Verify whether the code is in an `unsafe` block (Rust), uses cgo/`unsafe.Pointer` (Go), or calls native code via JNI/P/Invoke. If the code is entirely in the safe subset, reject the memory corruption claim unless it involves a compiler bug or soundness hole.
 
 **Verify:**
 
@@ -26,7 +26,7 @@ Buffer overflow, heap overflow, stack overflow, out-of-bounds read/write, use-af
 - What is the corruption size and offset? Can the attacker control them?
 - Is the corruption a useful exploitation primitive (arbitrary read/write, vtable overwrite, function pointer overwrite) or just a crash?
 - What allocator is in use (glibc, tcmalloc, jemalloc, Windows heap)? Does it have hardening that blocks exploitation?
-- For UAF: trace the object lifetime — what frees it, what reuses the memory, can the attacker control the replacement object?
+- For UAF: trace the object lifetime - what frees it, what reuses the memory, can the attacker control the replacement object?
 - For type confusion: prove the type mismatch exists and that misinterpretation of the data leads to a useful primitive.
 
 ## Logic Bugs
@@ -35,11 +35,11 @@ Authentication bypass, access control errors, incorrect state transitions, confu
 
 **Verify:**
 
-- Check against the specification, RFC, or design docs — not just the code. Does the implementation match the intended behavior?
+- Check against the specification, RFC, or design docs - not just the code. Does the implementation match the intended behavior?
 - Map all state transitions. Can the system reach a state the developer didn't anticipate?
 - Identify implicit assumptions that are never enforced in code.
 - For auth bugs: verify ALL authentication/authorization paths, not just the one that appears broken. Is there a secondary check that catches it?
-- Logic bugs pass every bounds check and mathematical proof — don't let clean static analysis convince you it's a false positive.
+- Logic bugs pass every bounds check and mathematical proof - don't let clean static analysis convince you it's a false positive.
 
 ## Race Conditions
 
@@ -50,7 +50,7 @@ TOCTOU, data races, signal handling races, concurrent state modification.
 - What is the actual race window? Is it nanoseconds or seconds?
 - Can the attacker widen the window (e.g., by stalling a thread with a slow NFS mount, large allocation, or CPU contention)?
 - Verify the threading model: what threads/processes can actually access this data concurrently?
-- Check all synchronization primitives in use — mutexes, atomics, RCU, lock-free structures.
+- Check all synchronization primitives in use - mutexes, atomics, RCU, lock-free structures.
 - For TOCTOU on filesystem: can the attacker control the path between check and use (symlink races)?
 
 ## Integer Issues
@@ -60,7 +60,7 @@ Overflow, underflow, truncation, signedness errors, wraparound.
 **Verify:**
 
 - What are the exact integer types and their ranges at every point in the computation?
-- Is the overflow signed (undefined behavior in C/C++ — compiler may exploit this) or unsigned (defined wraparound)?
+- Is the overflow signed (undefined behavior in C/C++ - compiler may exploit this) or unsigned (defined wraparound)?
 - Trace the integer through all casts, conversions, and promotions. Where does truncation or sign extension occur?
 - After the integer issue occurs, is the resulting value actually used in a dangerous way (allocation size, array index, loop bound)?
 - Check if compiler warnings (`-Wconversion`, `-Wsign-compare`) flag this.
@@ -87,7 +87,7 @@ SQL injection, XSS, command injection, server-side template injection, path trav
 - Check if the framework provides automatic escaping (e.g., parameterized queries, template auto-escaping). If so, is it actually enabled and not bypassed?
 - For XSS: what context does the input land in (HTML body, attribute, JavaScript, URL)? Each requires different escaping.
 - For path traversal: is the path canonicalized before the access check? Can `../` or null bytes bypass validation?
-- Test actual payload delivery through all intermediate processing — encoding, decoding, and transformation steps may neutralize or enable the payload.
+- Test actual payload delivery through all intermediate processing - encoding, decoding, and transformation steps may neutralize or enable the payload.
 
 ## Information Disclosure
 
@@ -95,7 +95,7 @@ Uninitialized memory reads, error message leaks, timing side channels, padding o
 
 **Verify:**
 
-- What specific data leaks? Not all leaks are equal — a stack leak revealing ASLR base or canary is critical; one revealing a static string is worthless.
+- What specific data leaks? Not all leaks are equal - a stack leak revealing ASLR base or canary is critical; one revealing a static string is worthless.
 - Is the leaked data actually useful to an attacker for further exploitation (ASLR bypass, session tokens, crypto keys)?
 - For uninitialized memory: prove the memory is actually uninitialized at the point of read, not just potentially uninitialized on some code path.
 - For timing side channels: can the attacker make enough measurements with sufficient precision? What's the noise level?

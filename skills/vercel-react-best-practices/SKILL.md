@@ -1,6 +1,6 @@
 ---
 name: vercel-react-best-practices
-description: React and Next.js performance optimization guidelines from Vercel Engineering. This skill should be used when writing, reviewing, or refactoring React/Next.js code to ensure optimal performance patterns. Triggers on tasks involving React components, Next.js pages, data fetching, bundle optimization, or performance improvements.
+description: React and Next.js performance guidelines from Vercel Engineering - waterfalls, bundle size, server components, data fetching, re-renders and rendering. Use when writing or reviewing React or Next.js code where performance matters; read only the rule files that apply.
 license: MIT
 metadata:
   author: vercel
@@ -8,6 +8,9 @@ metadata:
 ---
 
 # Vercel React Best Practices
+
+> Code examples here carry comments and labels to teach. Code you write follows the shared rules: no comments, no docstrings, no em dashes.
+> Read only the rule files under `rules/` that apply to the task, never all of them.
 
 Comprehensive performance optimization guide for React and Next.js applications, maintained by Vercel. Contains 70 rules across 8 categories, prioritized by impact to guide automated refactoring and code generation.
 
@@ -59,7 +62,6 @@ Reference these guidelines when:
 - `server-cache-react` - Use React.cache() for per-request deduplication
 - `server-cache-lru` - Use LRU cache for cross-request caching
 - `server-dedup-props` - Avoid duplicate serialization in RSC props
-- `server-hoist-static-io` - Hoist static I/O (fonts, logos) to module level
 - `server-no-shared-module-state` - Avoid module-level mutable request state in RSC/SSR
 - `server-serialization` - Minimize data passed to client components
 - `server-parallel-fetching` - Restructure components to parallelize fetches
@@ -97,7 +99,6 @@ Reference these guidelines when:
 - `rendering-content-visibility` - Use content-visibility for long lists
 - `rendering-hoist-jsx` - Extract static JSX outside components
 - `rendering-svg-precision` - Reduce SVG coordinate precision
-- `rendering-hydration-no-flicker` - Use inline script for client-only data
 - `rendering-hydration-suppress-warning` - Suppress expected mismatches
 - `rendering-activity` - Use Activity component for show/hide
 - `rendering-conditional-render` - Use ternary, not && for conditionals
@@ -144,6 +145,3 @@ Each rule file contains:
 - Correct code example with explanation
 - Additional context and references
 
-## Full Compiled Document
-
-For the complete guide with all rules expanded: `AGENTS.md`

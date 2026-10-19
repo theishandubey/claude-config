@@ -1,11 +1,11 @@
-# False Positive Patterns — Lessons Learned
+# False Positive Patterns - Lessons Learned
 
 Apply ALL items in this checklist to EACH potential bug during verification.
 
 Contents:
 
-- [Checklist](#checklist) — 13 items to apply to every bug (trace validation, confirm data paths, bounds logic, TOCTOU, trust boundaries, real vs theoretical impact, defense-in-depth)
-- [Red Flags for False Positives](#red-flags-for-false-positives) — recurring failure patterns: pattern-based, context-blind, math/bounds, API-contract
+- [Checklist](#checklist) - 13 items to apply to every bug (trace validation, confirm data paths, bounds logic, TOCTOU, trust boundaries, real vs theoretical impact, defense-in-depth)
+- [Red Flags for False Positives](#red-flags-for-false-positives) - recurring failure patterns: pattern-based, context-blind, math/bounds, API-contract
 
 ## Checklist
 

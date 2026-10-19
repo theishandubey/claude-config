@@ -47,4 +47,4 @@ Safe exceptions:
 - Shared caches intentionally designed for cross-request reuse and keyed correctly
 - Process-wide singletons that do not store request- or user-specific mutable data
 
-For static assets and config, see [Hoist Static I/O to Module Level](./server-hoist-static-io.md).
+Static assets and config that never change per request can still be loaded once at module level.

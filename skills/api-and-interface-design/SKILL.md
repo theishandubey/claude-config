@@ -5,6 +5,8 @@ description: Guides stable API and interface design. Use when designing APIs, mo
 
 # API and Interface Design
 
+> Code examples here carry comments and labels to teach. Code you write follows the shared rules: no comments, no docstrings, no em dashes.
+
 ## Overview
 
 Design stable, well-documented interfaces that are hard to misuse. Good interfaces make the right thing easy and the wrong thing hard. This applies to REST APIs, GraphQL schemas, module boundaries, component props, and any surface where one piece of code talks to another.
@@ -23,20 +25,20 @@ Design stable, well-documented interfaces that are hard to misuse. Good interfac
 
 > With a sufficient number of users of an API, all observable behaviors of your system will be depended on by somebody, regardless of what you promise in the contract.
 
-This means: every public behavior — including undocumented quirks, error message text, timing, and ordering — becomes a de facto contract once users depend on it. Design implications:
+This means: every public behavior - including undocumented quirks, error message text, timing, and ordering - becomes a de facto contract once users depend on it. Design implications:
 
 - **Be intentional about what you expose.** Every observable behavior is a potential commitment.
 - **Don't leak implementation details.** If users can observe it, they will depend on it.
-- **Plan for deprecation at design time.** See `deprecation-and-migration` for how to safely remove things users depend on.
-- **Tests are not enough.** Even with perfect contract tests, Hyrum's Law means "safe" changes can break real users who depend on undocumented behavior.
+- **Plan for deprecation at design time.** Decide up front how a field or endpoint will be retired: announce, migrate the callers, then remove.
+- **Tests are not enough.** Even with perfect end-to-end tests, Hyrum's Law means "safe" changes can break real users who depend on undocumented behavior.
 
 ### The One-Version Rule
 
-Avoid forcing consumers to choose between multiple versions of the same dependency or API. Diamond dependency problems arise when different consumers need different versions of the same thing. Design for a world where only one version exists at a time — extend rather than fork.
+Avoid forcing consumers to choose between multiple versions of the same dependency or API. Diamond dependency problems arise when different consumers need different versions of the same thing. Design for a world where only one version exists at a time - extend rather than fork.
 
 ### 1. Contract First
 
-Define the interface before implementing it. The contract is the spec — implementation follows.
+Define the interface before implementing it. The contract is the spec - implementation follows.
 
 ```typescript
 // Define the contract first
@@ -50,10 +52,10 @@ interface TaskAPI {
   // Returns a single task or throws NotFoundError
   getTask(id: string): Promise<Task>;
 
-  // Partial update — only provided fields change
+  // Partial update - only provided fields change
   updateTask(id: string, input: UpdateTaskInput): Promise<Task>;
 
-  // Idempotent delete — succeeds even if already deleted
+  // Idempotent delete - succeeds even if already deleted
   deleteTask(id: string): Promise<void>;
 }
 ```
@@ -83,7 +85,7 @@ interface APIError {
 // 500 → Server error (never expose internal details)
 ```
 
-**Don't mix patterns.** If some endpoints throw, others return null, and others return `{ error }` — the consumer can't predict behavior.
+**Don't mix patterns.** If some endpoints throw, others return null, and others return `{ error }` - the consumer can't predict behavior.
 
 ### 3. Validate at Boundaries
 
@@ -138,8 +140,8 @@ interface CreateTaskInput {
 // Bad: Change existing field types or remove fields
 interface CreateTaskInput {
   title: string;
-  // description: string;  // Removed — breaks existing consumers
-  priority: number;         // Changed from string — breaks existing consumers
+  // description: string;  // Removed - breaks existing consumers
+  priority: number;         // Changed from string - breaks existing consumers
 }
 ```
 
@@ -155,12 +157,12 @@ interface CreateTaskInput {
 
 ### 6. Honouring an Idempotency Key
 
-Accepting an `Idempotency-Key` is the contract. Honouring it is the implementation, and it is where the money is lost — a key the server accepts but handles carelessly is worse than no key at all, because the client now believes retrying is safe.
+Accepting an `Idempotency-Key` is the contract. Honouring it is the implementation, and it is where the money is lost - a key the server accepts but handles carelessly is worse than no key at all, because the client now believes retrying is safe.
 
 **Derive the key from the intent, not the attempt.** The key must be stable across retries of one intent and different across distinct intents:
 
 ```typescript
-crypto.randomUUID()                    // ✗ new key per attempt — every retry is a new charge
+crypto.randomUUID()                    // ✗ new key per attempt - every retry is a new charge
 `${userId}:${amount}`                  // ✗ two legitimate $50 charges collapse into one
 `${orderId}:${Date.now()}`             // ✗ a timestamp is randomUUID() wearing a hat
 
@@ -168,7 +170,7 @@ req.headers['idempotency-key']         // ✓ client generates once, reuses on r
 `charge:v1:${orderId}`                 // ✓ derived from an immutable identifier
 ```
 
-The key comes from the client or the initiating event — never from the layer doing the retrying.
+The key comes from the client or the initiating event - never from the layer doing the retrying.
 
 **Claim atomically. A check followed by an act is a race:**
 
@@ -200,7 +202,7 @@ if (existing.requestHash !== hash(req.body)) {
 }
 ```
 
-**Decide what an in-flight duplicate gets.** The first request is still running when the second arrives — the common case under retry storms:
+**Decide what an in-flight duplicate gets.** The first request is still running when the second arrives - the common case under retry storms:
 
 | Strategy | Response | Use when |
 |---|---|---|
@@ -210,7 +212,7 @@ if (existing.requestHash !== hash(req.body)) {
 
 Never let the second caller through because the first "seems stuck". A stalled attempt whose fate is unknown is exactly when duplicating costs most.
 
-**Every call has three outcomes, not two: success, failure, and _unknown_.** A timeout tells you nothing about whether the effect applied. Record the intent *before* calling out, so a crash between the call and the response leaves evidence something must resolve later — rather than a silently retried charge.
+**Every call has three outcomes, not two: success, failure, and _unknown_.** A timeout tells you nothing about whether the effect applied. Record the intent *before* calling out, so a crash between the call and the response leaves evidence something must resolve later - rather than a silently retried charge.
 
 **Set retention from the longest retry chain**, not from disk cost. Keys must outlive every path that can re-deliver the same intent, including a dead-letter queue replayed a week later and any provider dispute window. A 24-hour key TTL behind a 7-day DLQ is a duplicate waiting to happen.
 
@@ -259,7 +261,7 @@ GET /api/tasks?status=in_progress&assignee=user123&createdAfter=2025-01-01
 
 ### Partial Updates (PATCH)
 
-Accept partial objects — only update what's provided:
+Accept partial objects - only update what's provided:
 
 ```typescript
 // Only title changes, everything else preserved
@@ -332,8 +334,8 @@ function getTask(id: TaskId): Promise<Task> { ... }
 | "We can just maintain two versions" | Multiple versions multiply maintenance cost and create diamond dependency problems. Prefer the One-Version Rule. |
 | "Internal APIs don't need contracts" | Internal consumers are still consumers. Contracts prevent coupling and enable parallel work. |
 | "Accepting the Idempotency-Key header is enough" | The header is the contract; storing the key against the result is the implementation. A key you accept but don't honour tells the client retrying is safe when it isn't. |
-| "Our queue guarantees exactly-once delivery" | No queue does across a consumer crash — the broker's ack and your side effect are not in one transaction. Design for at-least-once with idempotent processing. |
-| "Duplicate requests are rare" | They're *correlated*. Retries spike exactly when a dependency is degraded — the moment duplicates are most likely and most expensive. |
+| "Our queue guarantees exactly-once delivery" | No queue does across a consumer crash - the broker's ack and your side effect are not in one transaction. Design for at-least-once with idempotent processing. |
+| "Duplicate requests are rare" | They're *correlated*. Retries spike exactly when a dependency is degraded - the moment duplicates are most likely and most expensive. |
 
 ## Red Flags
 
@@ -344,7 +346,7 @@ function getTask(id: TaskId): Promise<Task> { ... }
 - List endpoints without pagination
 - Verbs in REST URLs (`/api/createTask`, `/api/getUsers`)
 - Third-party API responses used without validation or sanitization
-- A `SELECT` for an idempotency key followed by an `INSERT` — that's a race, not a guard
+- A `SELECT` for an idempotency key followed by an `INSERT` - that's a race, not a guard
 - An idempotency key derived from a UUID, timestamp, or anything else regenerated per attempt
 - The same key accepted with a different request body, silently returning the first response
 - A key retention window shorter than the longest path that can re-deliver the request
@@ -359,7 +361,7 @@ After designing an API:
 - [ ] List endpoints support pagination
 - [ ] New fields are additive and optional (backward compatible)
 - [ ] Naming follows consistent conventions across all endpoints
-- [ ] API documentation or types are committed alongside the implementation
+- [ ] API documentation or types are part of the same change as the implementation
 - [ ] State-changing endpoints either honour an idempotency key or are documented as unsafe to retry
 - [ ] The key is claimed in one atomic operation, guarded by a unique constraint
 - [ ] A reused key with a different payload fails loudly rather than replaying the wrong response

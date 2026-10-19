@@ -1,6 +1,6 @@
 ---
 name: supabase-postgres-best-practices
-description: "Postgres best practices maintained by Supabase, for Postgres running anywhere. Load this skill BEFORE writing or changing anything that lives in a Postgres database: creating or altering tables and columns (including choosing column types), schema design, migrations and declarative schema files, RLS policies and the tests that verify them, indexes, triggers, database functions, queues and scheduled jobs (pg_cron, pgmq), vector/semantic search (pgvector), and restoring dumps (pg_restore) or importing data. Also load it when diagnosing slow queries, high CPU, timeouts, EXPLAIN plans, connection exhaustion, locking, bloat, or rows visible to the wrong user or tenant. This is not just a performance guide — schema, migration, security, and SQL authoring tasks need these rules too, even for a one-column change or a single query."
+description: "Postgres best practices maintained by Supabase, for Postgres running anywhere: schema design, column types, indexes, migrations, RLS policies, connection pooling, locking and query performance. Use when designing or reviewing a Postgres schema, migration or RLS policy, writing non-trivial SQL, or diagnosing slow queries, timeouts, connection exhaustion, locking or bloat."
 license: MIT
 metadata:
   author: supabase
@@ -11,6 +11,9 @@ metadata:
 ---
 
 # Supabase Postgres Best Practices
+
+> Code examples here carry comments and labels to teach. Code you write follows the shared rules: no comments, no docstrings, no em dashes.
+> SQL here is illustrative. Never run destructive or state-changing SQL (DDL, `revoke`, `drop`, extension changes, stat resets) against a shared or production database without a plan step marked `REQUIRES HUMAN APPROVAL`.
 
 Comprehensive performance optimization guide for Postgres, maintained by Supabase. Contains rules across 8 categories, prioritized by impact to guide automated query optimization and schema design.
 

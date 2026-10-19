@@ -1,6 +1,6 @@
 ---
 name: verification-before-completion
-description: Use when about to claim work is complete, fixed, or passing, before committing or creating PRs - requires running verification commands and confirming output before making any success claims; evidence before assertions always
+description: Use when about to claim work is complete, fixed, or passing, before reporting a task done, committing or creating PRs - requires running verification commands and confirming output before making any success claims; evidence before assertions always
 ---
 
 # Verification Before Completion
@@ -51,7 +51,7 @@ Skip any step = lying, not verifying
 
 - Using "should", "probably", "seems to"
 - Expressing satisfaction before verification ("Great!", "Perfect!", "Done!", etc.)
-- About to commit/push/PR without verification
+- About to report done, commit, push or open a PR without verification
 - Trusting agent success reports
 - Relying on partial verification
 - Thinking "just this once"
@@ -79,10 +79,16 @@ Skip any step = lying, not verifying
 ❌ "Should pass now" / "Looks correct"
 ```
 
-**Regression tests (TDD Red-Green):**
+**Regression tests (end-to-end, red-green):**
 ```
 ✅ Write → Run (pass) → Revert fix → Run (MUST FAIL) → Restore → Run (pass)
 ❌ "I've written a regression test" (without red-green verification)
+```
+
+**Non-trivial proof:**
+```
+✅ Write the check as a re-runnable script, run it, keep its output in your report
+❌ "I clicked through it and it worked"
 ```
 
 **Build:**
@@ -107,9 +113,8 @@ Skip any step = lying, not verifying
 
 **ALWAYS before:**
 - ANY variation of success/completion claims
-- ANY expression of satisfaction
 - ANY positive statement about work state
-- Committing, PR creation, task completion
+- Reporting a task done (and, for the orchestrator, committing or opening a PR)
 - Moving to next task
 - Delegating to agents
 

@@ -6,11 +6,11 @@ Use these templates when documenting verification evidence for each bug.
 
 ```
 Bug #N Data Flow Analysis
-Source: [exact location] — Trust Level: [trusted/untrusted]
+Source: [exact location] - Trust Level: [trusted/untrusted]
 Path: Source → Validation1[file:line] → Transform[file:line] → Vulnerability[file:line]
 Validation Points:
-  - Check1: [condition] at [file:line] — [passes/fails/bypassed]
-  - Check2: [condition] at [file:line] — [passes/fails/bypassed]
+  - Check1: [condition] at [file:line] - [passes/fails/bypassed]
+  - Check2: [condition] at [file:line] - [passes/fails/bypassed]
 ```
 
 ## Mathematical Bounds Proof
@@ -56,10 +56,10 @@ Constraints: [what limits exist on attacker input]
 Reachability: [can attacker-controlled data reach vulnerable operation?]
 ```
 
-## PoC — Pseudocode with Data Flow Diagram
+## Attack Path with Data Flow Diagram
 
 ```
-PoC for Bug #N: [Brief Description]
+Attack path for Bug #N: [Brief Description]
 
 Data Flow Diagram:
 
@@ -85,7 +85,7 @@ Vulnerability Claim: [brief description]
 
 For each of the 13 questions from the devil's advocate review, document your answer:
 1-11. [Challenges arguing AGAINST the vulnerability]
-12-13. [Challenges arguing FOR the vulnerability — false-negative protection]
+12-13. [Challenges arguing FOR the vulnerability - false-negative protection]
 
 Final Assessment: [Vulnerability confirmed/debunked with reasoning]
 ```

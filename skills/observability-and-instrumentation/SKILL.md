@@ -5,9 +5,11 @@ description: Instruments code so production behavior is visible and diagnosable.
 
 # Observability and Instrumentation
 
+> Code examples here carry comments and labels to teach. Code you write follows the shared rules: no comments, no docstrings, no em dashes.
+
 ## Overview
 
-Code you can't observe is code you can't operate. Observability is the ability to answer "what is the system doing and why?" from the outside, using the telemetry the code emits. Instrumentation is not a post-launch add-on — it's written alongside the feature, the same way tests are. If a feature ships without telemetry, the first user-reported bug becomes archaeology instead of a query.
+Code you can't observe is code you can't operate. Observability is the ability to answer "what is the system doing and why?" from the outside, using the telemetry the code emits. Instrumentation is not a post-launch add-on - it's written alongside the feature, the same way tests are. If a feature ships without telemetry, the first user-reported bug becomes archaeology instead of a query.
 
 ## When to Use
 
@@ -18,9 +20,9 @@ Code you can't observe is code you can't operate. Observability is the ability t
 - Reviewing a PR that adds I/O, retries, queues, or cross-service calls
 
 **NOT for:**
-- Diagnosing a failure happening right now — use the `debugging-and-error-recovery` skill (observability is what makes that skill fast next time)
-- Profiling and optimizing measured slowness — use the `performance-optimization` skill
-- Launch-day monitoring checklists and rollback triggers — see the `shipping-and-launch` skill; this skill covers the instrumentation that feeds them
+- Diagnosing a failure happening right now - use the `diagnosing-bugs` skill (observability is what makes that fast next time)
+- Profiling and optimizing measured slowness - that is performance work, not instrumentation
+- Launch-day monitoring checklists and rollback triggers - those belong in the rollout plan; this skill covers the instrumentation that feeds them
 
 ## Process
 
@@ -37,7 +39,7 @@ QUESTIONS ON-CALL WILL ASK:
 → Every signal below must help answer one of these.
 ```
 
-If you can't name the questions, you're not ready to instrument — you'll log everything and learn nothing.
+If you can't name the questions, you're not ready to instrument - you'll log everything and learn nothing.
 
 ### 2. Pick the right signal for each question
 
@@ -54,7 +56,7 @@ Rule of thumb: metrics tell you **that** something is wrong, traces tell you **w
 Log events, not prose. Every log line is a JSON object with a stable event name and machine-readable fields:
 
 ```typescript
-// BAD: string interpolation — unqueryable, inconsistent
+// BAD: string interpolation - unqueryable, inconsistent
 logger.info(`Payment ${id} failed for user ${userId} after ${n} retries`);
 
 // GOOD: stable event name + structured fields
@@ -67,7 +69,7 @@ logger.warn({
 }, 'payment failed');
 ```
 
-**Log levels — use them consistently:**
+**Log levels - use them consistently:**
 
 | Level | Meaning | On-call action |
 |---|---|---|
@@ -88,11 +90,11 @@ app.use((req, res, next) => {
 });
 ```
 
-**When several entry points write to one log, name the entry point.** A correlation ID identifies a run; it does not say which code path started it. The same job reached by a scheduler, by a replay endpoint, and by a manual CLI run produces interchangeable lines in one sink, so attributing a line falls back to elimination — cross-reading the scheduler's history, the process table, a deploy log — and that argument holds only as long as those external records happen to still exist. Stamp the entry point where the run starts, next to the correlation ID, and propagate both the same way:
+**When several entry points write to one log, name the entry point.** A correlation ID identifies a run; it does not say which code path started it. The same job reached by a scheduler, by a replay endpoint, and by a manual CLI run produces interchangeable lines in one sink, so attributing a line falls back to elimination - cross-reading the scheduler's history, the process table, a deploy log - and that argument holds only as long as those external records happen to still exist. Stamp the entry point where the run starts, next to the correlation ID, and propagate both the same way:
 
 ```typescript
 // One helper for every entry point: the run's own logger carries both fields.
-// `entryPoint`, not `source` — ECS reserves `source.*` for network fields.
+// `entryPoint`, not `source` - ECS reserves `source.*` for network fields.
 export const runLog = (entryPoint: 'scheduler' | 'replay_endpoint' | 'cli', runId: string) =>
   logger.child({ entryPoint, requestId: runId });
 
@@ -101,15 +103,15 @@ export const runLog = (entryPoint: 'scheduler' | 'replay_endpoint' | 'cli', runI
 // CLI invocation        -> runLog('cli', process.env.RUN_ID ?? crypto.randomUUID())
 ```
 
-Both fields have to cross the same boundaries as the correlation ID — queue metadata, HTTP headers — or a worker re-derives the entry point and guesses. A field that merely correlates with an entry point is a hint, not an attribution: anything that can invoke the job can reproduce it.
+Both fields have to cross the same boundaries as the correlation ID - queue metadata, HTTP headers - or a worker re-derives the entry point and guesses. A field that merely correlates with an entry point is a hint, not an attribution: anything that can invoke the job can reproduce it.
 
-**Never log secrets, tokens, passwords, or full PII.** This is a hard rule from the `security-and-hardening` skill — telemetry pipelines are a classic data-leak path. Allowlist fields; don't log whole request bodies.
+**Never log secrets, tokens, passwords, or full PII.** This is a hard security rule - telemetry pipelines are a classic data-leak path. Allowlist fields; don't log whole request bodies.
 
 ### 4. Metrics
 
 For request-driven services, instrument **RED** on every endpoint and every external dependency: **R**ate (requests/sec), **E**rrors (failure rate), **D**uration (latency histogram, not average). For resources (queues, pools, hosts), use **USE**: **U**tilization, **S**aturation, **E**rrors.
 
-As with tracing, the vendor-neutral path is the OpenTelemetry metrics API (same SDK and context as step 5). The example below uses Prometheus' `prom-client` — one common backend choice, not the only one; the RED/USE and cardinality rules are identical either way.
+As with tracing, the vendor-neutral path is the OpenTelemetry metrics API (same SDK and context as step 5). The example below uses Prometheus' `prom-client` - one common backend choice, not the only one; the RED/USE and cardinality rules are identical either way.
 
 ```typescript
 import { Histogram } from 'prom-client';
@@ -122,7 +124,7 @@ const httpDuration = new Histogram({
 });
 ```
 
-**Cardinality is the failure mode.** Every unique label combination is a separate time series. Labels must come from small, fixed sets (route template, status class, provider name). Never use user IDs, raw URLs, error messages, or other unbounded values as labels — that belongs in logs and traces.
+**Cardinality is the failure mode.** Every unique label combination is a separate time series. Labels must come from small, fixed sets (route template, status class, provider name). Never use user IDs, raw URLs, error messages, or other unbounded values as labels - that belongs in logs and traces.
 
 ```
 OK as label:    route="/api/tasks/:id"   status_class="5xx"   provider="stripe"
@@ -133,10 +135,10 @@ Track averages never, percentiles always: an average hides the 1% of users havin
 
 ### 5. Distributed tracing
 
-Use OpenTelemetry — it's the vendor-neutral standard, and auto-instrumentation covers HTTP, gRPC, and common DB clients with near-zero code:
+Use OpenTelemetry - it's the vendor-neutral standard, and auto-instrumentation covers HTTP, gRPC, and common DB clients with near-zero code:
 
 ```typescript
-// tracing.ts — must be imported before anything else
+// tracing.ts - must be imported before anything else
 import { NodeSDK } from '@opentelemetry/sdk-node';
 import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
 
@@ -147,7 +149,7 @@ const sdk = new NodeSDK({
 sdk.start();
 ```
 
-Add manual spans only around meaningful internal units of work (e.g., `applyDiscounts`, `chargeProvider`) and attach the attributes on-call will filter by. Propagate context across every async boundary — HTTP headers, queue message metadata — or the trace dies at the gap. Sample head-based at a low rate by default; keep 100% of errors if your backend supports tail sampling.
+Add manual spans only around meaningful internal units of work (e.g., `applyDiscounts`, `chargeProvider`) and attach the attributes on-call will filter by. Propagate context across every async boundary - HTTP headers, queue message metadata - or the trace dies at the gap. Sample head-based at a low rate by default; keep 100% of errors if your backend supports tail sampling.
 
 ### 6. Alerting
 
@@ -165,13 +167,13 @@ Cause-based alerts fire when nothing is wrong and miss failures you didn't predi
 Rules for every alert you create:
 
 1. **It must be actionable.** If the response is "ignore it, it self-heals", delete the alert.
-2. **It links to a runbook** — even three lines: what it means, first query to run, escalation path.
+2. **It links to a runbook** - even three lines: what it means, first query to run, escalation path.
 3. **It has a threshold and duration** justified by the SLO or by historical data, not by a guess.
 4. Use two severities only: **page** (user-facing, act now) and **ticket** (degradation, act this week). A third tier becomes noise that trains people to ignore everything.
 
 #### Writing Runbooks
 
-Rule 2 above requires every alert to link to a runbook. A runbook's job is to answer three questions without requiring the reader to think: what is happening, what to check first, and who to call if that doesn't resolve it. Store in `docs/runbooks/` named after the alert.
+Rule 2 above requires every alert to link to a runbook. A runbook's job is to answer three questions without requiring the reader to think: what is happening, what to check first, and who to call if that doesn't resolve it. Store in `docs/runbooks/` named after the alert. Advisors put runbook text in their plan or answer with that target path, for a worker to write.
 
 **Minimum viable runbook (three lines):**
 
@@ -179,19 +181,19 @@ Rule 2 above requires every alert to link to a runbook. A runbook's job is to an
 # Runbook: High Error Rate on /api/tasks
 **Means:** DB connection pool likely exhausted, or a bad deploy.
 **First check:** `SELECT count(*) FROM pg_stat_activity WHERE backend_type = 'client backend';`
-  — if count > pool limit, see Step 2. (Swap in the equivalent for your database.)
+  - if count > pool limit, see Step 2. (Swap in the equivalent for your database.)
 **Escalate to:** #db-oncall or engineering on-call rotation.
 ```
 
 **When to expand beyond three lines:** add steps only when the first check alone isn't enough to decide. A five-step runbook that covers the three most common causes is better than a twenty-step document that covers every edge case and gets skimmed.
 
-**Keep runbooks current.** Update the runbook as part of closing every incident it was used in — a stale runbook builds false confidence. If a step was wrong or missing, fix it before marking the incident resolved.
+**Keep runbooks current.** Update the runbook as part of closing every incident it was used in - a stale runbook builds false confidence. If a step was wrong or missing, fix it before marking the incident resolved.
 
 ### 7. Verify the telemetry itself
 
 Instrumentation is code; it can be wrong. Before calling the work done, trigger the paths and look at the actual output:
 
-- Force an error in staging → find it in the logs by `requestId`, confirm fields are structured (not `[object Object]`)
+- Force an error in a staging or local environment → find it in the logs by `requestId`, confirm fields are structured (not `[object Object]`)
 - Send test traffic → confirm metric series appear with the expected labels and sane values
 - Follow one request across services in the tracing UI → no broken spans
 - Fire each new alert once (lower the threshold temporarily) → confirm it reaches the right channel and the runbook link works
@@ -212,7 +214,7 @@ Instrumentation is code; it can be wrong. Before calling the work done, trigger 
 
 - A feature PR with retries, queues, or external calls and zero new telemetry
 - Log lines built by string interpolation instead of structured fields
-- No correlation/request ID — each log line is an orphan
+- No correlation/request ID - each log line is an orphan
 - One log stream fed by a scheduler, a webhook, and manual runs, with no field naming which one produced the line
 - Metrics labeled with user IDs, raw URLs, or error message text (cardinality bomb)
 - Latency tracked as an average with no percentiles
@@ -233,6 +235,5 @@ After instrumenting a feature, confirm:
 - [ ] Latency is a histogram; p95/p99 are queryable
 - [ ] A single request can be followed end-to-end in the tracing UI without broken spans
 - [ ] Every new alert is symptom-based, has a runbook link, and was test-fired once
-- [ ] An induced failure in staging was located via telemetry alone, without reading the source
+- [ ] An induced failure in a staging or local environment was located via telemetry alone, without reading the source
 
-For the at-a-glance version of this list, including the pre-launch instrumentation gate, see `../../references/observability-checklist.md`.
