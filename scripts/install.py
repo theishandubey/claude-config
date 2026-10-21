@@ -11,9 +11,9 @@ import time
 REPO = os.path.realpath(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 HOME = os.path.realpath(os.environ.get("HOME") or os.path.expanduser("~"))
 CLAUDE = os.path.join(HOME, ".claude")
-STATE = os.path.join(CLAUDE, "claude-config-state.json")
-BACKUPS = os.path.join(HOME, ".claude-config-backups")
-TMUX_MARK = "# claude-config"
+STATE = os.path.join(CLAUDE, "dotclaude-state.json")
+BACKUPS = os.path.join(HOME, ".dotclaude-backups")
+TMUX_MARK = "# dotclaude"
 MANAGED_DIRS = ("agents", "hooks", "skills")
 MISSING = object()
 COLOR = sys.stdout.isatty() and not os.environ.get("NO_COLOR")
@@ -88,7 +88,7 @@ def write_json(path, data):
     path = os.path.realpath(path)
     os.makedirs(os.path.dirname(path), exist_ok=True)
     mode = os.stat(path).st_mode & 0o7777 if os.path.exists(path) else 0o644
-    fd, tmp = tempfile.mkstemp(dir=os.path.dirname(path), prefix=".claude-config-")
+    fd, tmp = tempfile.mkstemp(dir=os.path.dirname(path), prefix=".dotclaude-")
     with os.fdopen(fd, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2)
         f.write("\n")
@@ -267,7 +267,7 @@ def plan_tmux(plan, uninstall=False):
                     def strip(conf=conf, lines=lines):
                         with open(os.path.realpath(conf), "w", encoding="utf-8") as f:
                             f.writelines(l for l in lines if not l.rstrip().endswith(TMUX_MARK))
-                    plan.add(f"remove the claude-config line from {short(conf)}", strip)
+                    plan.add(f"remove the dotclaude line from {short(conf)}", strip)
         return
     if into_repo(dotfile) or from_any_checkout(dotfile):
         plan_link(plan, dotfile, source)
@@ -335,7 +335,7 @@ def main(argv):
     args = parser.parse_args(argv)
 
     plan = Plan(time.strftime("%Y%m%d-%H%M%S"))
-    print(f"claude-config {'uninstall' if args.uninstall else 'install'} from {short(REPO)}")
+    print(f"dotclaude {'uninstall' if args.uninstall else 'install'} from {short(REPO)}")
     try:
         if args.uninstall:
             for path in stale_links({}, include_dirs=True):

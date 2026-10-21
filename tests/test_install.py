@@ -165,7 +165,7 @@ class InstallTest(unittest.TestCase):
         self.assertTrue(os.path.islink(os.path.join(self.claude, "skills", "diagnosing-bugs")))
         self.assertEqual(os.listdir(os.path.join(self.claude, "skills")).count("diagnosing-bugs"), 1)
         self.assertFalse([n for n in os.listdir(os.path.join(self.claude, "skills")) if ".bak" in n])
-        backups = os.path.join(self.home, ".claude-config-backups")
+        backups = os.path.join(self.home, ".dotclaude-backups")
         [stamp] = os.listdir(backups)
         self.assertEqual(rd(os.path.join(backups, stamp, ".claude", "CLAUDE.md")), "mine")
         self.assertTrue(os.path.isfile(os.path.join(backups, stamp, ".claude", "skills", "diagnosing-bugs", "SKILL.md")))
@@ -290,7 +290,7 @@ class InstallTest(unittest.TestCase):
         self.assertEqual(os.listdir(os.path.join(self.claude, "hooks")), [])
         self.assertFalse([n for n in os.listdir(os.path.join(self.claude, "skills"))])
         self.assertEqual(self.read_settings(), {"theme": "light", "permissions": {"allow": ["Bash(ls:*)"]}})
-        self.assertFalse(os.path.exists(os.path.join(self.claude, "claude-config-state.json")))
+        self.assertFalse(os.path.exists(os.path.join(self.claude, "dotclaude-state.json")))
 
 
 if __name__ == "__main__":

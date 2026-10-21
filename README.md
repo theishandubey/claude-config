@@ -1,4 +1,4 @@
-# claude-config
+# dotclaude
 
 An installable Claude Code setup: a three-tier agent roster, the orchestrator playbook that drives it, shared coding rules, two guard hooks, vendored skills, personal settings defaults and a tmux config.
 `install.sh` links it into `~/.claude` and merges the settings defaults into your own `~/.claude/settings.json`.
@@ -58,15 +58,15 @@ Shared agent instructions live in skills instead of being copied into each agent
 > Read `claude/settings.json` before installing.
 
 ```bash
-git clone https://github.com/theishandubey/claude-config.git ~/claude-config
+git clone https://github.com/theishandubey/dotclaude.git ~/dotclaude
 ```
 
 ```bash
-~/claude-config/install.sh --dry-run
+~/dotclaude/install.sh --dry-run
 ```
 
 ```bash
-~/claude-config/install.sh
+~/dotclaude/install.sh
 ```
 
 `--dry-run` prints every planned change and touches nothing.
@@ -83,15 +83,15 @@ A re-run with nothing to do changes nothing.
 | `~/.tmux.conf` | a link to `tmux/tmux.conf`, or a `source-file` line added to your existing tmux config |
 
 `agents`, `hooks` and `skills` stay real directories, so your own agents, hooks and skills can live next to the linked ones.
-An older install that linked a whole directory into a claude-config checkout is converted, and any files of yours that the checkout's git does not track are copied over.
-Anything else already at a target is moved to `~/.claude-config-backups/<timestamp>/` first, never overwritten.
+An older install that linked a whole directory into a checkout of this repo, including from when it was named claude-config, is converted, and any files of yours that the checkout's git does not track are copied over.
+Anything else already at a target is moved to `~/.dotclaude-backups/<timestamp>/` first, never overwritten.
 Links into this repo that it no longer provides are removed.
 
 `./install.sh --uninstall` removes the links, restores the newest backups, removes the defaults you did not change from `settings.json`, and removes the tmux line.
 
 ### How settings are merged
 
-The installer records the defaults it applied in `~/.claude/claude-config-state.json` and does a three-way merge on every run, between the previously applied defaults, your file and the new defaults:
+The installer records the defaults it applied in `~/.claude/dotclaude-state.json` and does a three-way merge on every run, between the previously applied defaults, your file and the new defaults:
 - A value you never changed follows the repo, including removal when the repo drops it.
 - A value you changed or removed stays as you left it.
 - List entries merge one by one, so your own allow rules and hooks survive while the repo's entries are added, updated or retired.
