@@ -26,5 +26,6 @@ Report back, briefly:
 - Sites covered.
 - Verification: commands and results.
 - Deviations from the spec and why.
+- Decisions the code cannot show (why a lock, ordering or held reference is there), for the commit message body.
 - Unrelated failures you did not fix, with the exact output.
 - Open questions and suggested follow-ups.

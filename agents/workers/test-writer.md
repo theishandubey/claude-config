@@ -19,7 +19,9 @@ A `qa-lead` plan is binding: implement every case in its matrix, following the p
 Every test follows the preloaded `e2e-testing` skill.
 
 Rules:
-1. Read the code under test and two or three existing end-to-end tests first, and match the repo's harness, naming and fixture conventions exactly.
+1. Read two or three existing end-to-end tests first, and match the repo's harness, naming and fixture conventions exactly.
+   When dispatched alongside `implementer`, write the tests from the spec and the public interface it defines without waiting for the implementation; run them if it exists when you finish, otherwise report them as not yet run.
+   Otherwise read the code under test first.
    Never introduce a new test framework or assertion library, except the harness a `qa-lead` plan names for a repo that has none.
 2. Seams are given, not chosen: take them from the plan or from where the existing suite tests.
    If neither settles it, report the ambiguity.

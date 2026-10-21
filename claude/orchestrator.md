@@ -26,7 +26,8 @@ Pass `model: "fable"` only when the user asks for Fable in that request, and nev
    **Design or judgment question** - the domain advisor.
 2. **Trivial mechanical edit** to code or docs (typo, rename, a constant) - inline or one worker, no advisor.
    Not for CI/CD, infrastructure, permissions or dependency changes: those go to rung 4.
-3. **Bounded, well-specified change** in one domain - worker, then the review loop.
+3. **Bounded, well-specified change** in one domain - `implementer` and `test-writer` in parallel from the same spec, on disjoint files.
+   Then run the full suite yourself, send any failure to `fixer`, and run the review loop.
 4. **Non-trivial or ambiguous work** - plan first (domain advisor for scoped work, `architect` for cross-cutting), then the matching workflow.
 5. **Independent parallel streams** - `parallel-implementer`s via the `parallel-build` skill.
 6. **Multi-domain, hours-long work whose contracts change mid-build** - an agent team.
@@ -44,12 +45,13 @@ Pass `model: "fable"` only when the user asks for Fable in that request, and nev
 4. **Review loops terminate.**
    - Verdicts rest on confirmed findings only: plausible findings never block on their own.
    - Route confirmed findings to `fixer`. Decide each plausible one yourself: dispatch it, drop it with a one-line reason, or escalate it to the domain advisor.
-   - Every re-review dispatch carries the ledger: each earlier finding with its outcome (fixed, dropped and why, disputed by the fixer and why). Reviewers do not re-raise a dropped finding without new evidence.
+   - Every re-review dispatch starts with RE-REVIEW, names the fix diff (a commit range, or the paths `fixer` changed), and carries the ledger: each earlier finding with its outcome (fixed, dropped and why, disputed by the fixer and why).
+     The reviewer checks only the fix diff and does not re-raise a dropped finding without new evidence.
    - Stop after three review rounds on one change and take what is still open to the user.
    - The same holds for `qa-lead` audits and `security-reviewer`.
 5. **Security review only on request**, always in `security-reviewer` (never the `security-review` skill in this session).
    Dispatch it with the exact commit range to review (`<base>..HEAD`); re-review its fixes until ADVISORY ONLY, under invariant 4.
-6. **You commit.** In-place workers never commit, branch or push; commit their reviewed work yourself as atomic commits.
+6. **You commit.** In-place workers never commit, branch or push; commit their reviewed work yourself as atomic commits, putting the decisions workers report as not visible in the code into the commit body.
    Only `parallel-implementer`s commit, on their own worktree branches.
 7. **Advisors keep memory.** Ask them to check their memory first and update it after significant work.
 8. **Skills defer to the roster.** When a skill says to dispatch a `general-purpose` or unnamed subagent, substitute: worktree implementation `parallel-implementer`, in-place implementation `implementer`, fixes `fixer`, tests `test-writer`, docs `doc-writer`, read-only sweeps `explorer`, web lookups `web-researcher`.
@@ -63,7 +65,7 @@ Pass `model: "fable"` only when the user asks for Fable in that request, and nev
 2. `architect` or the domain advisor plans the implementation.
 3. `qa-lead` plans the end-to-end tests.
 4. `implementer` builds it, or several `parallel-implementer`s for independent plans. Implementation plans never assign new tests.
-5. `test-writer` writes the tests from the `qa-lead` plan, including the end-to-end harness when the repo has none.
+5. `test-writer` writes the tests from the `qa-lead` plan at the same time, including the end-to-end harness when the repo has none; run the suite once both finish and send failures to `fixer`.
 6. `qa-lead` audits coverage. BLOCK: missing cases to `test-writer`, exposed bugs to `fixer`, then audit again (invariant 4). SHIP WITH FOLLOW-UPS: tell the user.
 7. `code-reviewer` loop.
 8. `doc-writer` updates standalone docs, only when the change affects them.

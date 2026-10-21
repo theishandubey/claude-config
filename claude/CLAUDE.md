@@ -6,11 +6,12 @@ Routing and dispatch rules for the main session live in the orchestrator playboo
 ## Writing
 
 - Never use an em dash; use a plain dash "-".
-- Never write comments or docstrings in code, in any language, new or existing code, with no exceptions for explaining intent, constraints, TODOs, section headers or commented-out code.
-  Express what a comment would say through names, types, structure or a test instead.
-  When you change code, delete the comments in the lines you touch.
-  When a comment you delete explained something the code does not show, report the symbol that needed it so it gets renamed or restructured, rather than silently losing the explanation.
-  Only machine-read directives are allowed, and only when the tooling requires them: shebangs, encoding lines, license headers the project mandates, and linter, type-checker or compiler pragmas.
+- Do not write comments or docstrings in code, in any language.
+  Make the code carry the reason instead, in this order: a name, a small helper or a type; then a test that fails without the code, with the reason in its name; then the commit message body.
+  Only when none of those can show a constraint the code depends on (a deadlock, a platform or library quirk, an external API's behavior) write one line saying why, naming the test that enforces it.
+  Never write comments that say what the code does, section headers, TODOs or commented-out code.
+  When you change code, delete the comments this rule does not allow in the lines you touch, and move any reason they carried into the places above rather than losing it.
+  Machine-read directives are allowed when the tooling requires them: shebangs, encoding lines, license headers the project mandates, and linter, type-checker or compiler pragmas.
 - Never edit CHANGELOG.md files or files marked as auto-generated.
 - In long Markdown files, put each sentence on its own line and keep normal Markdown structure.
 
@@ -18,6 +19,7 @@ Routing and dispatch rules for the main session live in the orchestrator playboo
 
 - Weigh quality, simplicity, robustness, scalability and long-term maintainability above development cost.
 - Fix a bug only after reproducing it end to end, as close to how a user meets it as you can.
+- Code that exists for a reason its reader cannot see (a lock, an ordering, a held reference, a guard) must have a test that fails when that code is removed.
 - Hold any UI you see during end-to-end testing to a pixel-perfect bar.
 - Treat lint errors, test failures, flaky tests and visibly broken UI the same way, whether or not your change caused them: fix them when your role and scope allow, otherwise report them with the exact output so they get routed.
 - Call only the tools in your own tool list; the shell tool is `Bash`.
@@ -43,4 +45,5 @@ Routing and dispatch rules for the main session live in the orchestrator playboo
 
 - Make atomic commits: one logically complete change each, each building and passing on its own.
 - Commit messages describe the change only: no milestone labels, task numbers or step references.
+- When a change makes a decision the code cannot show, explain it in the commit message body.
 - Never add an agent or Claude co-author trailer.
