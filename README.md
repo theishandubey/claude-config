@@ -5,7 +5,7 @@ An installable Claude Code setup: a three-tier agent roster, the orchestrator pl
 
 ## What you get
 
-Twelve subagents in `agents/`:
+Ten subagents in `agents/`:
 
 | Agent | Tier | Model | Effort | Role |
 |---|---|---|---|---|
@@ -13,11 +13,9 @@ Twelve subagents in `agents/`:
 | `backend-engineer` | advisor | opus | medium | APIs, services, databases, queues, auth, data modeling |
 | `frontend-engineer` | advisor | opus | medium | Components, state, rendering performance, accessibility, motion |
 | `sre` | advisor | opus | medium | Infrastructure, CI/CD, observability, deployment safety, incidents |
-| `qa-lead` | advisor | opus | medium | End-to-end test plans and coverage audits |
 | `implementer` | worker | sonnet | high | Builds from a plan, in place |
 | `parallel-implementer` | worker | sonnet | high | Builds in its own git worktree, for parallel streams |
-| `fixer` | worker | sonnet | high | Bugs, failing tests, merge conflicts and review findings you pass on |
-| `test-writer` | worker | sonnet | high | End-to-end tests from a test plan |
+| `fixer` | worker | sonnet | high | Bugs with regression tests, failing tests, build breaks, merge conflicts and review findings you pass on |
 | `doc-writer` | worker | sonnet | high | Standalone docs |
 | `Explore` | explorer | sonnet | medium | Read-only codebase search; replaces the built-in `Explore` to pin it to Sonnet |
 | `web-researcher` | explorer | sonnet | medium | Read-only web research |
@@ -33,11 +31,15 @@ Code and security review are yours: run `/code-review` and `/security-review` wh
 
 `claude/CLAUDE.md` holds the shared rules every session and agent follows (the two explorers skip it with `omitClaudeMd` and restate the one rule they need).
 
+`implementer` and `parallel-implementer` write and run end-to-end tests for the behavior they change, and `fixer` adds a regression test for each bug and repairs outdated tests, all following the `e2e-tests` skill: full coverage of the changed behavior, iterating on the affected specs and running the whole suite once before reporting, with output kept in files and only failures read.
+No other agent writes, runs or reviews tests, so suites are not rerun by several agents for one change; code and security review are yours.
+To map pages whose roles and labels are unclear from the code, agents use `agent-browser` when it is installed (`npm i -g agent-browser && agent-browser install`).
+
 Shared agent instructions live in skills instead of being copied into each agent:
 - `plan-handoff`: how planning advisors write plans, with the plan template.
 - `plan-execution`: how workers execute a plan.
-- `e2e-testing`: what an end-to-end test is; the roster never writes unit tests.
 - `parallel-build`: the orchestrator's procedure for parallel worktree builds.
+- `e2e-tests`: how implementers and `fixer` write and run end-to-end tests, including adding a harness to a repo that has none.
 
 ## Requirements
 
@@ -138,7 +140,7 @@ npx skills update -p -y
 Review the diff before committing an update: vendored skills run with full permissions.
 
 Vendored skills are committed unmodified first, and any adaptation to this setup lands as a separate commit on top, so an update is merged against a visible local diff rather than overwriting it.
-These are adapted locally: `verification-before-completion`, `receiving-code-review`, `diagnosing-bugs`, `supabase-postgres-best-practices`, `vercel-react-best-practices`, and every skill vendored from poteto's pstack (the `principle-*` skills, `benchmark-checklist`, `create-verification-skill`, `maintain-verification-skill` and `unslop`).
+These are adapted locally: `verification-before-completion`, `receiving-code-review`, `diagnosing-bugs`, `supabase-postgres-best-practices`, `vercel-react-best-practices`, and every skill vendored from poteto's pstack (the `principle-*` skills, `benchmark-checklist` and `unslop`).
 
 | Agent | Preloaded vendored skills | Invoked on demand |
 |---|---|---|
@@ -146,10 +148,8 @@ These are adapted locally: `verification-before-completion`, `receiving-code-rev
 | `backend-engineer` | `supabase-postgres-best-practices` | `benchmark-checklist` |
 | `sre` | principle: fix-root-causes | `diagnosing-bugs`, `supabase-postgres-best-practices`, `benchmark-checklist` |
 | `frontend-engineer` | | design, motion and UI skills, `vercel-react-best-practices` |
-| `qa-lead` | principle: test-behavior-not-implementation | `create-verification-skill`, `maintain-verification-skill` |
-| `fixer` | `verification-before-completion`, `diagnosing-bugs`, `receiving-code-review`, principle: fix-root-causes | |
-| `implementer`, `parallel-implementer` | `verification-before-completion` | |
-| `test-writer` | `verification-before-completion`, principle: test-behavior-not-implementation | `create-verification-skill`, `maintain-verification-skill` |
+| `fixer` | `verification-before-completion`, `e2e-tests`, `diagnosing-bugs`, `receiving-code-review`, principle: fix-root-causes | |
+| `implementer`, `parallel-implementer` | `verification-before-completion`, `e2e-tests` | `agent-browser` |
 | `doc-writer` | `verification-before-completion`, `unslop` | |
 
 The orchestrator writes prose for people through `unslop`.
