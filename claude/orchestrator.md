@@ -24,17 +24,18 @@ Pass `model: "fable"` only when the user asks for Fable in that request; say so 
 
 1. **Question about code or external facts** - `Explore`, or `web-researcher` (pass the manifest or lockfile path for dependency questions).
    **Design or judgment question** - the domain advisor.
-2. **Trivial mechanical edit** to code or docs (typo, rename, a constant) - inline or one worker, no advisor.
+2. **Trivial mechanical edit** to code or docs (typo, rename, a constant) - inline, no agent.
    Not for CI/CD, infrastructure, permissions or dependency changes: those go to rung 4.
-3. **Bounded, well-specified change** in one domain - `implementer`.
-4. **Non-trivial or ambiguous work** - plan first (domain advisor for scoped work, `architect` for cross-cutting), then the matching workflow.
+3. **Bounded, well-specified change** in one domain - `implementer` alone, with no plan, exploration or follow-up agent.
+4. **Non-trivial or ambiguous work** - one advisor plans it (the domain advisor for scoped work, `architect` for cross-cutting), then the matching workflow.
 5. **Independent parallel streams** - `parallel-implementer`s via the `parallel-build` skill.
 6. **Multi-domain, hours-long work whose contracts change mid-build** - an agent team.
 7. **Production incident** - `sre` for diagnosis, then the bug-fix workflow.
 
 ## Invariants
 
-1. **Advisors advise, workers work.** Never ask an advisor to edit project files or a worker to make a design decision; escalate a worker's ambiguity to the advisor.
+1. **Advisors advise, workers work.** Never ask an advisor to edit project files or a worker to make a design decision; escalate a worker's ambiguity to the advisor only when its readings lead to materially different code.
+   A worker fixes build, type and lint failures in its own change itself; `fixer` is for bugs and for failures nobody owns.
 2. **Plans travel verbatim.** Planning advisors write plans with the `plan-handoff` skill to `plans/` at the repository root (or the multi-repo workspace root).
    When a guard blocks that and the advisor returns plan text instead, write it to its target path yourself before doing anything else, so compaction cannot lose it.
    Dispatch each plan's full text to one worker, tell it you maintain `plans/README.md`, and update the plan's status row yourself.
@@ -51,12 +52,12 @@ Pass `model: "fable"` only when the user asks for Fable in that request; say so 
 ## Workflows
 
 **Feature** (default for rung 4):
-1. `Explore` maps the code.
-2. `architect` or the domain advisor plans the implementation.
-3. `implementer` builds it, or several `parallel-implementer`s for independent plans.
-4. `doc-writer` updates standalone docs, only when the change affects them.
+1. `architect` or the domain advisor reads the code itself and plans the implementation; no `Explore` pass first.
+2. `implementer` builds it, or several `parallel-implementer`s for independent plans, and updates the existing docs the change makes stale.
 
-**Bug fix:** `Explore` locates it; for a cross-cutting bug the domain advisor diagnoses; `fixer` reproduces, then fixes.
+`doc-writer` is for documentation requests on their own, never a step after a feature.
+
+**Bug fix:** `fixer` locates, reproduces and fixes it; only a cross-cutting bug goes to the domain advisor for diagnosis first.
 
 **Refactor:** `architect` plan with step order and parallel-safety; `parallel-implementer`s per independent step.
 
@@ -79,6 +80,8 @@ Teams stay at 5 or fewer, split by file ownership, with advisors read-only.
 Teammates do not get their definition's preloaded skills: tell each one which skills to invoke.
 
 ## Fan-out
+
+Prefer one agent that does a whole job over a chain of agents: hand off only when the next step needs a different role, because every handoff makes the next agent re-read what the last one already read.
 
 Dispatch agents whose results your next step needs in the foreground (`run_in_background: false`), several in one message when they are independent; use the background only for work you will not wait on this turn.
 
