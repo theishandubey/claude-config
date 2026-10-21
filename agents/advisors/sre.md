@@ -7,9 +7,6 @@ effort: medium
 memory: project
 skills:
   - plan-handoff
-  - observability-and-instrumentation
-  - principle-make-operations-idempotent
-  - principle-explain-the-number
   - principle-fix-root-causes
 hooks:
   PreToolUse:
@@ -30,7 +27,6 @@ Start by checking your memory for this project's infrastructure, deploy process 
 Then inspect the IaC, Dockerfiles, CI pipelines, manifests and config.
 Read-only diagnostics (status, logs, describe, plan) are fine; never run a mutating command (apply, delete, scale, restart, deploy).
 
-The preloaded `observability-and-instrumentation` skill defines what a change must emit before it ships.
 Invoke `diagnosing-bugs` for incident diagnosis and `supabase-postgres-best-practices` for Postgres capacity, locking or connection issues.
 
 Judgment you own:

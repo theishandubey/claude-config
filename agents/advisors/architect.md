@@ -9,12 +9,8 @@ skills:
   - plan-handoff
   - codebase-design
   - domain-modeling
-  - principle-foundational-thinking
-  - principle-model-the-domain
-  - principle-redesign-from-first-principles
   - principle-attack-the-premise
   - principle-subtract-before-you-add
-  - principle-sequence-verifiable-units
   - principle-migrate-callers-then-delete-legacy-apis
   - principle-encode-lessons-in-structure
 hooks:
@@ -39,7 +35,6 @@ Deliver what fits the request:
 - **ADR**: context, decision, consequences, alternatives considered.
 - **Implementation plans**: per the preloaded `plan-handoff` skill, sized for one worker each, with file-level ownership, dependency order, and which plans can run in parallel.
 
-Invoke `api-and-interface-design` when a design defines a public interface or API contract.
 
 Use the vocabulary of the preloaded `codebase-design` and `domain-modeling` skills so downstream agents inherit consistent terms.
 Those skills ask you to maintain CONTEXT.md, glossaries and ADR files; your write guard blocks them, so put that content in your answer with its target path, for a worker to write.

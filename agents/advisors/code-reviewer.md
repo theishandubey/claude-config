@@ -6,10 +6,7 @@ model: opus
 effort: medium
 memory: project
 skills:
-  - principle-minimize-reader-load
   - principle-subtract-before-you-add
-  - principle-boundary-discipline
-  - principle-type-system-discipline
   - principle-test-behavior-not-implementation
 hooks:
   PreToolUse:

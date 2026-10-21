@@ -13,12 +13,6 @@
       "skillPath": "skills/animation-vocabulary/SKILL.md",
       "computedHash": "0058036865ecbb864fd0c4132efcc62425355d6e99c7e6ef6a936742d62a5dea"
     },
-    "api-and-interface-design": {
-      "source": "addyosmani/agent-skills",
-      "sourceType": "github",
-      "skillPath": "skills/api-and-interface-design/SKILL.md",
-      "computedHash": "8bdbf1fca81bef9258d7e0d9726f933f25677ec8537792e084a3fb7c54acf2ba"
-    },
     "apple-design": {
       "source": "emilkowalski/skill",
       "sourceType": "github",
@@ -109,12 +103,6 @@
       "skillPath": "harness/pstack/claude-code/skills/maintain-verification-skill/SKILL.md",
       "computedHash": "515e7ca21ff18f2cc0daf26243e1a4f41e2f7b73490fa5e116e7c73cf7a5eb6e"
     },
-    "observability-and-instrumentation": {
-      "source": "addyosmani/agent-skills",
-      "sourceType": "github",
-      "skillPath": "skills/observability-and-instrumentation/SKILL.md",
-      "computedHash": "e5eba32f952a29d20c0383728a9505d0ca2a90f1d8d075603e53804b441b2dd2"
-    },
     "pick-ui-library": {
       "source": "emilkowalski/skill",
       "sourceType": "github",
@@ -133,12 +121,6 @@
       "skillPath": "harness/pstack/claude-code/skills/principle-attack-the-premise/SKILL.md",
       "computedHash": "a573188d09f1ce9ff275ca9446d1d0091f7de42dc0ff8ad2a03a3db133bbd0dc"
     },
-    "principle-boundary-discipline": {
-      "source": "cursor/plugins",
-      "sourceType": "github",
-      "skillPath": "harness/pstack/claude-code/skills/principle-boundary-discipline/SKILL.md",
-      "computedHash": "51f995752ff3bad613526eb7779872e01d01ac141a88c9ca050075a074ee5b70"
-    },
     "principle-build-the-lever": {
       "source": "cursor/plugins",
       "sourceType": "github",
@@ -151,29 +133,11 @@
       "skillPath": "harness/pstack/claude-code/skills/principle-encode-lessons-in-structure/SKILL.md",
       "computedHash": "200f578bf772cff030e7b18c582c935686375ddb6ebfe96b97bfee663434da21"
     },
-    "principle-experience-first": {
-      "source": "cursor/plugins",
-      "sourceType": "github",
-      "skillPath": "harness/pstack/claude-code/skills/principle-experience-first/SKILL.md",
-      "computedHash": "bd0254d8a460c145a148214cbc136f84dbba6edc9acc48c00a8af660efc88856"
-    },
-    "principle-explain-the-number": {
-      "source": "cursor/plugins",
-      "sourceType": "github",
-      "skillPath": "harness/pstack/claude-code/skills/principle-explain-the-number/SKILL.md",
-      "computedHash": "a266874f779972670f2cc9e0ed49d868eae06c301207c6deb80a90f205d12d61"
-    },
     "principle-fix-root-causes": {
       "source": "cursor/plugins",
       "sourceType": "github",
       "skillPath": "harness/pstack/claude-code/skills/principle-fix-root-causes/SKILL.md",
       "computedHash": "cdc2baeffbc8e418686f721b4695cc1001adcd6844b670c3224f1e3776e8ce6a"
-    },
-    "principle-foundational-thinking": {
-      "source": "cursor/plugins",
-      "sourceType": "github",
-      "skillPath": "harness/pstack/claude-code/skills/principle-foundational-thinking/SKILL.md",
-      "computedHash": "bb6beaf165b3a3a454c20d243e5be96b0a7b2a8bc7b217be3d214a70a3bf3f14"
     },
     "principle-laziness-protocol": {
       "source": "cursor/plugins",
@@ -181,53 +145,17 @@
       "skillPath": "harness/pstack/claude-code/skills/principle-laziness-protocol/SKILL.md",
       "computedHash": "abf419046bf6635136cb4b30d3d7e9263967b30c3a8f1fe3ed831776b1e5e67a"
     },
-    "principle-make-operations-idempotent": {
-      "source": "cursor/plugins",
-      "sourceType": "github",
-      "skillPath": "harness/pstack/claude-code/skills/principle-make-operations-idempotent/SKILL.md",
-      "computedHash": "d09a4d5ab45839b034db6f04a7c9097bb69c430521bea2bd0415ca3a8e4e227b"
-    },
     "principle-migrate-callers-then-delete-legacy-apis": {
       "source": "cursor/plugins",
       "sourceType": "github",
       "skillPath": "harness/pstack/claude-code/skills/principle-migrate-callers-then-delete-legacy-apis/SKILL.md",
       "computedHash": "78cd7712383c2d891c614d68eb7f9b2ed2cd11f34928a947b458325549b0c423"
     },
-    "principle-minimize-reader-load": {
-      "source": "cursor/plugins",
-      "sourceType": "github",
-      "skillPath": "harness/pstack/claude-code/skills/principle-minimize-reader-load/SKILL.md",
-      "computedHash": "31dddf8eec76cd18a3b314d7343d783e35166344b4a89f0c5a07a90ed1d26539"
-    },
-    "principle-model-the-domain": {
-      "source": "cursor/plugins",
-      "sourceType": "github",
-      "skillPath": "harness/pstack/claude-code/skills/principle-model-the-domain/SKILL.md",
-      "computedHash": "7bf96c26a8d4a064488a534e5a9e75cabafa6bdc8c486529ab02d746b8796801"
-    },
     "principle-outcome-oriented-execution": {
       "source": "cursor/plugins",
       "sourceType": "github",
       "skillPath": "harness/pstack/claude-code/skills/principle-outcome-oriented-execution/SKILL.md",
       "computedHash": "c6ba3d622fe1e3d28a83d391ceaa150aaeafac9c935c154df9b1826f6423bc0b"
-    },
-    "principle-redesign-from-first-principles": {
-      "source": "cursor/plugins",
-      "sourceType": "github",
-      "skillPath": "harness/pstack/claude-code/skills/principle-redesign-from-first-principles/SKILL.md",
-      "computedHash": "f627292d04bdd447c5e1dcce7b8fbd28906d9cbab44498c81a9d8c017d055ae4"
-    },
-    "principle-separate-before-serializing-shared-state": {
-      "source": "cursor/plugins",
-      "sourceType": "github",
-      "skillPath": "harness/pstack/claude-code/skills/principle-separate-before-serializing-shared-state/SKILL.md",
-      "computedHash": "d372812c2617e5226df5bd60950dd9d3e8f5758a9a1e4fefc63114ad53253769"
-    },
-    "principle-sequence-verifiable-units": {
-      "source": "cursor/plugins",
-      "sourceType": "github",
-      "skillPath": "harness/pstack/claude-code/skills/principle-sequence-verifiable-units/SKILL.md",
-      "computedHash": "f72a42fb823a8531a6a243a2e8616813cc71cc2796f3bf775d7717b4e6a916bb"
     },
     "principle-subtract-before-you-add": {
       "source": "cursor/plugins",
@@ -240,12 +168,6 @@
       "sourceType": "github",
       "skillPath": "harness/pstack/claude-code/skills/principle-test-behavior-not-implementation/SKILL.md",
       "computedHash": "8e8cc20b50d4561a3fdcd10d7fc5cdc8d87af229fff4b0b819d5436f94f3681c"
-    },
-    "principle-type-system-discipline": {
-      "source": "cursor/plugins",
-      "sourceType": "github",
-      "skillPath": "harness/pstack/claude-code/skills/principle-type-system-discipline/SKILL.md",
-      "computedHash": "3d9cd69afc4b41f99dd94b3dc169942995e721a73318f55412a858f9a66658fb"
     },
     "prototype": {
       "source": "mattpocock/skills",

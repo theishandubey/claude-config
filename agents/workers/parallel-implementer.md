@@ -10,7 +10,6 @@ skills:
   - verification-before-completion
   - principle-laziness-protocol
   - principle-outcome-oriented-execution
-  - principle-minimize-reader-load
   - principle-build-the-lever
 color: purple
 ---

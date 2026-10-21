@@ -17,4 +17,4 @@ When two or more fixes that share one premise have failed the same gate, suspect
 
 **Stop:** Do not start the next fix before the premise is written down and tested.
 
-This principle is distinct from [Redesign from First Principles](../principle-redesign-from-first-principles/SKILL.md), which rebuilds a design around a new requirement. It questions a fact the current design assumes.
+This principle questions a fact the current design assumes, rather than rebuilding the design around a new requirement.
