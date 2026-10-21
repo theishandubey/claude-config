@@ -39,13 +39,11 @@ Skip any step = lying, not verifying
 
 | Claim | Requires | Not Sufficient |
 |-------|----------|----------------|
-| Tests pass | Test command output: 0 failures | Previous run, "should pass" |
 | Linter clean | Linter output: 0 errors | Partial check, extrapolation |
 | Build succeeds | Build command: exit 0 | Linter passing, logs look good |
-| Bug fixed | Test original symptom: passes | Code changed, assumed fixed |
-| Regression test works | Red-green cycle verified | Test passes once |
+| Bug fixed | Reproduction command no longer shows the symptom | Code changed, assumed fixed |
 | Agent completed | VCS diff shows changes | Agent reports "success" |
-| Requirements met | Line-by-line checklist | Tests passing |
+| Requirements met | Line-by-line checklist | Build passing |
 
 ## Red Flags - STOP
 
@@ -73,23 +71,7 @@ Skip any step = lying, not verifying
 
 ## Key Patterns
 
-**Tests:**
-```
-✅ [Run test command] [See: 34/34 pass] "All tests pass"
-❌ "Should pass now" / "Looks correct"
-```
-
-**Regression tests (end-to-end, red-green):**
-```
-✅ Write → Run (pass) → Revert fix → Run (MUST FAIL) → Restore → Run (pass)
-❌ "I've written a regression test" (without red-green verification)
-```
-
-**Non-trivial proof:**
-```
-✅ Write the check as a re-runnable script, run it, keep its output in your report
-❌ "I clicked through it and it worked"
-```
+Testing is paused in this setup: verify with the build, type-checker, linter or the changed command, never by writing or running tests.
 
 **Build:**
 ```
@@ -100,7 +82,7 @@ Skip any step = lying, not verifying
 **Requirements:**
 ```
 ✅ Re-read plan → Create checklist → Verify each → Report gaps or completion
-❌ "Tests pass, phase complete"
+❌ "Build passes, phase complete"
 ```
 
 **Agent delegation:**

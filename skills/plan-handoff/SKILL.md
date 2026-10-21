@@ -1,6 +1,6 @@
 ---
 name: plan-handoff
-description: How planning advisors write implementation, test and rollout plans for a worker with zero context - file location, numbering, the plan template, the index and the quality bar. Preloaded by architect, backend-engineer, frontend-engineer, sre and qa-lead.
+description: How planning advisors write implementation and rollout plans for a worker with zero context - file location, numbering, the plan template, the index and the quality bar. Preloaded by architect, backend-engineer, frontend-engineer and sre.
 user-invocable: false
 ---
 
@@ -29,8 +29,7 @@ It follows explicit instructions well and fills gaps badly, so the plan carries 
 - Every Verify is a command with its expected result, never a judgment.
 - STOP conditions name this plan's real risks, not boilerplate.
 - No secret values anywhere: name locations and credential types only.
-- Implementation plans never assign new tests: their Checks section lists existing commands to run.
-  New tests come only from `qa-lead` test plans, which plan end-to-end tests only.
+- Plans never assign, run or verify with tests: Verify commands and Checks use the build, type-checker, linter or the changed command.
 - Executors in place never branch or commit; a `parallel-implementer` commits on its worktree branch and never pushes.
 - Mark every step that mutates shared or production state (apply, migrate, delete, scale, restart, deploy) `REQUIRES HUMAN APPROVAL`.
 - A plan that changes a schema, infrastructure or a deploy ends with a Rollback section whose steps have their own Verify commands.
@@ -74,7 +73,7 @@ It follows explicit instructions well and fills gaps badly, so the plan carries 
 |---|---|---|
 | Install | ... | exit 0 |
 | Build or typecheck | ... | exit 0 |
-| Tests | ... | all pass |
+| Lint | ... | exit 0 |
 
 ## Scope
 
@@ -94,8 +93,7 @@ Verify: `<command>` -> <expected result>
 
 ## Checks
 
-Implementation plans: the existing checks to run at the end.
-Test plans: the test matrix - per behavior, the user-facing entry point, each case (boundaries, errors, concurrency, idempotency where relevant) and the observable outcome it asserts, plus the existing test file to model on.
+The existing build, type-check and lint commands to run at the end.
 
 ## Done criteria
 

@@ -26,11 +26,10 @@ Git:
 
 Environment:
 - Your worktree is a fresh checkout: install dependencies with the repo's own package manager and lockfile if needed, never with sudo or a system package manager.
-- If the build or tests fail for environment reasons (a missing env file, service or local config), report the missing file's exact path as a `.worktreeinclude` suggestion rather than working around it.
+- If the build fails for environment reasons (a missing env file, service or local config), report the missing file's exact path as a `.worktreeinclude` suggestion rather than working around it.
 
 Rules:
-- Stay inside the files you were assigned. Creating or editing any other file, tests and docs included, needs a stop and a report, because another agent may own it.
-- Write tests only when the spec puts test files in your ownership list, and then only end-to-end tests through the product's real entry point.
+- Stay inside the files you were assigned. Creating or editing any other file, docs included, needs a stop and a report, because another agent may own it.
 - Finish the whole task before reporting.
   If you cannot, commit what is complete and say exactly what remains.
 

@@ -8,7 +8,7 @@ import unittest
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TIERS = {"advisors": "advisor", "workers": "worker", "explorers": "explorer"}
-PLANNERS = {"architect", "backend-engineer", "frontend-engineer", "sre", "qa-lead"}
+PLANNERS = {"architect", "backend-engineer", "frontend-engineer", "sre"}
 
 
 def rd(path):
@@ -58,7 +58,7 @@ def tracked_files():
 class AgentsTest(unittest.TestCase):
     def test_roster_shape(self):
         roster = agents()
-        self.assertEqual(len(roster), 14)
+        self.assertEqual(len(roster), 12)
         for name, (tier, meta, body, path) in roster.items():
             with self.subTest(agent=name):
                 self.assertEqual(os.path.basename(path), name + ".md")
@@ -130,7 +130,7 @@ class FilesTest(unittest.TestCase):
     def test_vendored_skills_match_lock(self):
         on_disk = {d for d in os.listdir(os.path.join(ROOT, "skills"))
                    if os.path.isfile(os.path.join(ROOT, "skills", d, "SKILL.md"))}
-        own = {"parallel-build", "plan-handoff", "plan-execution", "e2e-testing"}
+        own = {"parallel-build", "plan-handoff", "plan-execution"}
         self.assertEqual(on_disk, vendored_skills() | own)
         self.assertEqual(os.readlink(os.path.join(ROOT, ".claude", "skills")), "../skills")
 

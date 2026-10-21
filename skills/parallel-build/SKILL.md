@@ -21,7 +21,7 @@ Run this in the main session; it owns the worktrees and the merge.
 
 1. Every task needs a plan whose in-scope list is the files it owns.
    Get plans from the planning advisor if they are missing, and send overlapping ownership back to it.
-2. Make sure `.worktreeinclude` exists at the repo root, listing untracked files the build or tests need (local env files, local certs, tool config), never production secrets.
+2. Make sure `.worktreeinclude` exists at the repo root, listing untracked files the build needs (local env files, local certs, tool config), never production secrets.
    Find them with `git status --ignored --short` against what the build references.
    Create it with a commented header even when nothing is needed, and commit it with the base.
 3. Commit the base and record the branch and SHA.
@@ -32,7 +32,7 @@ Run this in the main session; it owns the worktrees and the merge.
 ## 2. Dispatch
 
 Spawn one `parallel-implementer` per task, in parallel.
-Each prompt holds the plan verbatim, the owned-file list, the repo's install, build and test commands, and the reminder that it commits but never pushes or merges and that you maintain `plans/README.md`.
+Each prompt holds the plan verbatim, the owned-file list, the repo's install, build and type-check commands, and the reminder that it commits but never pushes or merges and that you maintain `plans/README.md`.
 Do not edit the main checkout while they run.
 
 ## 3. Integrate
@@ -44,7 +44,7 @@ Do not edit the main checkout while they run.
    After each merge run the typecheck or build only.
 4. On a merge conflict, abort the merge (`git merge --abort`) and dispatch `fixer` with both task plans, the conflicting branch and the integration branch, to merge it on the integration branch by the plans' intent.
    If the conflict shows the plans overlap, stop and send them back to the planning advisor.
-5. After all merges, run the full test suite once.
+5. After all merges, run the build and type-check once.
    Route failures to `fixer` with the output and the list of merged branches.
 
 ## 4. Review and clean up

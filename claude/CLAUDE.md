@@ -7,8 +7,8 @@ Routing and dispatch rules for the main session live in the orchestrator playboo
 
 - Never use an em dash; use a plain dash "-".
 - Do not write comments or docstrings in code, in any language.
-  Make the code carry the reason instead, in this order: a name, a small helper or a type; then a test that fails without the code, with the reason in its name; then the commit message body.
-  Only when none of those can show a constraint the code depends on (a deadlock, a platform or library quirk, an external API's behavior) write one line saying why, naming the test that enforces it.
+  Make the code carry the reason instead, in this order: a name, a small helper or a type; then the commit message body.
+  Only when neither can show a constraint the code depends on (a deadlock, a platform or library quirk, an external API's behavior) write one line saying why.
   Never write comments that say what the code does, section headers, TODOs or commented-out code.
   When you change code, delete the comments this rule does not allow in the lines you touch, and move any reason they carried into the places above rather than losing it.
   Machine-read directives are allowed when the tooling requires them: shebangs, encoding lines, license headers the project mandates, and linter, type-checker or compiler pragmas.
@@ -18,10 +18,11 @@ Routing and dispatch rules for the main session live in the orchestrator playboo
 ## Engineering
 
 - Weigh quality, simplicity, robustness, scalability and long-term maintainability above development cost.
-- Fix a bug only after reproducing it end to end, as close to how a user meets it as you can.
-- Code that exists for a reason its reader cannot see (a lock, an ordering, a held reference, a guard) must have a test that fails when that code is removed.
-- Hold any UI you see during end-to-end testing to a pixel-perfect bar.
-- Treat lint errors, test failures, flaky tests and visibly broken UI the same way, whether or not your change caused them: fix them when your role and scope allow, otherwise report them with the exact output so they get routed.
+- Testing is paused in this setup: do not plan, write, run or review tests, and do not ask for them in findings.
+  Verify a change with the project's build, type-checker or linter, or by running the changed command once.
+  Leave existing tests as they are.
+- Fix a bug only after reproducing it with the cheapest command that shows the symptom.
+- Treat lint errors, type errors and build failures the same way, whether or not your change caused them: fix them when your role and scope allow, otherwise report them with the exact output so they get routed.
 - Call only the tools in your own tool list; the shell tool is `Bash`.
 - Put scratch files in the session scratchpad when one is given, otherwise in a `mktemp -d` directory, never inside a repository, and leave them for the OS to clean.
 - A guard hook blocks catastrophic commands (wiping the filesystem, home or project, dropping databases, destroying infrastructure, force-pushing main).
@@ -35,7 +36,6 @@ Routing and dispatch rules for the main session live in the orchestrator playboo
   Make the smallest change that solves the problem, and add no abstraction, layer, guard or option the current need does not demand.
 - Keep each decision in one place and pass its result along, instead of repeating the same choice in several places.
 - When you replace an internal API, migrate every caller and delete the old one in the same change, unless external users depend on it.
-  Update tests to the new contract and delete tests that only pin the old implementation.
 - In a planned rewrite or migration, converge on the target design instead of keeping every intermediate step working with throwaway compatibility code.
   Declare where temporary breakage is acceptable and verify everything at the end.
 - When the same correction or instruction comes up a second time, encode it as structure (a lint, type, check or script) instead of more text.

@@ -5,7 +5,7 @@ An installable Claude Code setup: a three-tier agent roster, the orchestrator pl
 
 ## What you get
 
-Fourteen subagents in `agents/`:
+Twelve subagents in `agents/`:
 
 | Agent | Tier | Model | Effort | Role |
 |---|---|---|---|---|
@@ -13,13 +13,11 @@ Fourteen subagents in `agents/`:
 | `backend-engineer` | advisor | opus | medium | APIs, services, databases, queues, auth, data modeling |
 | `frontend-engineer` | advisor | opus | medium | Components, state, rendering performance, accessibility, motion |
 | `sre` | advisor | opus | medium | Infrastructure, CI/CD, observability, deployment safety, incidents |
-| `qa-lead` | advisor | opus | medium | End-to-end test plans and coverage audits |
 | `code-reviewer` | advisor | opus | medium | Reviews every code change before it lands |
 | `security-reviewer` | advisor | opus | medium | Security review, only when you ask for one |
 | `implementer` | worker | sonnet | high | Builds from a plan, in place |
 | `parallel-implementer` | worker | sonnet | high | Builds in its own git worktree, for parallel streams |
-| `fixer` | worker | sonnet | high | Bugs, failing tests, merge conflicts and review findings |
-| `test-writer` | worker | sonnet | high | End-to-end tests from a test plan |
+| `fixer` | worker | sonnet | high | Bugs, build breaks, merge conflicts and review findings |
 | `doc-writer` | worker | sonnet | high | Standalone docs |
 | `explorer` | explorer | sonnet | medium | Read-only codebase search |
 | `web-researcher` | explorer | sonnet | medium | Read-only web research |
@@ -35,10 +33,12 @@ Review loops always end: verdicts rest on confirmed findings only, each re-revie
 
 `claude/CLAUDE.md` holds the shared rules every session and agent follows (the two explorers skip it with `omitClaudeMd` and restate the one rule they need).
 
+Testing is paused: no agent plans, writes, runs or reviews tests, because end-to-end runs drove most of the token cost.
+Changes are verified with the project's build, type-checker or linter, or by running the changed command once.
+
 Shared agent instructions live in skills instead of being copied into each agent:
 - `plan-handoff`: how planning advisors write plans, with the plan template.
 - `plan-execution`: how workers execute a plan.
-- `e2e-testing`: what an end-to-end test is; the roster never writes unit tests.
 - `parallel-build`: the orchestrator's procedure for parallel worktree builds.
 
 ## Requirements
@@ -140,7 +140,7 @@ npx skills update -p -y
 Review the diff before committing an update: vendored skills run with full permissions.
 
 Vendored skills are committed unmodified first, and any adaptation to this setup lands as a separate commit on top, so an update is merged against a visible local diff rather than overwriting it.
-These are adapted locally: `verification-before-completion`, `receiving-code-review`, `diagnosing-bugs`, `fp-check`, `supabase-postgres-best-practices`, `vercel-react-best-practices`, and every skill vendored from poteto's pstack (the `principle-*` skills, `benchmark-checklist`, `blast-radius`, `correct`, `create-verification-skill`, `maintain-verification-skill` and `unslop`).
+These are adapted locally: `verification-before-completion`, `receiving-code-review`, `diagnosing-bugs`, `fp-check`, `supabase-postgres-best-practices`, `vercel-react-best-practices`, and every skill vendored from poteto's pstack (the `principle-*` skills, `benchmark-checklist`, `blast-radius`, `correct` and `unslop`).
 
 | Agent | Preloaded vendored skills | Invoked on demand |
 |---|---|---|
@@ -148,12 +148,10 @@ These are adapted locally: `verification-before-completion`, `receiving-code-rev
 | `backend-engineer` | `supabase-postgres-best-practices` | `benchmark-checklist` |
 | `sre` | principle: fix-root-causes | `diagnosing-bugs`, `supabase-postgres-best-practices`, `benchmark-checklist` |
 | `frontend-engineer` | | design, motion and UI skills, `vercel-react-best-practices` |
-| `qa-lead` | principle: test-behavior-not-implementation | `create-verification-skill`, `maintain-verification-skill` |
-| `code-reviewer` | principle: test-behavior-not-implementation | `blast-radius`, `vercel-react-best-practices`, `supabase-postgres-best-practices` |
+| `code-reviewer` | | `blast-radius`, `vercel-react-best-practices`, `supabase-postgres-best-practices` |
 | `security-reviewer` | `fp-check` | |
 | `fixer` | `verification-before-completion`, `diagnosing-bugs`, `receiving-code-review`, principle: fix-root-causes | |
 | `implementer`, `parallel-implementer` | `verification-before-completion`, principle: build-the-lever | |
-| `test-writer` | `verification-before-completion`, principle: test-behavior-not-implementation | `create-verification-skill`, `maintain-verification-skill` |
 | `doc-writer` | `verification-before-completion`, `unslop` | |
 
 The orchestrator follows `correct` when the user corrects it and writes prose for people through `unslop`.
