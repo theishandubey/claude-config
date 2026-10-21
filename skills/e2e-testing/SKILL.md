@@ -28,6 +28,8 @@ Rules:
 - Give each test its own data so tests pass in any order.
 - Wait on observable conditions, never fixed sleeps.
 - Every test must be able to fail: check that it fails without the behavior it covers.
+- Take expected values from an independent source of truth (a known literal, a worked example, the spec), never by recomputing them the way the code does.
+- Control time and randomness through the product's own configuration or a fake at the process boundary (a fixed clock, a seed, a local time server), never by mocking internals.
 - Leave existing unit tests as they are; repair one only when the task says so.
 - Never restructure production code to make it testable; report the need instead.
 - Prefer fewer, meaningful tests over coverage theater.

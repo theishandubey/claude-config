@@ -153,7 +153,7 @@ These are adapted locally: `verification-before-completion`, `receiving-code-rev
 | `security-reviewer` | `fp-check` | |
 | `fixer` | `verification-before-completion`, `diagnosing-bugs`, `receiving-code-review`, principle: fix-root-causes | |
 | `implementer`, `parallel-implementer` | `verification-before-completion`, principles: laziness-protocol, outcome-oriented-execution, minimize-reader-load, build-the-lever | |
-| `test-writer` | `verification-before-completion`, `tdd`, principle: test-behavior-not-implementation | `create-verification-skill`, `maintain-verification-skill` |
+| `test-writer` | `verification-before-completion`, principle: test-behavior-not-implementation | `create-verification-skill`, `maintain-verification-skill` |
 | `doc-writer` | `verification-before-completion`, `unslop` | |
 
 The orchestrator follows `correct` when the user corrects it and writes prose for people through `unslop`.

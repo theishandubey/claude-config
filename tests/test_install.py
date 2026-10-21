@@ -154,21 +154,21 @@ class InstallTest(unittest.TestCase):
         self.assertEqual(sorted(commands), ["echo mine", "python3 new.py"])
 
     def test_existing_files_need_confirmation_and_go_to_the_backup_dir(self):
-        os.makedirs(os.path.join(self.claude, "skills", "tdd"))
-        wr(os.path.join(self.claude, "skills", "tdd", "SKILL.md"), "old")
+        os.makedirs(os.path.join(self.claude, "skills", "diagnosing-bugs"))
+        wr(os.path.join(self.claude, "skills", "diagnosing-bugs", "SKILL.md"), "old")
         wr(os.path.join(self.claude, "CLAUDE.md"), "mine")
         before = self.snapshot()
         out = self.run_install(expect=1)
         self.assertIn("need --yes", out)
         self.assertEqual(self.snapshot(), before)
         self.run_install("--yes")
-        self.assertTrue(os.path.islink(os.path.join(self.claude, "skills", "tdd")))
-        self.assertEqual(os.listdir(os.path.join(self.claude, "skills")).count("tdd"), 1)
+        self.assertTrue(os.path.islink(os.path.join(self.claude, "skills", "diagnosing-bugs")))
+        self.assertEqual(os.listdir(os.path.join(self.claude, "skills")).count("diagnosing-bugs"), 1)
         self.assertFalse([n for n in os.listdir(os.path.join(self.claude, "skills")) if ".bak" in n])
         backups = os.path.join(self.home, ".claude-config-backups")
         [stamp] = os.listdir(backups)
         self.assertEqual(rd(os.path.join(backups, stamp, ".claude", "CLAUDE.md")), "mine")
-        self.assertTrue(os.path.isfile(os.path.join(backups, stamp, ".claude", "skills", "tdd", "SKILL.md")))
+        self.assertTrue(os.path.isfile(os.path.join(backups, stamp, ".claude", "skills", "diagnosing-bugs", "SKILL.md")))
 
     def test_leaves_unrelated_skills_alone_and_removes_stale_repo_links(self):
         os.makedirs(os.path.join(self.claude, "skills", "my-own", ))
