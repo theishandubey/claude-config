@@ -19,12 +19,12 @@ Twelve subagents in `agents/`:
 | `fixer` | worker | sonnet | high | Bugs, failing tests, merge conflicts and review findings you pass on |
 | `test-writer` | worker | sonnet | high | End-to-end tests from a test plan |
 | `doc-writer` | worker | sonnet | high | Standalone docs |
-| `explorer` | explorer | sonnet | medium | Read-only codebase search |
+| `Explore` | explorer | sonnet | medium | Read-only codebase search; replaces the built-in `Explore` to pin it to Sonnet |
 | `web-researcher` | explorer | sonnet | medium | Read-only web research |
 
 Advisors plan and never edit project files.
 Workers implement.
-Explorers search, and keep search output out of the main session.
+Explorers search, and keep search output out of the main session; `Explore` takes the built-in agent's name so Claude Code's own code searches run on Sonnet instead of the main session's model.
 
 The main session is the orchestrator.
 Its playbook, `claude/orchestrator.md`, reaches only the main session: a `SessionStart` hook prints it, so subagents never pay for it.
@@ -113,7 +113,7 @@ Advisors' `Bash` is read-only by instruction only.
 
 Both guards fail closed: if a hook cannot run, the call is blocked.
 
-The settings also disable the built-in `Explore` and `Plan` agents, which run on the main session's model, so searches go to `explorer` and planning to the advisors.
+The settings also disable the built-in `Plan` agent, which runs on the main session's model, so planning goes to the advisors.
 
 ## Agent memory in worktrees
 
