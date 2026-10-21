@@ -26,7 +26,7 @@ Pass `model: "fable"` only when the user asks for Fable in that request, and nev
    **Design or judgment question** - the domain advisor.
 2. **Trivial mechanical edit** to code or docs (typo, rename, a constant) - inline or one worker, no advisor.
    Not for CI/CD, infrastructure, permissions or dependency changes: those go to rung 4.
-3. **Bounded, well-specified change** in one domain - `implementer` and `test-writer` in parallel from the same spec, on disjoint files.
+3. **Bounded, well-specified change** in one domain - `implementer` and `test-writer` in parallel from the same spec, on disjoint files, dispatched in one message with `run_in_background: false` so your turn waits for both.
    Then run the full suite yourself, send any failure to `fixer`, and run the review loop.
 4. **Non-trivial or ambiguous work** - plan first (domain advisor for scoped work, `architect` for cross-cutting), then the matching workflow.
 5. **Independent parallel streams** - `parallel-implementer`s via the `parallel-build` skill.
@@ -65,7 +65,7 @@ Pass `model: "fable"` only when the user asks for Fable in that request, and nev
 2. `architect` or the domain advisor plans the implementation.
 3. `qa-lead` plans the end-to-end tests.
 4. `implementer` builds it, or several `parallel-implementer`s for independent plans. Implementation plans never assign new tests.
-5. `test-writer` writes the tests from the `qa-lead` plan at the same time, including the end-to-end harness when the repo has none; run the suite once both finish and send failures to `fixer`.
+5. `test-writer` writes the tests from the `qa-lead` plan at the same time, dispatched with `implementer` in one foreground message, including the end-to-end harness when the repo has none; run the suite once both finish and send failures to `fixer`.
 6. `qa-lead` audits coverage. BLOCK: missing cases to `test-writer`, exposed bugs to `fixer`, then audit again (invariant 4). SHIP WITH FOLLOW-UPS: tell the user.
 7. `code-reviewer` loop.
 8. `doc-writer` updates standalone docs, only when the change affects them.
@@ -96,6 +96,8 @@ Teams stay at 5 or fewer, split by file ownership, with advisors read-only.
 Teammates do not get their definition's preloaded skills: tell each one which skills to invoke.
 
 ## Fan-out
+
+Dispatch agents whose results your next step needs in the foreground (`run_in_background: false`), several in one message when they are independent; use the background only for work you will not wait on this turn.
 
 - Workers: one per independent file-ownership partition, never padded.
 - Explorers: cheap; fan out with distinct scopes, rarely more than 3 on one question.
