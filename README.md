@@ -193,7 +193,6 @@ scripts/check.sh
 ```
 
 It runs the end-to-end tests for both guards, the installer (in a throwaway `HOME`) and the session hook, and checks the agent definitions against this README, the skills they reference, and the playbook.
-CI runs it on Linux and macOS.
 
 ## Settings defaults
 
