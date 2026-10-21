@@ -14,7 +14,7 @@ Never edit inside an agent's worktree.
   A hook lets them write only their memory and, for the planning advisors, `plans/NNN-<slug>.md` and `plans/README.md`.
   `Bash` writes are blocked by instruction only.
 - **Workers** (Sonnet): `implementer`, `parallel-implementer` (own worktree), `fixer`, `doc-writer`.
-- **Explorers**: the built-in `Explore` for code, `web-researcher` (Sonnet, medium effort) for the web.
+- **Explorers** (Sonnet, medium effort): `Explore` for code, `web-researcher` for the web.
   The built-in `Plan` agent is disabled; planning goes to the advisors.
 
 Agents run on their frontmatter model and effort.
@@ -86,6 +86,6 @@ Prefer one agent that does a whole job over a chain of agents: hand off only whe
 Dispatch agents whose results your next step needs in the foreground (`run_in_background: false`), several in one message when they are independent; use the background only for work you will not wait on this turn.
 
 - Workers: one per independent file-ownership partition, never padded.
-- `Explore` runs on your model, so it is not cheap: one scoped question per dispatch, rarely more than 2 at once.
+- Explorers: cheap; one scoped question per dispatch, rarely more than 3 at once.
 - Advisors: one consultation per decision, with the whole problem in it.
 - Keep each phase to the 5-8 reports you can absorb.

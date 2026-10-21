@@ -5,7 +5,7 @@ An installable Claude Code setup: a three-tier agent roster, the orchestrator pl
 
 ## What you get
 
-Nine subagents in `agents/`:
+Ten subagents in `agents/`:
 
 | Agent | Tier | Model | Effort | Role |
 |---|---|---|---|---|
@@ -17,18 +17,19 @@ Nine subagents in `agents/`:
 | `parallel-implementer` | worker | sonnet | high | Builds in its own git worktree, for parallel streams |
 | `fixer` | worker | sonnet | high | Bugs, build breaks, merge conflicts and review findings you pass on |
 | `doc-writer` | worker | sonnet | high | Standalone docs |
+| `Explore` | explorer | sonnet | medium | Read-only codebase search; replaces the built-in `Explore` to pin it to Sonnet |
 | `web-researcher` | explorer | sonnet | medium | Read-only web research |
 
 Advisors plan and never edit project files.
 Workers implement.
-`web-researcher` searches the web; code search uses the built-in `Explore` agent, which runs on the main session's model.
+Explorers search, and keep search output out of the main session; `Explore` takes the built-in agent's name so Claude Code's own code searches run on Sonnet instead of the main session's model.
 
 The main session is the orchestrator.
 Its playbook, `claude/orchestrator.md`, reaches only the main session: a `SessionStart` hook prints it, so subagents never pay for it.
 It routes each request through a triage ladder and commits the work itself.
 Code and security review are yours: run `/code-review` and `/security-review` when you want them, and pass on the findings you want fixed.
 
-`claude/CLAUDE.md` holds the shared rules every session and agent follows (`web-researcher` skips it with `omitClaudeMd` and restates the one rule it needs).
+`claude/CLAUDE.md` holds the shared rules every session and agent follows (the two explorers skip it with `omitClaudeMd` and restate the one rule they need).
 
 Testing is paused: no agent plans, writes, runs or reviews tests, because end-to-end runs drove most of the token cost.
 Changes are verified with the project's build, type-checker or linter, or by running the changed command once.

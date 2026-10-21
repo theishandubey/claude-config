@@ -58,7 +58,7 @@ def tracked_files():
 class AgentsTest(unittest.TestCase):
     def test_roster_shape(self):
         roster = agents()
-        self.assertEqual(len(roster), 9)
+        self.assertEqual(len(roster), 10)
         for name, (tier, meta, body, path) in roster.items():
             with self.subTest(agent=name):
                 self.assertEqual(os.path.basename(path), name + ".md")
@@ -91,7 +91,7 @@ class AgentsTest(unittest.TestCase):
 
     def test_readme_table_matches_frontmatter(self):
         readme = rd(os.path.join(ROOT, "README.md"))
-        rows = re.findall(r"^\| `([a-z-]+)` \| (\w+) \| (\w+) \| (\w+) \|", readme, re.M)
+        rows = re.findall(r"^\| `([A-Za-z-]+)` \| (\w+) \| (\w+) \| (\w+) \|", readme, re.M)
         table = {name: (tier, model, effort) for name, tier, model, effort in rows}
         roster = agents()
         self.assertEqual(set(table), set(roster))
