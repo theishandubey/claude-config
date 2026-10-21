@@ -70,7 +70,6 @@ Pass `model: "fable"` only when the user asks for Fable in that request; say so 
 It deletes every comment the rule does not allow and reports each symbol a deleted comment was explaining.
 Then send reported symbols that need restructuring to the planning advisor.
 
-**Correction:** when the user corrects you, follow the `correct` skill.
 Write anything a person will read (PR bodies, reports, published pages) through the `unslop` skill.
 
 ## Parallel work

@@ -138,7 +138,7 @@ npx skills update -p -y
 Review the diff before committing an update: vendored skills run with full permissions.
 
 Vendored skills are committed unmodified first, and any adaptation to this setup lands as a separate commit on top, so an update is merged against a visible local diff rather than overwriting it.
-These are adapted locally: `verification-before-completion`, `receiving-code-review`, `diagnosing-bugs`, `supabase-postgres-best-practices`, `vercel-react-best-practices`, and every skill vendored from poteto's pstack (the `principle-*` skills, `benchmark-checklist`, `blast-radius`, `correct`, `create-verification-skill`, `maintain-verification-skill` and `unslop`).
+These are adapted locally: `verification-before-completion`, `receiving-code-review`, `diagnosing-bugs`, `supabase-postgres-best-practices`, `vercel-react-best-practices`, and every skill vendored from poteto's pstack (the `principle-*` skills, `benchmark-checklist`, `create-verification-skill`, `maintain-verification-skill` and `unslop`).
 
 | Agent | Preloaded vendored skills | Invoked on demand |
 |---|---|---|
@@ -148,11 +148,11 @@ These are adapted locally: `verification-before-completion`, `receiving-code-rev
 | `frontend-engineer` | | design, motion and UI skills, `vercel-react-best-practices` |
 | `qa-lead` | principle: test-behavior-not-implementation | `create-verification-skill`, `maintain-verification-skill` |
 | `fixer` | `verification-before-completion`, `diagnosing-bugs`, `receiving-code-review`, principle: fix-root-causes | |
-| `implementer`, `parallel-implementer` | `verification-before-completion`, principle: build-the-lever | |
+| `implementer`, `parallel-implementer` | `verification-before-completion` | |
 | `test-writer` | `verification-before-completion`, principle: test-behavior-not-implementation | `create-verification-skill`, `maintain-verification-skill` |
 | `doc-writer` | `verification-before-completion`, `unslop` | |
 
-The orchestrator follows `correct` when the user corrects it and writes prose for people through `unslop`.
+The orchestrator writes prose for people through `unslop`.
 
 ## Cleanup
 
