@@ -192,5 +192,5 @@ It runs the end-to-end tests for both guards, the installer (in a throwaway `HOM
 
 ## Settings defaults
 
-Besides permissions and hooks, `claude/settings.json` sets the owner's preferences: model aliases pinned to the 5-series models, the `opus` model, agent teams, auto-compaction at 50%, empty commit and PR attribution, `plans/mode` as the plan-mode directory, the `claude-mods` plugins, the `latest` update channel, the fullscreen TUI, the dark theme and notifications.
+Besides permissions and hooks, `claude/settings.json` sets the owner's preferences: model aliases pinned to the 5-series models, the `opus` model, agent teams, auto-compaction at 30%, empty commit and PR attribution, `plans/mode` as the plan-mode directory, the `claude-mods` plugins, the `latest` update channel, the fullscreen TUI, the dark theme and notifications.
 Change any of them in `~/.claude/settings.json`; your values are kept.

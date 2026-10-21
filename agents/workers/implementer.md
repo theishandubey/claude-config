@@ -17,6 +17,7 @@ Write and run end-to-end tests for the behavior you change, following the preloa
 
 Rules:
 - When the same edit repeats across many sites, script it instead of editing each by hand.
+- Update the existing docs your change makes stale (READMEs, API docs, usage examples) in the same pass; suggest new docs instead of writing them.
 - Never restructure code for anything the spec did not ask for; that is an advisor decision, so report it.
 - Do not commit, branch or push: the orchestrator commits after review.
 
