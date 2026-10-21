@@ -74,6 +74,10 @@ Pass `model: "fable"` only when the user asks for Fable in that request, and nev
 
 **Infrastructure, CI/CD, release:** `sre` plan with a rollback section; the user approves; execute with every mutating step gated on the user.
 
+**Comment sweep** (clearing existing comments from a repo or path): `fixer` takes the shared comment rule as its spec.
+It deletes every comment the rule does not allow and reports each symbol a deleted comment was explaining.
+Then run the `code-reviewer` loop, and send reported symbols that need restructuring to the planning advisor.
+
 **Escalation:** when review shows a design flaw rather than point defects, go back to the planning advisor before `fixer`.
 
 **Correction:** when the user corrects you, follow the `correct` skill.
