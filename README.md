@@ -144,15 +144,15 @@ These are adapted locally: `verification-before-completion`, `receiving-code-rev
 
 | Agent | Preloaded vendored skills | Invoked on demand |
 |---|---|---|
-| `architect` | `codebase-design`, `domain-modeling`, principles: attack-the-premise, subtract-before-you-add, migrate-callers-then-delete-legacy-apis, encode-lessons-in-structure | |
+| `architect` | `codebase-design`, `domain-modeling`, principle: attack-the-premise | |
 | `backend-engineer` | `supabase-postgres-best-practices` | `benchmark-checklist` |
 | `sre` | principle: fix-root-causes | `diagnosing-bugs`, `supabase-postgres-best-practices`, `benchmark-checklist` |
 | `frontend-engineer` | | design, motion and UI skills, `vercel-react-best-practices` |
 | `qa-lead` | principle: test-behavior-not-implementation | `create-verification-skill`, `maintain-verification-skill` |
-| `code-reviewer` | principles: subtract-before-you-add, test-behavior-not-implementation | `blast-radius`, `vercel-react-best-practices`, `supabase-postgres-best-practices` |
+| `code-reviewer` | principle: test-behavior-not-implementation | `blast-radius`, `vercel-react-best-practices`, `supabase-postgres-best-practices` |
 | `security-reviewer` | `fp-check` | |
 | `fixer` | `verification-before-completion`, `diagnosing-bugs`, `receiving-code-review`, principle: fix-root-causes | |
-| `implementer`, `parallel-implementer` | `verification-before-completion`, principles: laziness-protocol, outcome-oriented-execution, build-the-lever | |
+| `implementer`, `parallel-implementer` | `verification-before-completion`, principle: build-the-lever | |
 | `test-writer` | `verification-before-completion`, principle: test-behavior-not-implementation | `create-verification-skill`, `maintain-verification-skill` |
 | `doc-writer` | `verification-before-completion`, `unslop` | |
 

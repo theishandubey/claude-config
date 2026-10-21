@@ -127,41 +127,11 @@
       "skillPath": "harness/pstack/claude-code/skills/principle-build-the-lever/SKILL.md",
       "computedHash": "3090c545b2a7c3a252514c9b522e69d3ee6cce25342fd3e4d10c9fe6bcaafd53"
     },
-    "principle-encode-lessons-in-structure": {
-      "source": "cursor/plugins",
-      "sourceType": "github",
-      "skillPath": "harness/pstack/claude-code/skills/principle-encode-lessons-in-structure/SKILL.md",
-      "computedHash": "200f578bf772cff030e7b18c582c935686375ddb6ebfe96b97bfee663434da21"
-    },
     "principle-fix-root-causes": {
       "source": "cursor/plugins",
       "sourceType": "github",
       "skillPath": "harness/pstack/claude-code/skills/principle-fix-root-causes/SKILL.md",
       "computedHash": "cdc2baeffbc8e418686f721b4695cc1001adcd6844b670c3224f1e3776e8ce6a"
-    },
-    "principle-laziness-protocol": {
-      "source": "cursor/plugins",
-      "sourceType": "github",
-      "skillPath": "harness/pstack/claude-code/skills/principle-laziness-protocol/SKILL.md",
-      "computedHash": "abf419046bf6635136cb4b30d3d7e9263967b30c3a8f1fe3ed831776b1e5e67a"
-    },
-    "principle-migrate-callers-then-delete-legacy-apis": {
-      "source": "cursor/plugins",
-      "sourceType": "github",
-      "skillPath": "harness/pstack/claude-code/skills/principle-migrate-callers-then-delete-legacy-apis/SKILL.md",
-      "computedHash": "78cd7712383c2d891c614d68eb7f9b2ed2cd11f34928a947b458325549b0c423"
-    },
-    "principle-outcome-oriented-execution": {
-      "source": "cursor/plugins",
-      "sourceType": "github",
-      "skillPath": "harness/pstack/claude-code/skills/principle-outcome-oriented-execution/SKILL.md",
-      "computedHash": "c6ba3d622fe1e3d28a83d391ceaa150aaeafac9c935c154df9b1826f6423bc0b"
-    },
-    "principle-subtract-before-you-add": {
-      "source": "cursor/plugins",
-      "sourceType": "github",
-      "skillPath": "harness/pstack/claude-code/skills/principle-subtract-before-you-add/SKILL.md",
-      "computedHash": "93ef4445c6dc6c71256f4c5d3e965097dccd037019041468298095670c112fe7"
     },
     "principle-test-behavior-not-implementation": {
       "source": "cursor/plugins",

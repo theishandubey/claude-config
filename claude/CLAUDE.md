@@ -26,6 +26,18 @@ Routing and dispatch rules for the main session live in the orchestrator playboo
 - Never poll with `sleep` followed by a read.
   Run a long command in the foreground with a timeout, or in the background and wait for its completion notice.
 
+## Principles
+
+- Default to subtraction: remove dead code, redundant validators and stubs before building on the simpler base.
+  Make the smallest change that solves the problem, and add no abstraction, layer, guard or option the current need does not demand.
+- Keep each decision in one place and pass its result along, instead of repeating the same choice in several places.
+- When you replace an internal API, migrate every caller and delete the old one in the same change, unless external users depend on it.
+  Update tests to the new contract and delete tests that only pin the old implementation.
+- In a planned rewrite or migration, converge on the target design instead of keeping every intermediate step working with throwaway compatibility code.
+  Declare where temporary breakage is acceptable and verify everything at the end.
+- When the same correction or instruction comes up a second time, encode it as structure (a lint, type, check or script) instead of more text.
+  Only when it needs judgment, make the instruction more prominent and add an example of the failure.
+
 ## Commits
 
 - Make atomic commits: one logically complete change each, each building and passing on its own.

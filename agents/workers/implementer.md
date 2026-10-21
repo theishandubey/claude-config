@@ -7,8 +7,6 @@ effort: high
 skills:
   - plan-execution
   - verification-before-completion
-  - principle-laziness-protocol
-  - principle-outcome-oriented-execution
   - principle-build-the-lever
 color: blue
 ---

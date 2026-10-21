@@ -10,9 +10,6 @@ skills:
   - codebase-design
   - domain-modeling
   - principle-attack-the-premise
-  - principle-subtract-before-you-add
-  - principle-migrate-callers-then-delete-legacy-apis
-  - principle-encode-lessons-in-structure
 hooks:
   PreToolUse:
     - matcher: "Write|Edit|NotebookEdit"

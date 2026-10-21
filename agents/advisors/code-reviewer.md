@@ -6,7 +6,6 @@ model: opus
 effort: medium
 memory: project
 skills:
-  - principle-subtract-before-you-add
   - principle-test-behavior-not-implementation
 hooks:
   PreToolUse:
