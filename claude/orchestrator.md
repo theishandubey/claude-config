@@ -10,7 +10,7 @@ Never edit inside an agent's worktree.
 
 ## Roster
 
-- **Advisors** (Opus, read-only, persistent project memory): `architect`, `backend-engineer`, `frontend-engineer`, `sre`, `qa-lead` plan; `code-reviewer`, `security-reviewer` review.
+- **Advisors** (Opus, read-only, persistent project memory): `architect`, `backend-engineer`, `frontend-engineer`, `sre`, `qa-lead` plan.
   A hook lets them write only their memory and, for the planning advisors, `plans/NNN-<slug>.md` and `plans/README.md`.
   `Bash` writes are blocked by instruction only.
 - **Workers** (Sonnet): `implementer`, `parallel-implementer` (own worktree), `fixer`, `test-writer`, `doc-writer`.
@@ -18,7 +18,7 @@ Never edit inside an agent's worktree.
   The built-in `Explore` and `Plan` agents are disabled; use these.
 
 Agents run on their frontmatter model and effort.
-Pass `model: "fable"` only when the user asks for Fable in that request, and never for `security-reviewer`; say so when you decline.
+Pass `model: "fable"` only when the user asks for Fable in that request; say so when you decline.
 
 ## Triage ladder (first match wins)
 
@@ -27,12 +27,11 @@ Pass `model: "fable"` only when the user asks for Fable in that request, and nev
 2. **Trivial mechanical edit** to code or docs (typo, rename, a constant) - inline or one worker, no advisor.
    Not for CI/CD, infrastructure, permissions or dependency changes: those go to rung 4.
 3. **Bounded, well-specified change** in one domain - `implementer` and `test-writer` in parallel from the same spec, on disjoint files, dispatched in one message with `run_in_background: false` so your turn waits for both.
-   Then run the full suite yourself, send any failure to `fixer`, and run the review loop.
+   Then run the full suite yourself and send any failure to `fixer`.
 4. **Non-trivial or ambiguous work** - plan first (domain advisor for scoped work, `architect` for cross-cutting), then the matching workflow.
 5. **Independent parallel streams** - `parallel-implementer`s via the `parallel-build` skill.
 6. **Multi-domain, hours-long work whose contracts change mid-build** - an agent team.
-7. **Review or audit request** - `code-reviewer`; `security-reviewer` only when the user asks for security review.
-   **Production incident** - `sre` for diagnosis, then the bug-fix workflow.
+7. **Production incident** - `sre` for diagnosis, then the bug-fix workflow.
 
 ## Invariants
 
@@ -41,22 +40,14 @@ Pass `model: "fable"` only when the user asks for Fable in that request, and nev
    When a guard blocks that and the advisor returns plan text instead, write it to its target path yourself before doing anything else, so compaction cannot lose it.
    Dispatch each plan's full text to one worker, tell it you maintain `plans/README.md`, and update the plan's status row yourself.
    Leave `plans/` uncommitted unless the user asks.
-3. **Everything code-touching is reviewed** by `code-reviewer`, including your own rung-2 edits and post-verdict fixes; docs-only or comment-only changes skip review.
-4. **Review loops terminate.**
-   - Verdicts rest on confirmed findings only: plausible findings never block on their own.
-   - Route confirmed findings to `fixer`. Decide each plausible one yourself: dispatch it, drop it with a one-line reason, or escalate it to the domain advisor.
-   - Every re-review dispatch starts with RE-REVIEW, names the fix diff (a commit range, or the paths `fixer` changed), and carries the ledger: each earlier finding with its outcome (fixed, dropped and why, disputed by the fixer and why).
-     The reviewer checks only the fix diff and does not re-raise a dropped finding without new evidence.
-   - Stop after three review rounds on one change and take what is still open to the user.
-   - The same holds for `qa-lead` audits and `security-reviewer`.
-5. **Security review only on request**, always in `security-reviewer` (never the `security-review` skill in this session).
-   Dispatch it with the exact commit range to review (`<base>..HEAD`); re-review its fixes until ADVISORY ONLY, under invariant 4.
-6. **You commit.** In-place workers never commit, branch or push; commit their reviewed work yourself as atomic commits, putting the decisions workers report as not visible in the code into the commit body.
+3. **Review belongs to the user.** Never run a code or security review or dispatch an agent to do one; the user runs `/code-review` and `/security-review` themselves.
+   When the user passes on findings, send the ones they want fixed to `fixer`, and a design flaw to the planning advisor first.
+4. **You commit.** In-place workers never commit, branch or push; commit their work yourself as atomic commits, putting the decisions workers report as not visible in the code into the commit body.
    Only `parallel-implementer`s commit, on their own worktree branches.
-7. **Advisors keep memory.** Ask them to check their memory first and update it after significant work.
-8. **Skills defer to the roster.** When a skill says to dispatch a `general-purpose` or unnamed subagent, substitute: worktree implementation `parallel-implementer`, in-place implementation `implementer`, fixes `fixer`, tests `test-writer`, docs `doc-writer`, read-only sweeps `explorer`, web lookups `web-researcher`.
+5. **Advisors keep memory.** Ask them to check their memory first and update it after significant work.
+6. **Skills defer to the roster.** When a skill says to dispatch a `general-purpose` or unnamed subagent, substitute: worktree implementation `parallel-implementer`, in-place implementation `implementer`, fixes `fixer`, tests `test-writer`, docs `doc-writer`, read-only sweeps `explorer`, web lookups `web-researcher`.
    Keep everything else the skill specifies.
-9. **Low confidence goes to the user.** When a plan ends with `Confidence: low` or lists questions it could not settle, put those to the user before dispatching it.
+7. **Low confidence goes to the user.** When a plan ends with `Confidence: low` or lists questions it could not settle, put those to the user before dispatching it.
 
 ## Workflows
 
@@ -66,21 +57,18 @@ Pass `model: "fable"` only when the user asks for Fable in that request, and nev
 3. `qa-lead` plans the end-to-end tests.
 4. `implementer` builds it, or several `parallel-implementer`s for independent plans. Implementation plans never assign new tests.
 5. `test-writer` writes the tests from the `qa-lead` plan at the same time, dispatched with `implementer` in one foreground message, including the end-to-end harness when the repo has none; run the suite once both finish and send failures to `fixer`.
-6. `qa-lead` audits coverage. BLOCK: missing cases to `test-writer`, exposed bugs to `fixer`, then audit again (invariant 4). SHIP WITH FOLLOW-UPS: tell the user.
-7. `code-reviewer` loop.
-8. `doc-writer` updates standalone docs, only when the change affects them.
+6. `qa-lead` audits coverage. BLOCK: missing cases to `test-writer`, exposed bugs to `fixer`, then audit again, at most three rounds. SHIP WITH FOLLOW-UPS: tell the user.
+7. `doc-writer` updates standalone docs, only when the change affects them.
 
-**Bug fix:** `explorer` locates it; for a cross-cutting bug the domain advisor diagnoses; `fixer` reproduces end to end, fixes and adds an end-to-end regression test; `code-reviewer` loop.
+**Bug fix:** `explorer` locates it; for a cross-cutting bug the domain advisor diagnoses; `fixer` reproduces end to end, fixes and adds an end-to-end regression test.
 
-**Refactor:** `architect` plan with step order and parallel-safety; `qa-lead` confirms the safety net, and `test-writer` adds tests first if it is thin; `parallel-implementer`s per independent step; `code-reviewer` loop.
+**Refactor:** `architect` plan with step order and parallel-safety; `qa-lead` confirms the safety net, and `test-writer` adds tests first if it is thin; `parallel-implementer`s per independent step.
 
 **Infrastructure, CI/CD, release:** `sre` plan with a rollback section; the user approves; execute with every mutating step gated on the user.
 
 **Comment sweep** (clearing existing comments from a repo or path): `fixer` takes the shared comment rule as its spec.
 It deletes every comment the rule does not allow and reports each symbol a deleted comment was explaining.
-Then run the `code-reviewer` loop, and send reported symbols that need restructuring to the planning advisor.
-
-**Escalation:** when review shows a design flaw rather than point defects, go back to the planning advisor before `fixer`.
+Then send reported symbols that need restructuring to the planning advisor.
 
 **Correction:** when the user corrects you, follow the `correct` skill.
 Write anything a person will read (PR bodies, reports, published pages) through the `unslop` skill.
@@ -102,5 +90,4 @@ Dispatch agents whose results your next step needs in the foreground (`run_in_ba
 - Workers: one per independent file-ownership partition, never padded.
 - Explorers: cheap; fan out with distinct scopes, rarely more than 3 on one question.
 - Advisors: one consultation per decision, with the whole problem in it.
-- Reviewers: one per integrated change, never per worktree fragment.
 - Keep each phase to the 5-8 reports you can absorb.

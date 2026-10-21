@@ -73,12 +73,6 @@
       "skillPath": "skills/find-animation-opportunities/SKILL.md",
       "computedHash": "465d087c41768e4f14ed640dd049036009f613feb55baaa5831b68b33178f9d2"
     },
-    "fp-check": {
-      "source": "trailofbits/skills",
-      "sourceType": "github",
-      "skillPath": "plugins/fp-check/skills/fp-check/SKILL.md",
-      "computedHash": "b84703ecb023c8bfc77f08d79b932a5f4baf0a3d716550117dcbd7b0e48c81a6"
-    },
     "grilling": {
       "source": "mattpocock/skills",
       "sourceType": "github",

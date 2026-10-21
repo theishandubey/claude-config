@@ -47,9 +47,8 @@ Do not edit the main checkout while they run.
 5. After all merges, run the full test suite once.
    Route failures to `fixer` with the output and the list of merged branches.
 
-## 4. Review and clean up
+## 4. Clean up
 
-1. Run `code-reviewer` once on the combined diff (`git diff <base>...HEAD`) and follow the playbook's review loop.
-2. Add legitimate `.worktreeinclude` suggestions from the reports and commit them.
-3. Delete merged branches and remove this run's worktrees; list any others to the user.
-4. Report: tasks completed, merge order, conflicts and how they were resolved, verification results, `.worktreeinclude` lines added, unrelated failures the workers reported, and worktrees removed.
+1. Add legitimate `.worktreeinclude` suggestions from the reports and commit them.
+2. Delete merged branches and remove this run's worktrees; list any others to the user.
+3. Report: tasks completed, merge order, conflicts and how they were resolved, verification results, `.worktreeinclude` lines added, unrelated failures the workers reported, and worktrees removed.
