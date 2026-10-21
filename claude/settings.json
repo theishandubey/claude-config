@@ -13,12 +13,13 @@
     "sessionUrl": false
   },
   "permissions": {
+    "defaultMode": "bypassPermissions",
     "allow": [
+      "Read(*)",
       "Edit(.claude/agent-memory/**)",
       "Edit(.claude/agent-memory-local/**)",
       "Edit(plans/*.md)",
       "Edit(advisor-plans/*.md)",
-      "Read(*)",
       "Bash(mkdir:*)",
       "Bash(node:*)",
       "Bash(npm run:*)",
@@ -27,6 +28,7 @@
       "Bash(pnpm:*)",
       "Bash(yarn:*)",
       "Bash(python:*)",
+      "Bash(python3:*)",
       "Bash(pytest:*)",
       "Bash(pip install:*)",
       "Bash(cargo:*)",
@@ -39,21 +41,29 @@
       "Bash(git worktree:*)"
     ],
     "deny": [
-      "Bash(git push --force:*)",
-      "Bash(git push -f:*)",
-      "Bash(git reset --hard:*)",
-      "Bash(rm -rf:*)"
-    ],
-    "defaultMode": "bypassPermissions"
+      "Agent(Explore)",
+      "Agent(Plan)"
+    ]
   },
   "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$HOME/.claude/hooks/session-start.py\""
+          }
+        ]
+      }
+    ],
     "PreToolUse": [
       {
         "matcher": "Bash",
         "hooks": [
           {
             "type": "command",
-            "command": "f=\"$HOME/.claude/hooks/bash-guard.sh\"; [ -x \"$f\" ] || exit 0; exec \"$f\""
+            "command": "python3 \"$HOME/.claude/hooks/bash-guard.py\"",
+            "onFailure": "block"
           }
         ]
       }
@@ -62,9 +72,9 @@
   "worktree": {
     "baseRef": "head"
   },
+  "model": "opus",
   "switchModelsOnFlag": false,
   "teammateMode": "auto",
-  "model": "opus",
   "plansDirectory": "./plans/mode",
   "enabledPlugins": {
     "meter@claude-mods": true,

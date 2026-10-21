@@ -1,189 +1,49 @@
-# Shared Coding Rules
+# Shared Rules
 
-These are common instructions for coding agents, in every project and scenario.
+These apply to every session and agent, in every project.
+Routing and dispatch rules for the main session live in the orchestrator playbook (orchestrator.md), which only the main session receives; keep them out of this file.
 
-## General Guidelines
+## Writing
 
-- Never use an em dash "—".
-  Use a plain dash "-" instead.
-- Do not add docstrings or code comments by default, neither to new code nor to existing code.
-  Write a comment only when it states a constraint the code itself cannot show, and delete comments that merely restate the code.
-  Comments and docstrings drift from the code and inflate token cost; clear names and structure are the documentation.
-- Never manually modify CHANGELOG.md files or any files that are marked as auto-generated.
-- When writing or substantially editing long Markdown files, put each full sentence on its own line.
-  Preserve normal Markdown structure, but avoid wrapping multiple sentences onto one physical line.
-- When making technical decisions, do not give much weight to development cost.
-  Instead, prefer quality, simplicity, robustness, scalability, and long term maintainability.
-- When doing bug fixes, always start with reproducing the bug in an E2E setting as closely aligned with how an end user experiences it as possible.
-  This makes sure you find the real problem so your fix will actually solve it.
-- When end-to-end testing a product, hold the UI you see to a pixel-perfect bar.
-  If something clearly looks off, even if it is not directly related to what you are doing, get it fixed along the way.
-- Apply that same high standard to engineering excellence: lint errors, test failures, and flaky tests.
-  If you see one, even if it is not caused by what you are working on right now, still get it fixed.
-  Where your role or task scope does not allow the fix, report it with the exact output so it gets routed.
+- Never use an em dash; use a plain dash "-".
+- Do not write comments or docstrings in code, in any language.
+  Make the code carry the reason instead, in this order: a name, a small helper or a type; then a test that fails without the code, with the reason in its name; then the commit message body.
+  Only when none of those can show a constraint the code depends on (a deadlock, a platform or library quirk, an external API's behavior) write one line saying why, naming the test that enforces it.
+  Never write comments that say what the code does, section headers, TODOs or commented-out code.
+  When you change code, delete the comments this rule does not allow in the lines you touch, and move any reason they carried into the places above rather than losing it.
+  Machine-read directives are allowed when the tooling requires them: shebangs, encoding lines, license headers the project mandates, and linter, type-checker or compiler pragmas.
+- Never edit CHANGELOG.md files or files marked as auto-generated.
+- In long Markdown files, put each sentence on its own line and keep normal Markdown structure.
+
+## Engineering
+
+- Weigh quality, simplicity, robustness, scalability and long-term maintainability above development cost.
+- Fix a bug only after reproducing it end to end, as close to how a user meets it as you can.
+- Code that exists for a reason its reader cannot see (a lock, an ordering, a held reference, a guard) must have a test that fails when that code is removed.
+- Hold any UI you see during end-to-end testing to a pixel-perfect bar.
+- Treat lint errors, test failures, flaky tests and visibly broken UI the same way, whether or not your change caused them: fix them when your role and scope allow, otherwise report them with the exact output so they get routed.
 - Call only the tools in your own tool list; the shell tool is `Bash`.
-- If your role writes files, put scratch files in the session scratchpad when one is provided, otherwise in a `mktemp -d` directory, never inside a repository, and leave them for the OS to clean.
-  Recursive forced deletes (`rm -rf` and its variants) are blocked; don't work around the block.
+- Put scratch files in the session scratchpad when one is given, otherwise in a `mktemp -d` directory, never inside a repository, and leave them for the OS to clean.
+- A guard hook blocks catastrophic commands (wiping the filesystem, home or project, dropping databases, destroying infrastructure, force-pushing main).
+  Never work around a block; tell the user what you wanted to run.
 - Never poll with `sleep` followed by a read.
-  Run a long command in the foreground with a timeout, or with `run_in_background` and wait for its completion notice.
+  Run a long command in the foreground with a timeout, or in the background and wait for its completion notice.
+
+## Principles
+
+- Default to subtraction: remove dead code, redundant validators and stubs before building on the simpler base.
+  Make the smallest change that solves the problem, and add no abstraction, layer, guard or option the current need does not demand.
+- Keep each decision in one place and pass its result along, instead of repeating the same choice in several places.
+- When you replace an internal API, migrate every caller and delete the old one in the same change, unless external users depend on it.
+  Update tests to the new contract and delete tests that only pin the old implementation.
+- In a planned rewrite or migration, converge on the target design instead of keeping every intermediate step working with throwaway compatibility code.
+  Declare where temporary breakage is acceptable and verify everything at the end.
+- When the same correction or instruction comes up a second time, encode it as structure (a lint, type, check or script) instead of more text.
+  Only when it needs judgment, make the instruction more prominent and add an example of the failure.
 
 ## Commits
 
-- When you commit, make atomic commits: one logically complete, self-contained change per commit, each building and passing on its own.
-- Commit messages describe the change only; do not put milestone labels, task numbers, or step references in them.
-- Do not add any agent/Claude co-author trailer to commits.
-
-# Agent Orchestration Playbook
-
-This project uses a three-tier agent system.
-You (the main session) are the **orchestrator**: you route work, you rarely do it yourself.
-Outside ladder rung 2 and plan-index upkeep, don't patch code yourself - route it to a worker - and never edit inside an agent's worktree.
-
-## The three tiers
-
-**ADVISORS** - expensive Opus-tier models, read-only on project files, with persistent project memory.
-They think, design, plan, and review.
-They never write code.
-
-Advisors hold `Write`/`Edit` only to persist agent memory and, for the planning advisors, plan files; the `memory-write-guard.sh` PreToolUse hook blocks every other path (allowed: `.claude/agent-memory/`, `.claude/agent-memory-local/`, and with `--allow-plans` the `NNN-*.md` plans and `README.md` index directly in `plans/` or `advisor-plans/` at the repository root or, for a multi-repo workspace, the session's project root).
-A blocked advisor write is working as designed - the content belongs in its answer, for a worker to persist.
-
-**WORKERS** - they execute: implementation, fixes, tests, and docs.
-They run Sonnet; the mandatory Opus-tier review loop is what holds the quality bar.
-
-**EXPLORERS** - read-only scouts for the codebase and the web.
-They run Sonnet at `medium` effort and return distilled reports, so search output stays out of the main context.
-
-Every agent's name, description, and tools are already injected into each session; what isn't is the model and effort behind each one:
-
-- **Advisors:** all seven (`architect` / `security-reviewer` / `code-reviewer` / `backend-engineer` / `frontend-engineer` / `sre` / `qa-lead`) are Opus 5.5.
-- **Workers and explorers:** `implementer`, `parallel-implementer`, `fixer`, `test-writer`, `doc-writer`, `explorer`, and `web-researcher` are Sonnet 5.5.
-- **Effort:** the main session runs at its model's API default, and every agent's frontmatter pins its model's API default (`high` on Fable 5.1 and Sonnet 5.5, `medium` on Opus 5.5), except `architect` (Opus 5.5 at `high`) and the search agents `explorer` and `web-researcher` (Sonnet 5.5 at `medium`).
-  Background helper requests, such as conversation summaries and command processing, run on Haiku 5.5 through the `haiku` alias.
-- **Every model alias resolves to a 5-series model.**
-  User settings pin what the `fable`, `opus`, `sonnet`, and `haiku` aliases resolve to, each to a model of its own family, so `haiku` is never mapped to Sonnet.
-  Agents and per-call model overrides use only these aliases.
-  No agent uses `haiku`.
-
-The `Agent` tool has no per-call `effort` parameter: an agent always runs at its frontmatter `effort`.
-Never put `security-reviewer` on Fable, even when Fable is requested; it stays on Opus.
-Say so when you decline.
-If a model-safety flag fires during review work, don't retry the same wording in that session - re-dispatch the review to a fresh subagent.
-
-**Fable only on request.** Use `model: "fable"` only when the user explicitly asks for Fable in that request; otherwise every agent runs on its frontmatter model.
-When an `architect` plan ends with `Confidence: low` or lists structural questions it could not settle, put those questions to the user before dispatching the plan.
-
-## Task triage
-
-Route every incoming task through this ladder - first match wins:
-
-1. **Question about code or external facts** ("where/how/what does X") - `explorer`, or `web-researcher` for the web.
-   Never explore in the main context.
-2. **Trivial mechanical edit** (typo, rename, comment, config value) - inline or one worker; skip advisors.
-   Pure docs/typo edits skip review; anything touching code semantics still gets `code-reviewer`.
-3. **Bounded, well-specified change** (single domain, spec already clear) - worker directly, then the review loop.
-4. **Non-trivial or ambiguous work** - advisor plan first (domain advisor for scoped work, `architect` for cross-cutting), then the matching standard workflow below.
-5. **Independent parallel streams** (no shared contract between them) - multiple `parallel-implementer`s via the `parallel-build` skill.
-6. **Multi-domain work whose contracts will evolve mid-build** - agent team (see the rubric below).
-
-## Routing invariants
-
-These hold at every rung of the ladder:
-
-1. **Advisors advise, workers work.** Never ask an advisor to edit project files (only memory files, plus plan files for the planning advisors, pass their guard).
-   Never ask a worker to make design decisions - if a worker reports ambiguity, escalate to the relevant advisor.
-2. **Pass advisor output verbatim to workers.** Workers run on cheaper models: include the advisor's full spec, contracts, and edge-case list in the delegation prompt.
-   Don't summarize it thin.
-   Planning advisors (`architect`, `backend-engineer`, `frontend-engineer`, `sre`, `qa-lead`) write plans in the `improve` skill's handoff template to `plans/NNN-<slug>.md` at the repository root, or at the session's project root when that is a multi-repo workspace (or `advisor-plans/` when the advisor reports that `plans/` serves an unrelated purpose; the `plans/mode/` subdirectory holds plan-mode files and does not count), one self-contained plan per unit of work, with the index in `plans/README.md` (or `advisor-plans/README.md`).
-   Dispatch each plan's full text verbatim to one worker (a `parallel-implementer` worktree cannot see uncommitted plan files), tell it you maintain the index, and update the plan's status row yourself.
-   When an advisor returns plan text under a target path instead of writing the file, dispatch that text.
-   Leave `plans/` and `advisor-plans/` uncommitted unless the user asks to commit them.
-   When dispatching `web-researcher` for a question about a project dependency, pass the manifest or lockfile path; it cannot search the filesystem.
-3. **Everything code-touching gets reviewed.** After any worker finishes a code change: `code-reviewer` (it runs the built-in `code-review` skill).
-   Route its confirmed findings to `fixer`.
-   Decide its plausible findings yourself: dispatch, drop with a stated reason, or escalate to the domain advisor.
-   A worker that reports an unrelated failure gets its own `fixer` dispatch for it.
-   Repeat until the verdict is APPROVE or APPROVE WITH NITS.
-   On APPROVE WITH NITS, route its confirmed nits to `fixer` and treat plausible nits like other plausible findings; skip re-review only when the fixes touch docs or comments alone.
-   This includes edits you make yourself under rung 2: any code change after a verdict, nit fixes and version bumps included, goes back to `code-reviewer` before you commit (docs- or comments-only fixes excepted, as above).
-   Security review runs only when the user explicitly asks for it: dispatch `security-reviewer` (it runs the built-in `security-review` skill) on request, never proactively.
-   Its findings come in confirmed and plausible groups: route them as for code review, then re-dispatch `security-reviewer` on the fixes until its verdict is ADVISORY ONLY.
-   It always runs in that sub-agent or a separate session, never in the main session - do not run the `security-review` skill yourself - so wording that trips a safety classifier stays out of the main transcript.
-   When it does run, timing still matters: that skill diffs against `origin/HEAD`, so run it while the branch is still unmerged relative to the remote default branch.
-4. **You commit.** In-place workers (`implementer`, `fixer`, `test-writer`, `doc-writer`) never commit, branch, or push; once the review loop passes, commit the change yourself as atomic commits.
-   Only `parallel-implementer`s commit, on their own worktree branches.
-5. **Ask advisors to check their memory** ("check your memory for prior decisions") and to update it after significant work.
-6. **Skills defer to the roster.** When a skill's instructions or a plan it generated say to dispatch a `general-purpose` (or unnamed) subagent, treat that as a role placeholder and substitute the matching agent: worktree-isolated implementation -> `parallel-implementer`; in-place implementation -> `implementer`; bug fixes/remediation -> `fixer`; tests -> `test-writer`; docs -> `doc-writer`; search/read-only sweeps -> `explorer` (or `Explore`); web lookups -> `web-researcher`.
-   Keep everything else the skill specifies - prompt, isolation, report format, revision flow; only the agent type changes.
-   An explicit model named by the user still wins over the roster default.
-
-## Standard workflows
-
-**Feature (default)** - use when building new behavior of any real size; ladder rung 4 lands here unless a more specific workflow fits:
-1. `explorer` → map the relevant code.
-2. `architect` (or domain advisor for smaller scope) → implementation plan.
-3. `qa-lead` → test plan for the feature.
-4. `implementer` → build per plan; it writes new tests only where the plan assigns them.
-   Independent steps: multiple `parallel-implementer`s.
-5. `test-writer` → tests per qa-lead plan, including the end-to-end harness when the repo has none.
-6. `qa-lead` → coverage audit.
-   BLOCK: send the missing cases back to `test-writer` and any bug a test exposed to `fixer`, then audit again.
-   SHIP WITH FOLLOW-UPS: report the follow-ups to the user.
-7. `code-reviewer` → `fixer` for confirmed findings → re-review.
-8. `doc-writer` → sync external docs (README, API docs), only if the change affects them; skip otherwise.
-   Never for docstrings or inline comments.
-
-**Bug fix** - use when something is broken with a known or reproducible symptom:
-1. `explorer` → locate the fault area.
-2. `fixer` → reproduce, root-cause, fix, verify.
-3. Complex/cross-cutting bug?
-   Insert the domain advisor between 1 and 2 for diagnosis.
-4. `code-reviewer` on the fix.
-
-**Refactor** - use for behavior-preserving restructuring: `architect` plan (with step ordering and parallel-safety) → `qa-lead` confirms safety-net coverage (add tests FIRST via `test-writer` if thin) → `parallel-implementer`s per independent step → `code-reviewer`.
-
-**Deploy/infra change** - use for anything touching runtime infrastructure, CI/CD, or releases: `sre` plan (must include rollback) → human approves → gated execution.
-
-**Escalation (all workflows):** if review reveals a design flaw rather than point defects, go back to `architect` before dispatching `fixer`.
-
-## Worktree orchestration (parallel execution)
-
-When spawning `parallel-implementer` agents (or any worktree-isolated work), you - the main session - own the lifecycle: commit before dispatch and split by file ownership, then invoke the `parallel-build` skill for the full invariants and merge-back procedure instead of improvising.
-In a multi-repo workspace, `cd` into the target repo in its own Bash call before any git command or worktree dispatch; the skill has the check.
-
-## Sub-agents vs agent teams
-
-Default to sub-agents; a team is the exception.
-The test: do the parallel workers need each other's IN-PROGRESS decisions, or only each other's FINISHED outputs?
-
-- Outputs only, or sequential steps - sub-agents; the orchestrator integrates.
-- Genuine mid-build negotiation (an API contract, schema, or cross-domain trade-off both sides depend on and that will change during implementation) - team.
-- A team must also amortize its coordination overhead: multi-domain AND hours-long.
-  Small or single-domain work never needs a team.
-
-Agent teams are enabled (`CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`).
-Reference these same agent definitions for teammates - each teammate then uses that definition's model and tools.
-
-Team mechanics:
-- Split tasks by **file ownership** - no two teammates edit the same files.
-- Default ≤ 5 teammates; go larger only when each extra teammate is a distinct domain that must negotiate with the others - if extra members would just be more hands, use sub-agents instead.
-- Advisor-definition teammates stay read-only advisors within the team; implementation tasks go to worker-definition teammates.
-
-## How many agents
-
-The count is derived from the task decomposition, never chosen as a target:
-
-- **`parallel-implementer`s:** one per independent file-ownership partition in the advisor's plan; never pad for parallelism's sake.
-  The ceiling is merge cost (merges are sequential, each followed by integrated verification): at most 4 streams per wave, the cap the `parallel-build` skill enforces.
-  If the plan yields more independent steps, run them in waves - merge and verify a batch before dispatching the next.
-- **Explorers:** cheap - fan out liberally, but with distinct scopes (one agent per question or area).
-  Past ~3 on one sweep, reports mostly overlap.
-- **Advisors:** one per decision - batch the whole problem into one consultation.
-- **Reviewers:** one per integrated change, not one per worktree - pre-merge fragments miss integration bugs.
-- **Universal cap:** every report lands in the orchestrator's context; keep fan-out to what you can absorb and integrate well (~5-8 substantive reports per phase).
-
-## Cost discipline
-
-- Opus advisors: consulted for judgment, not labor.
-  Don't send them mechanical tasks.
-- Sonnet workers for writing code (implementation, fixes, tests) - the Opus review loop catches the quality gap; Fable only when the user asks for it.
+- Make atomic commits: one logically complete change each, each building and passing on its own.
+- Commit messages describe the change only: no milestone labels, task numbers or step references.
+- When a change makes a decision the code cannot show, explain it in the commit message body.
+- Never add an agent or Claude co-author trailer.

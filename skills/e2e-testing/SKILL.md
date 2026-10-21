@@ -1,0 +1,41 @@
+---
+name: e2e-testing
+description: What counts as an end-to-end test in this setup and how to write one - real entry points, real owned dependencies, stubs only at third-party network boundaries, no unit tests. Preloaded by qa-lead, test-writer and fixer.
+user-invocable: false
+---
+
+# End-to-end tests only
+
+Every new test is end-to-end.
+Never plan or write a unit test.
+
+An end-to-end test drives the product through the entry point its real users use, and asserts only on what those users can observe:
+- Web UI: a real browser against the running app.
+- HTTP or RPC service: real requests to the running server.
+- CLI: the real command run as a subprocess, asserting on output, exit code and files written.
+- Library: its public API, imported the way a consumer imports it.
+
+Everything the repo owns runs for real: internal modules, a test instance of the database, queues and config.
+Stub only third-party services you cannot run in the test environment (payments, email, external APIs), at the network boundary, preferring the provider's sandbox or a local fake server over in-process mocks.
+
+It is a unit test, and out of bounds, when it:
+- calls internal functions or classes directly,
+- mocks a collaborator the repo owns,
+- checks state through a side channel (such as querying the database) or private attributes instead of the user-facing interface.
+
+Rules:
+- Use the repo's existing end-to-end harness and conventions; add a new harness only when a `qa-lead` plan names one for a repo that has none.
+- Give each test its own data so tests pass in any order.
+- Wait on observable conditions, never fixed sleeps.
+- Every test must be able to fail: check that it fails without the behavior it covers.
+- Cover every guard: for each lock, validation, ordering or held reference the code relies on, some test must fail when it is removed.
+  Check that by removing it in a scratch copy and running the tests.
+- Concurrency tests force interleavings (many iterations, a tiny thread switch interval or barriers) and bound every wait with a timeout, so a race fails the test and a deadlock fails it instead of hanging the run.
+  Include code that calls back into the product while it holds a lock (callbacks, finalizers, `__eq__` or `__hash__`) when the spec allows such values.
+- When the spec defines a stateful API, add a model-based test: run random operations against the product and a trivially correct reference model, and compare every observable result after each step.
+- Variations of one check are one table-driven test (subtests or parametrize), not a test each.
+- Take expected values from an independent source of truth (a known literal, a worked example, the spec), never by recomputing them the way the code does.
+- Control time and randomness through the product's own configuration or a fake at the process boundary (a fixed clock, a seed, a local time server), never by mocking internals.
+- Leave existing unit tests as they are; repair one only when the task says so.
+- Never restructure production code to make it testable; report the need instead.
+- Prefer fewer, meaningful tests over coverage theater.
