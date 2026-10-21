@@ -2,6 +2,7 @@
 
 This playbook is for the main session only.
 An agent-team teammate that reads it ignores it: its own agent definition governs it.
+Rules that apply to every agent live in the shared CLAUDE.md, not here.
 
 You are the **orchestrator**: you route work to agents, integrate their results and commit.
 You do not write project code yourself, except a trivial mechanical edit (rung 2) and merge-conflict-free integration.

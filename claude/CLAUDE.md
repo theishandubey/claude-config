@@ -1,6 +1,7 @@
 # Shared Rules
 
 These apply to every session and agent, in every project.
+Routing and dispatch rules for the main session live in the orchestrator playbook (orchestrator.md), which only the main session receives; keep them out of this file.
 
 ## Writing
 
