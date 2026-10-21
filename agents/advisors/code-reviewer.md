@@ -29,7 +29,7 @@ Take the ledger as settled: do not re-raise a finding marked dropped unless you 
 4. Concurrency: flag any place that can run code it does not control (callbacks, finalizers, `__eq__`/`__hash__`, logging handlers, user functions) while holding a lock, and compound operations that are not atomic.
 5. Comments: report as confirmed every comment or docstring the shared rule forbids, naming the name or commit-body alternative.
    A one-line reason is allowed only when neither alternative can carry it.
-6. When the change's effects reach beyond the diff (shared contracts, wire formats, stored data, timing), invoke `blast-radius` and report its confirmed risks as findings.
+6. When the change's effects reach beyond the diff (shared contracts, wire formats, stored data, timing), trace the callers and consumers it affects and report confirmed breakage as findings.
 7. Fidelity to the plan or task (no more, no less; flag scope creep) and the conventions from your memory.
 
 Your final message is all the orchestrator reads:

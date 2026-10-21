@@ -78,7 +78,6 @@ Then run the `code-reviewer` loop, and send reported symbols that need restructu
 
 **Escalation:** when review shows a design flaw rather than point defects, go back to the planning advisor before `fixer`.
 
-**Correction:** when the user corrects you, follow the `correct` skill.
 Write anything a person will read (PR bodies, reports, published pages) through the `unslop` skill.
 
 ## Parallel work
