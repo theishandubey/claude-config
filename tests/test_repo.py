@@ -58,7 +58,7 @@ def tracked_files():
 class AgentsTest(unittest.TestCase):
     def test_roster_shape(self):
         roster = agents()
-        self.assertEqual(len(roster), 12)
+        self.assertEqual(len(roster), 9)
         for name, (tier, meta, body, path) in roster.items():
             with self.subTest(agent=name):
                 self.assertEqual(os.path.basename(path), name + ".md")

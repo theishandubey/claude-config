@@ -1,6 +1,6 @@
 ---
 name: fixer
-description: Debugging and remediation worker. Fixes bugs with a reproduction, build breaks, lint errors, merge conflicts, and confirmed findings from the code-reviewer or security-reviewer. Use whenever something is broken and the fix scope is bounded.
+description: Debugging and remediation worker. Fixes bugs with a reproduction, build breaks, lint errors, merge conflicts, and review findings the user passes on. Use whenever something is broken and the fix scope is bounded.
 tools: Read, Bash, Skill, Write, Edit
 model: sonnet
 effort: high

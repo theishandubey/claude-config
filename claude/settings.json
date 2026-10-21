@@ -41,7 +41,6 @@
       "Bash(git worktree:*)"
     ],
     "deny": [
-      "Agent(Explore)",
       "Agent(Plan)"
     ]
   },

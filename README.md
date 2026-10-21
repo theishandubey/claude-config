@@ -5,7 +5,7 @@ An installable Claude Code setup: a three-tier agent roster, the orchestrator pl
 
 ## What you get
 
-Twelve subagents in `agents/`:
+Nine subagents in `agents/`:
 
 | Agent | Tier | Model | Effort | Role |
 |---|---|---|---|---|
@@ -13,25 +13,22 @@ Twelve subagents in `agents/`:
 | `backend-engineer` | advisor | opus | medium | APIs, services, databases, queues, auth, data modeling |
 | `frontend-engineer` | advisor | opus | medium | Components, state, rendering performance, accessibility, motion |
 | `sre` | advisor | opus | medium | Infrastructure, CI/CD, observability, deployment safety, incidents |
-| `code-reviewer` | advisor | opus | medium | Reviews every code change before it lands |
-| `security-reviewer` | advisor | opus | medium | Security review, only when you ask for one |
 | `implementer` | worker | sonnet | high | Builds from a plan, in place |
 | `parallel-implementer` | worker | sonnet | high | Builds in its own git worktree, for parallel streams |
-| `fixer` | worker | sonnet | high | Bugs, build breaks, merge conflicts and review findings |
+| `fixer` | worker | sonnet | high | Bugs, build breaks, merge conflicts and review findings you pass on |
 | `doc-writer` | worker | sonnet | high | Standalone docs |
-| `explorer` | explorer | sonnet | medium | Read-only codebase search |
 | `web-researcher` | explorer | sonnet | medium | Read-only web research |
 
-Advisors plan and review and never edit project files.
+Advisors plan and never edit project files.
 Workers implement.
-Explorers search, and keep search output out of the main session.
+`web-researcher` searches the web; code search uses the built-in `Explore` agent, which runs on the main session's model.
 
 The main session is the orchestrator.
 Its playbook, `claude/orchestrator.md`, reaches only the main session: a `SessionStart` hook prints it, so subagents never pay for it.
-It routes each request through a triage ladder, sends every code change through `code-reviewer`, and commits the reviewed work itself.
-Review loops always end: verdicts rest on confirmed findings only, each re-review gets the ledger of earlier decisions, and after three rounds the open points go to you.
+It routes each request through a triage ladder and commits the work itself.
+Code and security review are yours: run `/code-review` and `/security-review` when you want them, and pass on the findings you want fixed.
 
-`claude/CLAUDE.md` holds the shared rules every session and agent follows (the two explorers skip it with `omitClaudeMd` and restate the one rule they need).
+`claude/CLAUDE.md` holds the shared rules every session and agent follows (`web-researcher` skips it with `omitClaudeMd` and restates the one rule it needs).
 
 Testing is paused: no agent plans, writes, runs or reviews tests, because end-to-end runs drove most of the token cost.
 Changes are verified with the project's build, type-checker or linter, or by running the changed command once.
@@ -115,7 +112,7 @@ Advisors' `Bash` is read-only by instruction only.
 
 Both guards fail closed: if a hook cannot run, the call is blocked.
 
-The settings also disable the built-in `Explore` and `Plan` agents, which run on the main session's model, so searches go to `explorer` and planning to the advisors.
+The settings also disable the built-in `Plan` agent, which runs on the main session's model, so planning goes to the advisors.
 
 ## Agent memory in worktrees
 
@@ -140,7 +137,7 @@ npx skills update -p -y
 Review the diff before committing an update: vendored skills run with full permissions.
 
 Vendored skills are committed unmodified first, and any adaptation to this setup lands as a separate commit on top, so an update is merged against a visible local diff rather than overwriting it.
-These are adapted locally: `verification-before-completion`, `receiving-code-review`, `diagnosing-bugs`, `fp-check`, `supabase-postgres-best-practices`, `vercel-react-best-practices`, and every skill vendored from poteto's pstack (the `principle-*` skills, `benchmark-checklist` and `unslop`).
+These are adapted locally: `verification-before-completion`, `receiving-code-review`, `diagnosing-bugs`, `supabase-postgres-best-practices`, `vercel-react-best-practices`, and every skill vendored from poteto's pstack (the `principle-*` skills, `benchmark-checklist` and `unslop`).
 
 | Agent | Preloaded vendored skills | Invoked on demand |
 |---|---|---|
@@ -148,8 +145,6 @@ These are adapted locally: `verification-before-completion`, `receiving-code-rev
 | `backend-engineer` | `supabase-postgres-best-practices` | `benchmark-checklist` |
 | `sre` | principle: fix-root-causes | `diagnosing-bugs`, `supabase-postgres-best-practices`, `benchmark-checklist` |
 | `frontend-engineer` | | design, motion and UI skills, `vercel-react-best-practices` |
-| `code-reviewer` | | `vercel-react-best-practices`, `supabase-postgres-best-practices` |
-| `security-reviewer` | `fp-check` | |
 | `fixer` | `verification-before-completion`, `diagnosing-bugs`, `receiving-code-review`, principle: fix-root-causes | |
 | `implementer`, `parallel-implementer` | `verification-before-completion` | |
 | `doc-writer` | `verification-before-completion`, `unslop` | |
