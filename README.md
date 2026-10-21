@@ -158,6 +158,34 @@ These are adapted locally: `verification-before-completion`, `receiving-code-rev
 
 The orchestrator follows `correct` when the user corrects it and writes prose for people through `unslop`.
 
+## Cleanup
+
+`scripts/cleanup.py` removes git worktrees and build caches that are safe to lose.
+It only reports what it would do unless you pass `--yes`:
+
+```bash
+scripts/cleanup.py --repo ~/code/app --caches ~/code
+```
+
+```bash
+scripts/cleanup.py --repo ~/code/app --caches ~/code --yes
+```
+
+A worktree is removed only when all of these hold:
+- it is unlocked, is not the one you run from, and contains no other worktree;
+- it has been idle for `--min-age` days (default 7);
+- it has no uncommitted or untracked changes, and its only ignored files are build caches, `node_modules`, `.venv`, `.DS_Store` or symlinks, so a local `.env` or database keeps it;
+- its HEAD and every commit in its HEAD reflog are merged into the base branch (`origin/HEAD`, then `main`, then `master`, or `--base`).
+
+Its branch is then deleted with `git branch -d`, which refuses unmerged work.
+Worktree records whose directory is gone are pruned once they are older than `--min-age`, unless one of them is on an unmounted volume.
+Idleness is read from the worktree directory and its git metadata, so a long session that only edits files in subdirectories can look idle; raise `--min-age` if you keep sessions open that long.
+Without `--repo` it cleans the repository you run it from.
+
+A build cache is a directory named `.next`, `.nuxt`, `.turbo`, `.parcel-cache`, `.svelte-kit`, `.vite`, `__pycache__`, `.pytest_cache`, `.mypy_cache` or `.ruff_cache`, or a `target` next to a `Cargo.toml`, found under a `--caches` path.
+It is removed only when it is inside a git repository, ignored by git, holds no tracked files and has been idle for `--min-age` days.
+`node_modules` is never touched.
+
 ## Development
 
 ```bash
