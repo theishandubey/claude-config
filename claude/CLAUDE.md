@@ -6,8 +6,10 @@ Routing and dispatch rules for the main session live in the orchestrator playboo
 ## Writing
 
 - Never use an em dash; use a plain dash "-".
-- Add no docstrings or code comments, to new or existing code, unless one states a constraint the code itself cannot show.
-  Delete comments that only restate the code.
+- Never write comments or docstrings in code, in any language, new or existing code, with no exceptions for explaining intent, constraints, TODOs, section headers or commented-out code.
+  Express what a comment would say through names, types, structure or a test instead.
+  When you change code, delete the comments in the lines you touch.
+  Only machine-read directives are allowed, and only when the tooling requires them: shebangs, encoding lines, license headers the project mandates, and linter, type-checker or compiler pragmas.
 - Never edit CHANGELOG.md files or files marked as auto-generated.
 - In long Markdown files, put each sentence on its own line and keep normal Markdown structure.
 
